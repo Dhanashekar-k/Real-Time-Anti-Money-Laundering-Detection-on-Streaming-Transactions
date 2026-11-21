@@ -30,10 +30,10 @@ aws ec2 describe-instance-types --filters Name=free-tier-eligible,Values=true \
 ## Step 1 — Guardrails (30 min, before any Terraform)
 
 1. **Sign-in:** enable MFA on the identity you signed up with (Google, GitHub or email). Use the CLI sign-in flow your new account offers instead of creating long-lived access keys. [Likely] The new experience supports keyless local authentication; prefer it.
-2. **Profile:** create a named CLI profile `stream-aml` pointing at the project's account, region `us-east-1`. Export `AWS_PROFILE=stream-aml` only while working on Phase 5.
+2. **Profile:** create a named CLI profile `stream-aml` pointing at the project's account, region `us-east-2` (changed from us-east-1, see D35). Export `AWS_PROFILE=stream-aml` only while working on Phase 5.
 3. **Budgets:** an actual-cost budget at $5 (early warning), $20 and $50, with email alerts. Budgets are allowed on the Free plan. The budgets warn you; the Free plan's credit limit is the hard stop.
 4. **Tagging:** Terraform `default_tags = { project = "stream-aml", owner = "shekar", ttl = "session" }`. Activate the `project` cost-allocation tag if your console offers it.
-5. **Region:** `us-east-1` for everything.
+5. **Region:** `us-east-2` for everything (changed from us-east-1, see D35).
 
 ---
 

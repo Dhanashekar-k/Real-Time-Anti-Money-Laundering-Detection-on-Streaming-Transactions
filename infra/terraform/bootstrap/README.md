@@ -6,7 +6,7 @@ of actual cost). Everything else in `infra/terraform/` stores its state in that 
 
 ## Run it (you, not Claude Code)
 
-1. Create the `stream-aml` AWS CLI profile (region `us-east-1`).
+1. Create the `stream-aml` AWS CLI profile (region `us-east-2`, see D35).
 2. `cp terraform.tfvars.example terraform.tfvars` and fill in `expected_account_id` and `alert_email`.
    The file is gitignored. The provider refuses to run against any other account ID.
 3. From the repo root, **in your own terminal**: `make cloud-bootstrap`. It shows the plan and asks

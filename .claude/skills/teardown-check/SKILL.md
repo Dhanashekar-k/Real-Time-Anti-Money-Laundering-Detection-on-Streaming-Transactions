@@ -5,9 +5,9 @@ disable-model-invocation: true
 allowed-tools: Bash(aws sts get-caller-identity *) Bash(aws eks list-clusters *) Bash(aws ec2 describe-instances *) Bash(aws ec2 describe-nat-gateways *) Bash(aws ec2 describe-volumes *) Bash(aws ec2 describe-addresses *) Bash(aws elbv2 describe-load-balancers *) Bash(aws elb describe-load-balancers *) Bash(aws glue get-job-runs *) Bash(aws glue list-sessions *) Bash(aws ecr describe-repositories *) Bash(aws s3api list-buckets *) Bash(aws resourcegroupstaggingapi get-resources *)
 ---
 
-Check for leftover billable resources in `us-east-1` for profile `stream-aml`. Read-only commands only. Never delete anything; if something is found, tell the user the exact resource and the `make cloud-down` (or console) step to remove it.
+Check for leftover billable resources in `us-east-2` for profile `stream-aml`. Read-only commands only. Never delete anything; if something is found, tell the user the exact resource and the `make cloud-down` (or console) step to remove it.
 
-Run (with `--region us-east-1 --profile stream-aml --output json`, use `--query` to keep output short):
+Run (with `--region us-east-2 --profile stream-aml --output json`, use `--query` to keep output short):
 1. `aws sts get-caller-identity` (confirm the account)
 2. `aws eks list-clusters`
 3. `aws ec2 describe-instances --filters Name=instance-state-name,Values=pending,running,stopping,stopped`

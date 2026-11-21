@@ -48,7 +48,7 @@
 4. **[CC] Topics.** `make topics` creates the topics in `02_architecture_and_stack.md` §3 (local partition counts), using `rpk topic create` with retention flags.
 5. **[CC] Iceberg catalog smoke test.** A 20-line PySpark script creates `lake.smoke.t1` in the JDBC catalog (Postgres `iceberg_catalog` DB, warehouse `file://$PWD/var/warehouse`), inserts 3 rows and reads them back. Then PyIceberg reads the same table, and DuckDB reads the Parquet files. This proves that the three engines see the same table.
 6. **[CC] CI.** GitHub Actions on push/PR: `uv sync`, `ruff check`, `pytest -m "not integration"`, `mvn -B -q verify` (path-filtered to `stream/flink-features/**`), and later `npm ci && npm run build` for `web/`.
-7. **[CC, you review] Terraform bootstrap** (`infra/terraform/bootstrap/`): an S3 bucket for Terraform state (versioning on, public access blocked), budgets ($5/$20/$50 with email alerts), and an outputs file printing the backend config. Every other Terraform root uses `backend "s3" { bucket=…, key=…, region="us-east-1", use_lockfile=true }`. Run it once yourself: `make cloud-bootstrap` (ask rule → you confirm).
+7. **[CC, you review] Terraform bootstrap** (`infra/terraform/bootstrap/`): an S3 bucket for Terraform state (versioning on, public access blocked), budgets ($5/$20/$50 with email alerts), and an outputs file printing the backend config. Every other Terraform root uses `backend "s3" { bucket=…, key=…, region="us-east-2", use_lockfile=true }`. Run it once yourself: `make cloud-bootstrap` (ask rule → you confirm).
 8. **[YOU] Review `CLAUDE.md`.** Read it end to end, adjust anything you disagree with, and commit it.
 
 ## Claude Code prompt (after `/milestone-start M00` produces a plan, or use directly)

@@ -130,6 +130,13 @@ Accepted (M0). The reviewer found that the `ask` rule for compose `down -v` in `
 - **Limits:** it also blocks a command that only mentions one of these strings (an echo, a commit message). A block cannot be approved per use: the user runs the command. The docs do not say whether hooks or permission rules apply to the user's own `!` commands, so this is not a guard on what the user types. Other deletions (`docker rm -v`, `rm -rf var/`) are not covered.
 - **Verified:** 61 cases against the real script under bash 3.2 (28 blocked, 25 allowed, plus the 8 existing-guard regressions), and the real hook blocked the compose `down -v` form on an empty scratch project. `make test`, `make itest` and `make test-rls` pass: hooks apply to Claude's Bash tool calls, not to subprocesses a test starts.
 
+## D35 — AWS region is us-east-2 (Ohio), not us-east-1
+Accepted (M0, the user's choice on 2026-11-21; the `stream-aml` CLI profile was created with region us-east-2). The manual said us-east-1 for everything.
+- **Changed:** the Terraform bootstrap `region` default, its README, `manual/03` Step 1 (lines 2 and 5), `manual/milestones/M00` step 7, and the `teardown-check` skill (it looks for leftovers in the project region, so it must follow it).
+- **Not changed:** `AWS_REGION` in `.env.example` and the user's `.env` still say us-east-1. The user updates them.
+- **Not verified yet:** that every Free-plan instance type the plan relies on (`t3.micro/small`, `t4g.micro/small`, `c7i-flex.large`, `m7i-flex.large`) is offered in us-east-2 and in the chosen availability zones, that Glue 5.1 and EKS are available there, and the EC2 vCPU quota for this region (the quota is per region, so D16's figure must be read for us-east-2). Check with `aws ec2 describe-instance-types --region us-east-2` before M9. IAM and Budgets are global, so the bootstrap is unaffected.
+- **Consequence:** the state bucket will be created in us-east-2. Any later move of region means a new bucket and a state migration.
+
 ## D-versions — Pinned versions
 Observed on 2026-11-21 during M0 (arm64 Mac, Docker Desktop engine 29.4.1). Python packages are exact in `uv.lock`; image tags are in `infra/compose/docker-compose.yml`. "TBD" = not installed or not checked yet, with the milestone that will.
 
