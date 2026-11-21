@@ -81,8 +81,8 @@ itest: ## integration tests (need `make up`)
 test-rls: ## tenant-isolation tests on a throwaway database (need `make up`)
 	uv run pytest -m integration tests/integration/test_contracts_db.py -k "rls or schema"
 
-topics: ## create Kafka topics (idempotent)
-	$(call stub,M00 step 5)
+topics: ## create Kafka topics (idempotent; fails on drift; needs `make up`)
+	@bash infra/compose/topics.sh
 
 # --------------------------------------------------------------------- later milestones
 iceberg eda split: ; $(call stub,M1)
