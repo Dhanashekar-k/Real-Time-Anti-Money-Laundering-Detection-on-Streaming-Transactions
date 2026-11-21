@@ -1,0 +1,30 @@
+{
+  "type": "record",
+  "name": "Score",
+  "namespace": "com.streamaml.avro",
+  "doc": "Model output for one transaction, produced by the scorer to tx.scores (key = tx_id). Candidates (score >= min bank threshold) carry features and SHAP top-k; others carry empty arrays.",
+  "fields": [
+    {"name": "tx_id", "type": "long"},
+    {"name": "bank_id", "type": "string"},
+    {"name": "event_ts_ms", "type": "long"},
+    {"name": "sender_key", "type": "string"},
+    {"name": "receiver_key", "type": "string"},
+    {"name": "amount_paid_usd_cents", "type": "long"},
+    {"name": "score", "type": "double"},
+    {"name": "model_name", "type": "string"},
+    {"name": "model_version", "type": "string"},
+    {"name": "spec_version", "type": "int"},
+    {"name": "is_candidate", "type": "boolean"},
+    {"name": "values", "type": {"type": "array", "items": ["null", "double"]}, "default": [], "doc": "Feature values (candidates only)"},
+    {"name": "top_contribs", "type": {"type": "array", "items": {
+      "type": "record", "name": "Contribution", "fields": [
+        {"name": "feature", "type": "string"},
+        {"name": "value", "type": ["null", "double"], "default": null},
+        {"name": "contribution", "type": "double"}
+      ]}}, "default": []},
+    {"name": "replay_emit_ts_ms", "type": ["null", "long"], "default": null},
+    {"name": "connector_ts_ms", "type": "long"},
+    {"name": "features_ts_ms", "type": "long"},
+    {"name": "scored_ts_ms", "type": "long"}
+  ]
+}

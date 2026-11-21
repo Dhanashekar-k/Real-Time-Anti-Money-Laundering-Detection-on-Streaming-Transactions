@@ -1,0 +1,28 @@
+{
+  "type": "record",
+  "name": "CanonicalTx",
+  "namespace": "com.streamaml.avro",
+  "doc": "One transaction in the canonical schema, produced by config-driven connectors to tx.canonical (key = sender_key). Never contains labels.",
+  "fields": [
+    {"name": "tx_id", "type": "long", "doc": "Bank transaction reference; equals the M1 global seq. Total order is (event_ts_ms, tx_id)."},
+    {"name": "bank_id", "type": "string", "doc": "Reporting customer: A, B, C"},
+    {"name": "event_ts_ms", "type": "long", "doc": "Event time, epoch millis UTC"},
+    {"name": "sender_bank", "type": "string"},
+    {"name": "sender_account", "type": "string"},
+    {"name": "sender_key", "type": "string", "doc": "<sender_bank>:<sender_account>"},
+    {"name": "receiver_bank", "type": "string"},
+    {"name": "receiver_account", "type": "string"},
+    {"name": "receiver_key", "type": "string", "doc": "<receiver_bank>:<receiver_account>"},
+    {"name": "payment_currency", "type": "string", "doc": "ISO-like code from spec vocabularies.currencies (validated by the connector)"},
+    {"name": "amount_paid_minor", "type": "long"},
+    {"name": "receiving_currency", "type": "string"},
+    {"name": "amount_received_minor", "type": "long"},
+    {"name": "amount_paid_usd_cents", "type": "long", "doc": "features/money.py, fx_version below"},
+    {"name": "amount_received_usd_cents", "type": "long"},
+    {"name": "payment_format", "type": "string", "doc": "From spec vocabularies.payment_formats"},
+    {"name": "fx_version", "type": "int"},
+    {"name": "mapping_version", "type": "string", "doc": "e.g. a-1, b-1; from the bank YAML"},
+    {"name": "replay_emit_ts_ms", "type": ["null", "long"], "default": null, "doc": "Wall clock when the replayer emitted the bank record (Kafka header copied by the connector)"},
+    {"name": "connector_ts_ms", "type": "long", "doc": "Wall clock when the connector produced this record"}
+  ]
+}

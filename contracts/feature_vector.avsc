@@ -1,0 +1,19 @@
+{
+  "type": "record",
+  "name": "FeatureVector",
+  "namespace": "com.streamaml.avro",
+  "doc": "Features for one transaction as of just before it, produced by the Flink job to tx.features (key = tx_id).",
+  "fields": [
+    {"name": "tx_id", "type": "long"},
+    {"name": "bank_id", "type": "string"},
+    {"name": "event_ts_ms", "type": "long"},
+    {"name": "sender_key", "type": "string"},
+    {"name": "receiver_key", "type": "string"},
+    {"name": "amount_paid_usd_cents", "type": "long"},
+    {"name": "spec_version", "type": "int"},
+    {"name": "values", "type": {"type": "array", "items": ["null", "double"]}, "doc": "Ordered exactly as features/feature_names_v<spec_version>.txt; null = missing"},
+    {"name": "replay_emit_ts_ms", "type": ["null", "long"], "default": null},
+    {"name": "connector_ts_ms", "type": "long"},
+    {"name": "features_ts_ms", "type": "long", "doc": "Wall clock when Flink emitted this record"}
+  ]
+}

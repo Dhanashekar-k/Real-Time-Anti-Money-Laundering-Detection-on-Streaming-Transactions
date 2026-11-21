@@ -1,0 +1,61 @@
+# Bank A: IBM AML CSV format with a leading transaction reference, no header in the stream.
+# Fields are processed in the order listed; later fields may reference earlier canonical fields.
+bank_id: A
+mapping_version: a-1
+source:
+  topic: bank_a.raw
+  format: csv
+  csv:
+    delimiter: ","
+    header: false
+    quotechar: '"'
+    columns: [txn_ref, timestamp, from_bank, from_account, to_bank, to_account,
+              amount_received, receiving_currency, amount_paid, payment_currency, payment_format]
+
+fields:
+  tx_id:              {from: txn_ref, type: long}
+  event_ts_ms:        {from: timestamp, parse: {timestamp_format: "%Y/%m/%d %H:%M", timezone: UTC}}
+  sender_bank:        {from: from_bank, type: string, trim: true}
+  sender_account:     {from: from_account, type: string, trim: true}
+  receiver_bank:      {from: to_bank, type: string, trim: true}
+  receiver_account:   {from: to_account, type: string, trim: true}
+  payment_currency:   {from: payment_currency, map: currency_names}
+  receiving_currency: {from: receiving_currency, map: currency_names}
+  amount_paid_minor:     {from: amount_paid, parse: {decimal_to_minor: {currency_from: payment_currency}}}
+  amount_received_minor: {from: amount_received, parse: {decimal_to_minor: {currency_from: receiving_currency}}}
+  payment_format:     {from: payment_format, map: format_names}
+
+derive: [sender_key, receiver_key, amount_paid_usd_cents, amount_received_usd_cents]
+
+validate:
+  required: [tx_id, event_ts_ms, sender_bank, sender_account, receiver_bank, receiver_account,
+             payment_currency, receiving_currency, amount_paid_minor, amount_received_minor, payment_format]
+  positive: [amount_paid_minor, amount_received_minor]
+  event_ts_range: ["2022-01-01T00:00:00Z", "2023-12-31T23:59:59Z"]
+
+value_maps:
+  # [Likely] IBM names; M1 EDA must confirm every distinct value appears here (unmapped -> DLQ).
+  currency_names:
+    "US Dollar": USD
+    "Euro": EUR
+    "UK Pound": GBP
+    "Swiss Franc": CHF
+    "Yen": JPY
+    "Yuan": CNY
+    "Rupee": INR
+    "Canadian Dollar": CAD
+    "Australian Dollar": AUD
+    "Mexican Peso": MXN
+    "Brazil Real": BRL
+    "Ruble": RUB
+    "Saudi Riyal": SAR
+    "Shekel": ILS
+    "Bitcoin": BTC
+  format_names:
+    "ACH": ACH
+    "Bitcoin": BITCOIN
+    "Cash": CASH
+    "Cheque": CHEQUE
+    "Credit Card": CREDIT_CARD
+    "Reinvestment": REINVESTMENT
+    "Wire": WIRE

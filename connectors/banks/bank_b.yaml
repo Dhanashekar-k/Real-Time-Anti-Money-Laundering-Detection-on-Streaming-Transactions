@@ -1,0 +1,39 @@
+# Bank B: JSON, its own field names, amounts already in minor units, epoch-millis timestamps,
+# ISO currency codes, its own payment-method vocabulary.
+bank_id: B
+mapping_version: b-1
+source:
+  topic: bank_b.raw
+  format: json
+
+fields:
+  tx_id:              {path: transactionId, type: long}
+  event_ts_ms:        {path: bookedAt, parse: {epoch: ms}}
+  sender_bank:        {path: originator.bankCode, type: string, trim: true}
+  sender_account:     {path: originator.accountNo, type: string, trim: true}
+  receiver_bank:      {path: beneficiary.bankCode, type: string, trim: true}
+  receiver_account:   {path: beneficiary.accountNo, type: string, trim: true}
+  payment_currency:   {path: debit.currency, type: string, upper: true}
+  receiving_currency: {path: credit.currency, type: string, upper: true}
+  amount_paid_minor:     {path: debit.amountMinor, type: long}
+  amount_received_minor: {path: credit.amountMinor, type: long}
+  payment_format:     {path: method, map: method_names}
+
+derive: [sender_key, receiver_key, amount_paid_usd_cents, amount_received_usd_cents]
+
+validate:
+  required: [tx_id, event_ts_ms, sender_bank, sender_account, receiver_bank, receiver_account,
+             payment_currency, receiving_currency, amount_paid_minor, amount_received_minor, payment_format]
+  allowed_currencies: spec   # features/spec.yaml vocabularies.currencies
+  positive: [amount_paid_minor, amount_received_minor]
+  event_ts_range: ["2022-01-01T00:00:00Z", "2023-12-31T23:59:59Z"]
+
+value_maps:
+  method_names:
+    ACH_TRANSFER: ACH
+    CRYPTO: BITCOIN
+    CASH_DEPOSIT: CASH
+    CHECK: CHEQUE
+    CARD: CREDIT_CARD
+    INTERNAL_REINVEST: REINVESTMENT
+    WIRE_TRANSFER: WIRE

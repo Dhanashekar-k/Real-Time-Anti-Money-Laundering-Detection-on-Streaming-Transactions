@@ -1,0 +1,41 @@
+# data and local state
+data/raw/
+data/landing/
+var/
+mlruns/
+*.parquet
+!tests/fixtures/**/*.parquet
+
+# secrets
+.env
+.env.*
+!.env.example
+
+# terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# java
+stream/flink-features/target/
+
+# node
+web/node_modules/
+web/dist/
+
+# misc
+.DS_Store
+*.log
+results/**/raw/
+.claude/settings.local.json

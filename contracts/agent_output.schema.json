@@ -1,0 +1,44 @@
+{
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "2-4 sentences for the analyst. No amounts and no counts in this text; put amounts only in findings[].amounts_usd."
+    },
+    "pattern_type": {
+      "type": "string",
+      "enum": ["FAN_OUT", "FAN_IN", "CYCLE", "GATHER_SCATTER", "SCATTER_GATHER", "STACK", "BIPARTITE", "RANDOM", "NONE_EVIDENT"],
+      "description": "Typology the evidence most resembles; NONE_EVIDENT if none is supported by the evidence."
+    },
+    "pattern_rationale": {
+      "type": "string",
+      "description": "Why this typology, referring to structure (who sends to whom, timing). No amounts."
+    },
+    "findings": {
+      "type": "array",
+      "description": "Each claim with the transactions that support it.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "statement": {"type": "string", "description": "One factual claim. No amounts or counts in text."},
+          "tx_ids": {"type": "array", "items": {"type": "integer"}, "description": "Transaction IDs from the evidence that support the statement."},
+          "accounts": {"type": "array", "items": {"type": "string"}, "description": "Account keys from the evidence involved in the statement."},
+          "amounts_usd": {"type": "array", "items": {"type": "number"}, "description": "USD amounts of cited transactions, exactly as in the evidence."}
+        },
+        "required": ["statement", "tx_ids", "accounts", "amounts_usd"],
+        "additionalProperties": false
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "What the analyst should check that the evidence cannot answer."
+    },
+    "evidence_limitations": {
+      "type": "string",
+      "description": "E.g. evidence truncated, window limited to 72h before the alert, accounts at other banks not visible."
+    }
+  },
+  "required": ["summary", "pattern_type", "pattern_rationale", "findings", "open_questions", "evidence_limitations"],
+  "additionalProperties": false
+}
