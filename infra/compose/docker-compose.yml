@@ -140,6 +140,8 @@ services:
   # -------------------------------------------------------------------- ml
   mlflow:
     # Official image + psycopg2 (the official image has no Postgres driver). See mlflow/Dockerfile.
+    # Built by the Makefile only when mlflow/Dockerfile changes (every rebuild gets a new image ID,
+    # and compose recreates the container whenever the ID changes).
     build: ./mlflow
     image: stream-aml/mlflow:v3.18.0
     profiles: [ml]
