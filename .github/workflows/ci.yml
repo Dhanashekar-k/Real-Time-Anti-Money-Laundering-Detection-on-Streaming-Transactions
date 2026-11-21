@@ -51,4 +51,19 @@ jobs:
           --profile core --profile stream --profile ml --profile orchestration --profile obs
           config --quiet
 
-  # Added when they exist: `web` (npm ci && npm run build, M7) and `terraform` (fmt + validate).
+  terraform:
+    # fmt + validate only. No AWS credentials, no plan, no apply: nothing here can touch an account.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.17.2"
+          terraform_wrapper: false
+      - name: Terraform fmt and validate
+        run: make tf-check
+
+  # Added when it exists: `web` (npm ci && npm run build, M7).

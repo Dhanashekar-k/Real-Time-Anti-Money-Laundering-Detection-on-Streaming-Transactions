@@ -17,6 +17,9 @@ mlruns/
 *.tfstate.*
 *.tfplan
 crash.log
+# real variable values (account id, alert email); commit only the .example
+terraform.tfvars
+*.auto.tfvars
 
 # python
 __pycache__/

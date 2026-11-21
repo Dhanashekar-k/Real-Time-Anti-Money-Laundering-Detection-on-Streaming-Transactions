@@ -13,7 +13,7 @@ stub = @echo "make $@: not implemented yet (added in $(1))" >&2; exit 1
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up up-all rebuild down ps logs nuke-local dirs bootstrap fmt lint test itest test-rls topics \
+.PHONY: help up up-all rebuild down ps logs nuke-local dirs bootstrap fmt lint tf-check test itest test-rls topics \
 	iceberg eda split golden features rules train eval replay connectors onboard-check \
 	flink-build flink-deploy flink-stop parity restart-test apps latency-matrix seed-thresholds \
 	agent agent-eval api ui retrain airflow chaos reconcile drift-experiment results demo \
@@ -64,13 +64,21 @@ bootstrap: ## uv sync (+ maven offline deps once the Flink module exists)
 	@if [ -f stream/flink-features/pom.xml ]; then mvn -B -q -f stream/flink-features/pom.xml dependency:go-offline; fi
 
 # ---------------------------------------------------------------------- quality
-fmt: ## format code
+fmt: ## format code (ruff, and terraform fmt when terraform is installed)
 	uv run ruff format .
 	uv run ruff check --fix .
+	@if command -v terraform >/dev/null; then terraform fmt -recursive infra/terraform; fi
 
 lint: ## ruff check + format check
 	uv run ruff check .
 	uv run ruff format --check .
+
+tf-check: ## terraform fmt -check + validate for every root (no AWS access needed)
+	terraform fmt -check -recursive infra/terraform
+	@for d in $$(find infra/terraform -name versions.tf -exec dirname {} \;); do \
+		echo "validate $$d"; \
+		terraform -chdir=$$d init -backend=false -input=false >/dev/null && terraform -chdir=$$d validate || exit 1; \
+	done
 
 test: ## unit and golden/leakage tests (no services needed)
 	uv run pytest -m "not integration"
@@ -97,5 +105,15 @@ results demo: ; $(call stub,M11)
 teardown-check: ; $(call stub,M9)
 
 # ------------------------------------------------- cloud-* (AWS; each one needs your approval)
-cloud-bootstrap: ; $(call stub,M00 step 8)
+TF_BOOTSTRAP := infra/terraform/bootstrap
+
+# Never -auto-approve (CLAUDE.md rule 5): terraform shows the plan and waits for you to type yes.
+#   - stdin must be a terminal, so `yes | make cloud-bootstrap` cannot answer for you
+#   - TF_CLI_ARGS* are scrubbed, so an environment variable cannot add -auto-approve
+cloud-bootstrap: ## [AWS] create the state bucket + budgets; asks you to type yes
+	@test -f $(TF_BOOTSTRAP)/terraform.tfvars || { echo "create $(TF_BOOTSTRAP)/terraform.tfvars from terraform.tfvars.example first" >&2; exit 2; }
+	@[ -t 0 ] || { echo "cloud-bootstrap needs an interactive terminal to type 'yes' (stdin is not a TTY): run it in your own terminal" >&2; exit 2; }
+	env -u TF_CLI_ARGS -u TF_CLI_ARGS_init terraform -chdir=$(TF_BOOTSTRAP) init -input=false
+	env -u TF_CLI_ARGS -u TF_CLI_ARGS_apply terraform -chdir=$(TF_BOOTSTRAP) apply
+
 cloud-up cloud-images cloud-deploy cloud-glue-run cloud-replay cloud-down: ; $(call stub,M9)
