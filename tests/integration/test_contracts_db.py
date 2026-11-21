@@ -98,6 +98,39 @@ def test_init_applied_schema_to_aml() -> None:
     assert EXPECTED_TABLES <= _public_tables("aml")
 
 
+def _security_snapshot(dbname: str) -> dict[str, list[tuple]]:
+    """Everything tenant isolation (rule 11) rests on: RLS flags, policies and grants."""
+    queries = {
+        "rls_flags": (
+            "SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class "
+            "WHERE relnamespace = 'public'::regnamespace AND relkind = 'r' ORDER BY 1"
+        ),
+        "policies": (
+            "SELECT tablename, policyname, cmd, roles::text, qual, with_check FROM pg_policies "
+            "WHERE schemaname = 'public' ORDER BY 1, 2"
+        ),
+        "grants": (
+            "SELECT grantee, table_name, privilege_type FROM information_schema.role_table_grants "
+            "WHERE table_schema = 'public' AND grantee IN ('aml_api', 'aml_service') "
+            "ORDER BY 1, 2, 3"
+        ),
+    }
+    with _connect(dbname) as conn:
+        return {name: conn.execute(q).fetchall() for name, q in queries.items()}
+
+
+def test_live_aml_security_matches_the_contract(throwaway_db: str) -> None:
+    """The init scripts run only on an empty volume, so a later edit to the contract never
+    reaches the running `aml` database. This catches that drift (policies, RLS flags, grants)."""
+    _apply(throwaway_db, "postgres_schema.sql")
+    fresh, live = _security_snapshot(throwaway_db), _security_snapshot("aml")
+    for part in fresh:
+        assert live[part] == fresh[part], (
+            f"live `aml` {part} differ from contracts/postgres_schema.sql: the database was "
+            "initialised from an older contract. Apply the change, or `make nuke-local && make up`."
+        )
+
+
 @pytest.mark.parametrize(
     ("role", "password", "bypass_rls"),
     [("aml_api", API_PW, False), ("aml_service", SERVICE_PW, True)],

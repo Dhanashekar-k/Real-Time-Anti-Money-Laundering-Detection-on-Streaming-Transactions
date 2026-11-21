@@ -5,6 +5,7 @@ absolute path (Iceberg metadata stores absolute paths). Needs `make up`.
 
 import glob
 import os
+import shutil
 import subprocess
 import sys
 from collections.abc import Iterator
@@ -54,6 +55,10 @@ def spark_rows() -> Iterator[list[tuple[int, str, int]]]:
     spark.sparkContext.setLogLevel("ERROR")
     try:
         spark.sql("DROP TABLE IF EXISTS lake.smoke.t1 PURGE")
+        # A run killed before its teardown, followed by a catalog reset, leaves orphan files that
+        # DuckDB's glob would read as extra rows. The table is gone from the catalog now, so
+        # anything still under its directory is stale.
+        shutil.rmtree(TABLE_DIR, ignore_errors=True)
         spark.sql("CREATE NAMESPACE IF NOT EXISTS lake.smoke")
         spark.sql(
             "CREATE TABLE lake.smoke.t1 (id BIGINT, name STRING, amount_cents BIGINT) USING iceberg"

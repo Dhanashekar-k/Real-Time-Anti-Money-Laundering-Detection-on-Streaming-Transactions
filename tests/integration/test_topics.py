@@ -4,7 +4,9 @@ EXPECTED is typed from the manual on purpose, not read from the script that crea
 so a mistake in that script cannot pass its own test.
 """
 
+import os
 import subprocess
+import uuid
 from pathlib import Path
 
 import pytest
@@ -49,9 +51,20 @@ def _snapshot(admin: AdminClient) -> dict[str, tuple[int, str]]:
     return out
 
 
-def _make_topics() -> subprocess.CompletedProcess[str]:
+def _make_topics(spec: str | None = None) -> subprocess.CompletedProcess[str]:
+    """Run `make topics`. `spec` ("name partitions retention.ms") runs it on that topic only."""
+    env = os.environ.copy()
+    env.pop("AML_TOPICS_SPEC", None)
+    if spec is not None:
+        env["AML_TOPICS_SPEC"] = spec
     return subprocess.run(
-        ["make", "topics"], cwd=ROOT, capture_output=True, text=True, timeout=120, check=False
+        ["make", "topics"],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
     )
 
 
@@ -74,25 +87,40 @@ def test_topics_idempotent(admin: AdminClient) -> None:
     second = _make_topics()
     assert second.returncode == 0, second.stdout + second.stderr
     assert _snapshot(admin) == before
+    # The config snapshot alone could not tell "left alone" from "dropped and recreated".
+    assert f"created=0 unchanged={len(EXPECTED)} drift=0" in second.stdout, second.stdout
 
 
-def test_topics_fails_on_drift() -> None:
-    """A topic whose retention was changed by hand must make `make topics` fail, not be ignored."""
-    topic = "tx.dlq"
-    original = EXPECTED[topic][1]
+def test_topics_fails_on_drift_and_does_not_change_the_topic(admin: AdminClient) -> None:
+    """A topic whose retention was changed by hand makes `make topics` fail and stay untouched.
 
-    def alter(ms: int) -> None:
-        subprocess.run(
-            ["rpk", "topic", "alter-config", topic, "--set", f"retention.ms={ms}",
-             "-X", f"brokers={BROKERS}"],
-            check=True, capture_output=True, text=True,
-        )  # fmt: skip
-
-    alter(1_000)
+    Runs on a scratch topic (AML_TOPICS_SPEC), never on a real one: tx.dlq will hold rejected
+    records from M3 on, and a 1 s retention would delete them.
+    """
+    topic = f"itest.drift.{uuid.uuid4().hex[:8]}"
+    wanted = 3_600_000
+    spec = f"{topic} 1 {wanted}"
+    resource = ConfigResource(ConfigResource.Type.TOPIC, topic)
     try:
-        result = _make_topics()
-        assert result.returncode != 0, "make topics accepted a drifted retention.ms"
-        assert topic in result.stdout + result.stderr
+        first = _make_topics(spec)
+        assert first.returncode == 0 and "created=1" in first.stdout, first.stdout + first.stderr
+
+        subprocess.run(
+            ["rpk", "topic", "alter-config", topic, "--set", "retention.ms=1000"]
+            + ["-X", f"brokers={BROKERS}"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        drifted = _make_topics(spec)
+        assert drifted.returncode != 0, "make topics accepted a drifted retention.ms"
+        assert "DRIFT" in drifted.stderr and topic in drifted.stderr, drifted.stderr
+
+        value = admin.describe_configs([resource])[resource].result()["retention.ms"].value
+        assert value == "1000", "make topics changed a drifted topic instead of reporting it"
     finally:
-        alter(original)
-    assert _make_topics().returncode == 0
+        for fut in admin.delete_topics([topic]).values():
+            try:
+                fut.result()
+            except Exception:  # noqa: BLE001 - the topic may not exist if the first run failed
+                pass
