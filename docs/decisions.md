@@ -94,5 +94,51 @@ Accepted (v2). Baseline saved with each model version (M02 v2). Thresholds 0.1 w
 ## D30 — Hallucination measured before the validator, with intervals
 Accepted (v2). Ungrounded-entity, ungrounded-number and false-pattern rates are computed on raw first-attempt output with Wilson 95% intervals; the after-validator rate is reported but is 0 by construction. Deterministic checks only, no LLM judge; unsupported qualitative claims are counted from analyst reason codes. Limitation stated in the README.
 
+## D31 — Project naming
+Accepted (M0). GitHub repo: `Real-Time-Anti-Money-Laundering-Detection-on-Streaming-Transactions`. README and display title: "Real-Time Money-Laundering Detection on Streaming Transactions" (an AML transaction-monitoring system). Codename and AWS resource prefix: `stream-aml` (compose project name, Terraform state bucket `stream-aml-tfstate-<account-id>`, tag `project=stream-aml`). Numbered D31, not D17: D17 is already "Split boundaries" (TODO at M1) and is referenced by the manual. Consequence: the repo name is long; the codename is what appears in code and in AWS.
+
+## D32 — M0 local stack and tooling: where it differs from the manual
+Accepted (M0). Each item was found by running the stack; none changes the architecture.
+- **Host ports:** Redpanda Console on **8082** (8080 was held by another local project) and MLflow on **5001** (5000 is macOS AirPlay Receiver). The M00 DoD text says 8080 and 5000. Both are overridable with `CONSOLE_PORT` and `MLFLOW_PORT`. All published ports bind to 127.0.0.1.
+- **MLflow image:** the official `ghcr.io/mlflow/mlflow:v3.18.0` has no Postgres driver and no curl, so a two-line Dockerfile adds `psycopg2-binary`. The backend URL names the driver (`postgresql+psycopg2://`) because 3.18 resolved a bare `postgresql://` to psycopg v3. One worker. It still uses about 1.8 GiB idle (measured with `docker stats`). The image is rebuilt only when its Dockerfile changes: every build got a new image ID even with cached layers, and compose recreates a container whenever the ID changes.
+- **Redpanda:** the manual's `--smp 2 --memory 2G --overprovisioned`, without `--mode dev-container` (which also skips fsync and turns on topic auto-creation). `auto_create_topics_enabled=false`, so a producer typo fails instead of creating a stray topic.
+- **Postgres init:** `aml_api` / `aml_service` get LOGIN and their passwords from the container environment through `\getenv` in a `.sql` file, not a shell script: Docker Desktop's file sharing makes a mounted script look executable and the entrypoint then fails to run it. mlflow, airflow and the Iceberg catalog use the superuser in local dev; the API never does (rule 11).
+- **Flink 1.20.5:** `state.checkpoints.dir` (1.20.5 also has `execution.checkpointing.dir`). The TaskManager has a random RPC port, so its healthcheck asks the JobManager whether it registered.
+- **Makefile:** targets that later milestones add are stubs that print the milestone and **exit 1** (the manual says `@echo`): a stub that exits 0 would let `make parity` or `make test-rls` look green when nothing ran. `test-rls` is implemented now on top of the RLS integration tests. `make topics` exits non-zero on drift (partitions or retention differ) instead of changing a topic silently.
+- **CI:** the Java build is its own workflow with a native `paths:` filter (no third-party path-filter action). Actions are pinned to commit SHAs; uv is pinned to the version behind `uv.lock`.
+- **Maven 3.10.1** (Homebrew) instead of the 3.9 pin in CLAUDE.md. Not yet exercised: the Flink module arrives in M4. Revisit then.
+- **Python groups:** `jsonschema` added to `dev`; `shap` is its own optional group (it pulls numba and llvmlite); `manual/` is excluded from ruff.
+
+## D33 — Terraform bootstrap: state bucket and budgets
+Accepted (M0). **Written and validated (`fmt`, `validate`), not planned or applied**: the `stream-aml` AWS profile did not exist yet. The user applies it with `make cloud-bootstrap`.
+- **State:** this root's own state is local (it creates the bucket). The bucket `stream-aml-tfstate-<account-id>` is versioned, SSE-S3, public access blocked, TLS 1.2+ only, noncurrent versions expire after 90 days, `prevent_destroy`. No DynamoDB: locking is S3-native `use_lockfile` (Terraform 1.11+; checked in the 1.11 changelog).
+- **Partial backend config:** other roots commit `key`, `region`, `encrypt`, `use_lockfile` and receive the bucket at `terraform init -backend-config="bucket=…"`. The bucket name contains the account ID, which should not sit in committed files (`cost-guard` finding).
+- **Safety:** the provider has `allowed_account_ids` (this machine has other AWS profiles); account ID and alert email are required variables in a gitignored `terraform.tfvars`. Tags `project`, `owner`, `ttl=permanent` (other roots use `session`).
+- **Budgets:** $5, $20, $50 monthly, email at 80% and 100% of actual cost, with credits and refunds excluded so sign-up credits do not hide spend. They warn; the Free plan's credit limit is the hard stop.
+- **`make cloud-bootstrap`:** no `-auto-approve`; it refuses unless stdin is a terminal and clears `TF_CLI_ARGS*`, so neither a pipe nor an environment variable can answer for the user. `tests/unit/test_infra_rules.py` checks these and the other rule-5 constraints for every future `.tf` file.
+- **Not verified (no plan or apply was possible):** how Free-plan credits appear in Budgets (so whether excluding credits yields the gross figure), whether the signed-in identity may call the Budgets API, the budget refresh cadence, and whether `limit_amount = "5"` plans without a spurious diff. Check the first `plan` and Cost Explorer after the first day.
+- **Known gaps, not addressed (the user's call):** monthly budgets never show cumulative credit use; budget data lags, so a forgotten cluster can overspend before the $5 alert. Options: a DAILY budget, an ANNUAL budget near the credit balance. Mitigation until then: `make cloud-down` then `make teardown-check`.
+- **Review:** `cost-guard` found no billable-resource risk; its findings on the committed account ID, the approval bypasses, TLS minimum, delete markers, state-file loss and teardown were fixed or documented in `infra/terraform/bootstrap/README.md`.
+
 ## D-versions — Pinned versions
-TODO at M0: exact versions of every component in CLAUDE.md's table.
+Observed on 2026-11-21 during M0 (arm64 Mac, Docker Desktop engine 29.4.1). Python packages are exact in `uv.lock`; image tags are in `infra/compose/docker-compose.yml`. "TBD" = not installed or not checked yet, with the milestone that will.
+
+| Component | Version |
+|---|---|
+| Python | 3.11.15 (uv-managed; `.python-version` 3.11) |
+| Java / Maven | OpenJDK 17.0.21 / Maven 3.10.1 (see D32) |
+| Flink | image `flink:1.20.5-java17`. `flink-connector-kafka` 3.4.0-1.20 and the K8s operator: TBD (M4, M9) |
+| Spark | PySpark 3.5.9 locally. Glue 5.1 = Spark 3.5.6 per D23 (not run yet). `iceberg-spark-runtime-3.5_2.12` 1.12.0, `org.postgresql:postgresql` 42.7.14 |
+| Iceberg clients | PyIceberg 0.12.0, DuckDB 2.0.1 (Python and CLI) |
+| Kafka | Redpanda `v26.3.1` (rpk 26.3.1), Console `v3.15.0`. Strimzi + Kafka 4.2.x on EKS: TBD (M9) |
+| Postgres | `postgres:17.12` |
+| ML | xgboost 3.2.0, lightgbm 4.7.0, scikit-learn 1.9.1, MLflow 3.18.0 (server image `v3.18.0` + psycopg2-binary 2.9.13), pandas 3.1.1, numpy 2.4.6, pyarrow 26.0.1 |
+| Orchestration | Airflow `apache/airflow:3.4.0` (`standalone`, dev only) |
+| Observability | `prom/prometheus:v3.16.0`, `grafana/grafana:13.3.1` |
+| LLM | `anthropic` SDK 2.12.0. Model ids as listed in CLAUDE.md (not called yet, M6) |
+| Services | fastapi 0.165.0, pydantic 2.14.4, psycopg 3.3.9, confluent-kafka 2.16.2, fastavro 1.13.1 |
+| Web | node v26.0.0 / npm 11.12.1 installed. Vite, React, TanStack Query, Cytoscape: TBD (M7) |
+| Tooling | uv 0.10.8, ruff 0.17.6, mypy 2.4.1, pytest 9.2.0, Terraform 1.17.2, AWS provider 6.73.0 (`.terraform.lock.hcl`, darwin_arm64 and linux_amd64) |
+| GitHub Actions | checkout 7.0.1, setup-uv 10.4.0, setup-java 6.3.0, setup-terraform 4.0.1 (pinned by SHA) |
+
+All images were checked for a `linux/arm64` manifest. They also publish `linux/amd64`, but cloud builds (rule 10) are not done yet.
