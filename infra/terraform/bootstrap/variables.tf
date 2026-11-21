@@ -36,6 +36,12 @@ variable "alert_email" {
   }
 }
 
+variable "filter_budgets_by_tag" {
+  description = "Count only costs tagged project=stream-aml (the account is shared with edgarqa). Needs the `project` cost-allocation tag to be active in Billing; false = whole-account budgets."
+  type        = bool
+  default     = true
+}
+
 variable "budget_limits_usd" {
   description = "Monthly cost budgets in USD. $5 is the early warning; the Free plan's credit limit is the hard stop."
   type        = list(number)

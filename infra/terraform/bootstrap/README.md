@@ -32,6 +32,17 @@ of actual cost). Everything else in `infra/terraform/` stores its state in that 
   as expected until then.
 - **Bucket policy:** TLS only, and TLS 1.2 or newer. Encryption is SSE-S3 (free); KMS would add cost
   for no benefit here.
+- **Shared account, tag-filtered budgets.** stream-aml and edgarqa are the same AWS account (D16), so
+  the budgets count only costs tagged `project=stream-aml` (`filter_budgets_by_tag`, default true).
+  That requires `project` to be an **active cost-allocation tag** in Billing. The key shows up there
+  only after tagged resources exist (so after this root is applied) and can take up to 24 h. On
+  2026-11-21 listing cost-allocation tags from this account was refused ("Linked account doesn't
+  have access to cost allocation tags"), so activation may need the Organization's management
+  account. **A filtered budget whose tag is not active stays at $0 and never warns.** Before Phase 5,
+  verify that the tag shows as Active and that a tagged, billed resource moves the budget's actual
+  spend. If the first apply is rejected, set `filter_budgets_by_tag = false` in `terraform.tfvars`,
+  apply, and flip it back once the tag is active. Existing account-wide budgets (`project 1` at $5,
+  `edgarqa-monthly-cost` at $80) are not managed here and keep covering the whole account.
 - **Budgets exclude credits and refunds.** With $100 of sign-up credits, a default "actual cost"
   budget stays near $0 until the credits run out, so it would never warn you. These show what the
   usage costs before credits. They warn only; the Free plan's credit limit is the hard stop.
