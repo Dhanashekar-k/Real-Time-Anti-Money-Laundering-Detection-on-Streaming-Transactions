@@ -10,8 +10,9 @@ of actual cost). Everything else in `infra/terraform/` stores its state in that 
 2. `cp terraform.tfvars.example terraform.tfvars` and fill in `expected_account_id` and `alert_email`.
    The file is gitignored. The provider refuses to run against any other account ID.
 3. From the repo root, **in your own terminal**: `make cloud-bootstrap`. It shows the plan and asks
-   you to type `yes`. It refuses to run when stdin is not a terminal (so `yes | make …` cannot answer
-   for you) and clears `TF_CLI_ARGS*` (so an environment variable cannot add `-auto-approve`).
+   you to type `yes`. It refuses to run when stdin is not a terminal (which stops a plain
+   `yes | make …`) and clears `TF_CLI_ARGS*` (so an environment variable cannot add the
+   auto-approve flag). These guard against accidents; they are not a security boundary.
 4. `terraform -chdir=infra/terraform/bootstrap output backend_config` prints the `backend "s3"` block
    for the other roots. It deliberately has **no bucket**: the bucket name contains the account ID,
    which should not be committed. Initialise each root with
