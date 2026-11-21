@@ -1,0 +1,44 @@
+[project]
+name = "stream-aml"
+version = "0.1.0"
+description = "Real-time anti-money-laundering detection on streaming transactions"
+requires-python = ">=3.11,<3.12"  # 3.11 = AWS Glue 5.1, so Spark job code runs unchanged in both places
+dependencies = []
+
+[tool.uv]
+package = false
+default-groups = "all"
+
+[dependency-groups]
+core = ["pyyaml", "pydantic", "numpy", "pandas", "pyarrow"]
+kafka = ["confluent-kafka", "fastavro"]
+lake = ["pyiceberg[sql-postgres,pyarrow]", "duckdb"]
+spark = ["pyspark==3.5.*"]
+ml = ["xgboost", "lightgbm", "scikit-learn", "mlflow>=3,<4"]
+shap = ["shap"]  # optional (M2); kept out of `ml` because it pulls numba/llvmlite
+svc = [
+  "fastapi",
+  "uvicorn",
+  "psycopg[binary,pool]",
+  "prometheus-client",
+  "anthropic",
+  "rapidfuzz",
+]
+dev = ["pytest", "pytest-xdist", "ruff", "mypy", "hypothesis", "jsonschema"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --import-mode=importlib"
+markers = [
+  "unit: fast, no external services (default)",
+  "integration: needs `make up`",
+  "slow: long-running",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["manual"]  # the build manual is prose; ruff would reformat its code blocks
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
