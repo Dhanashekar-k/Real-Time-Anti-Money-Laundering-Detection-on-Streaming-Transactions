@@ -38,6 +38,33 @@ case "$CMD" in
     block "secrets files are off-limits." ;;
 esac
 
+# Deleting local data: the compose volumes (Postgres + Redpanda) and Docker volumes in general.
+# Matched on the raw command string, so wrappers (cd x && ..., bash -c "...", env X=1 ...) and any
+# position of -f / -p / --profile are covered. [^;&|]* keeps a match inside one simple command.
+# Known false positive: a command that only *mentions* one of these (an echo, a commit message).
+# Plain `docker system prune` (no --volumes) is deliberately not matched.
+SEP="([[:space:]]|\$|[;&|]|[\"')])"
+DOCKER="(^|[^[:alnum:]_-])docker"
+COMPOSE="$DOCKER([[:space:]]+compose|-compose)[^;&|]*"
+VOLFLAG="(-[a-zA-Z]*v[a-zA-Z]*|--volumes)"
+COMPOSE_DOWN_V="$COMPOSE[[:space:]]down([[:space:]][^;&|]*)?[[:space:]]$VOLFLAG$SEP"
+COMPOSE_RM_V="$COMPOSE[[:space:]]rm([[:space:]][^;&|]*)?[[:space:]]$VOLFLAG$SEP"
+NUKE_TARGET="(^|[^[:alnum:]_-])make[[:space:]]([^;&|]*[[:space:]])?nuke-[a-z-]+$SEP"
+DOCKER_VOLUME_DELETE="$DOCKER[[:space:]]+([^;&|]*[[:space:]])?volume[[:space:]]+(rm|remove|prune)$SEP"
+SYSTEM_PRUNE_VOLUMES="$DOCKER[[:space:]]+([^;&|]*[[:space:]])?system[[:space:]]+prune([[:space:]][^;&|]*)?[[:space:]]--volumes$SEP"
+
+if [[ "$CMD" =~ $COMPOSE_DOWN_V ]]; then
+  block "'docker compose down -v' deletes the local Postgres and Redpanda volumes. The user decides; ask them to run it."
+elif [[ "$CMD" =~ $COMPOSE_RM_V ]]; then
+  block "'docker compose rm -v' deletes container volumes. The user decides; ask them to run it."
+elif [[ "$CMD" =~ $NUKE_TARGET ]]; then
+  block "'make nuke-*' deletes the local volumes. The user runs it in their own terminal."
+elif [[ "$CMD" =~ $DOCKER_VOLUME_DELETE ]]; then
+  block "'docker volume rm/prune' deletes Docker volumes. The user decides; ask them to run it."
+elif [[ "$CMD" =~ $SYSTEM_PRUNE_VOLUMES ]]; then
+  block "'docker system prune --volumes' deletes Docker volumes. The user decides; ask them to run it."
+fi
+
 # Reading the real .env (but not .env.example) with common pagers/printers.
 ENV_RE='(cat|less|more|head|tail|bat|grep)[^|;&]*[[:space:]](\./)?\.env([[:space:]]|$|[;|&])'
 if [[ "$CMD" =~ $ENV_RE ]]; then

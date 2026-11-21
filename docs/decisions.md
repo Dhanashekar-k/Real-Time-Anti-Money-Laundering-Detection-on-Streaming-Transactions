@@ -123,6 +123,13 @@ Accepted (M0). **Written and validated (`fmt`, `validate`), not planned or appli
 - **Known gaps, not addressed (the user's call):** monthly budgets never show cumulative credit use; budget data lags, so a forgotten cluster can overspend before the $5 alert. Options: a DAILY budget, an ANNUAL budget near the credit balance. Mitigation until then: `make cloud-down` then `make teardown-check`.
 - **Review:** the `cost-guard` subagent run on 2026-11-21 found no billable-resource risk (its report was not archived). Its findings on the committed account ID, the approval bypasses, TLS minimum, delete markers, state-file loss and teardown were fixed or documented in `infra/terraform/bootstrap/README.md`.
 
+## D34 — guard-bash.sh blocks volume-deleting commands
+Accepted (M0). The reviewer found that the `ask` rule for compose `down -v` in `.claude/settings.json` does not match when an option comes before the subcommand (`docker compose -f <file> down -v`), so the broad `Bash(docker compose *)` allow rule let it through. `make -C <dir> nuke-local` had the same gap.
+- **Decision:** `.claude/hooks/guard-bash.sh` blocks (exit 2), by regex on the raw command: compose `down` with `-v` / `--volumes`, compose `rm` with `-v` / `--volumes`, `make nuke-*`, `docker volume rm|remove|prune`, and `docker system prune --volumes`. Plain `docker system prune` stays allowed. The existing `settings.json` ask rules are unchanged, and no extra settings patterns were added.
+- **Why a hook, not settings patterns:** a hook block is documented to take precedence over allow rules, and matching the raw text also covers wrappers (`bash -c`, `env`, `cd x &&`) that command-prefix rules are documented not to match. Settings patterns that constrain arguments are documented as fragile.
+- **Limits:** it also blocks a command that only mentions one of these strings (an echo, a commit message). A block cannot be approved per use: the user runs the command. The docs do not say whether hooks or permission rules apply to the user's own `!` commands, so this is not a guard on what the user types. Other deletions (`docker rm -v`, `rm -rf var/`) are not covered.
+- **Verified:** 61 cases against the real script under bash 3.2 (28 blocked, 25 allowed, plus the 8 existing-guard regressions), and the real hook blocked the compose `down -v` form on an empty scratch project. `make test`, `make itest` and `make test-rls` pass: hooks apply to Claude's Bash tool calls, not to subprocesses a test starts.
+
 ## D-versions — Pinned versions
 Observed on 2026-11-21 during M0 (arm64 Mac, Docker Desktop engine 29.4.1). Python packages are exact in `uv.lock`; image tags are in `infra/compose/docker-compose.yml`. "TBD" = not installed or not checked yet, with the milestone that will.
 
