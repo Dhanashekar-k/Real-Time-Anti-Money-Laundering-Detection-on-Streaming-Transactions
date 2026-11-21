@@ -1,0 +1,236 @@
+# Local stack. Run through the Makefile (`make up`), which sets AML_ROOT and creates var/.
+#
+# Profiles:  core (redpanda, console, postgres) | stream (flink) | ml (mlflow)
+#            orchestration (airflow) | obs (prometheus, grafana) | apps (added M3-M7)
+# `make up` = core + stream + ml.
+#
+# Pinned tags were checked for linux/arm64 on 2026-11-21 (see docs/decisions.md, D-versions).
+# Every published port binds to 127.0.0.1 only.
+name: stream-aml
+
+x-flink-common: &flink-common
+  image: flink:1.20.5-java17
+  volumes:
+    # Checkpoints, and the Iceberg warehouse at the SAME absolute path as on the host: Iceberg
+    # metadata stores absolute file paths, so containers must see the files at the host's path.
+    - ${AML_ROOT:?AML_ROOT is not set - run through make}/var/flink-checkpoints:/flink-checkpoints
+    - ${AML_ROOT}/var/warehouse:${AML_ROOT}/var/warehouse
+
+services:
+  # ------------------------------------------------------------------ core
+  redpanda:
+    image: redpandadata/redpanda:v26.3.1
+    profiles: [core]
+    # Laptop settings from M00 (--smp/--memory/--overprovisioned). Not --mode dev-container: that
+    # would also skip fsync and turn on topic auto-creation, which would hide a missing topic.
+    command:
+      - redpanda
+      - start
+      - --smp=2
+      - --memory=2G
+      - --reserve-memory=0M
+      - --overprovisioned
+      - --check=false
+      - --node-id=0
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+      - --schema-registry-addr=internal://0.0.0.0:8081,external://0.0.0.0:18081
+      - --rpc-addr=redpanda:33145
+      - --advertise-rpc-addr=redpanda:33145
+      - --set
+      - redpanda.auto_create_topics_enabled=false
+    ports:
+      - "127.0.0.1:19092:19092" # Kafka API (host)
+      - "127.0.0.1:18081:18081" # schema registry (host); 8081 stays free for the Flink UI
+      - "127.0.0.1:19644:9644" # admin API / metrics
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  redpanda-console:
+    image: redpandadata/console:v3.15.0
+    profiles: [core]
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+      KAFKA_SCHEMAREGISTRY_ENABLED: "true"
+      KAFKA_SCHEMAREGISTRY_URLS: http://redpanda:8081
+      REDPANDA_ADMINAPI_ENABLED: "true"
+      REDPANDA_ADMINAPI_URLS: http://redpanda:9644
+    ports:
+      - "127.0.0.1:${CONSOLE_PORT:-8080}:8080"
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17.12
+    profiles: [core]
+    command: ["postgres", "-c", "max_connections=200"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${AML_PG_PASSWORD:-postgres}
+      POSTGRES_DB: aml # the default DB, so the contracts schema below applies to it
+      AML_SERVICE_DB_PASSWORD: ${AML_SERVICE_DB_PASSWORD:-aml_service_dev}
+      AML_API_DB_PASSWORD: ${AML_API_DB_PASSWORD:-aml_api_dev}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Files, not a directory, so docker creates no placeholder files in the repo.
+      - ./postgres-init/00_databases.sql:/docker-entrypoint-initdb.d/00_databases.sql:ro
+      - ../../contracts/postgres_schema.sql:/docker-entrypoint-initdb.d/10_aml_schema.sql:ro
+      - ./postgres-init/20_roles.sql:/docker-entrypoint-initdb.d/20_roles.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d aml"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # ---------------------------------------------------------------- stream
+  flink-jobmanager:
+    <<: *flink-common
+    profiles: [stream]
+    command: jobmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        jobmanager.memory.process.size: 1600m
+        state.checkpoints.dir: file:///flink-checkpoints
+        state.savepoints.dir: file:///flink-checkpoints/savepoints
+    ports:
+      - "127.0.0.1:8081:8081" # Flink UI
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/overview > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  flink-taskmanager:
+    <<: *flink-common
+    profiles: [stream]
+    command: taskmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 4
+        taskmanager.memory.process.size: 4g
+        state.checkpoints.dir: file:///flink-checkpoints
+        state.savepoints.dir: file:///flink-checkpoints/savepoints
+    depends_on:
+      flink-jobmanager:
+        condition: service_healthy
+    healthcheck:
+      # The TaskManager has no HTTP endpoint and a random RPC port, so ask the JobManager whether
+      # this container has registered (its IP appears in /taskmanagers).
+      test:
+        - CMD-SHELL
+        - "curl -sf http://flink-jobmanager:8081/taskmanagers | grep -q \"$$(hostname -i)\""
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  # -------------------------------------------------------------------- ml
+  mlflow:
+    # Official image + psycopg2 (the official image has no Postgres driver). See mlflow/Dockerfile.
+    build: ./mlflow
+    image: stream-aml/mlflow:v3.18.0
+    profiles: [ml]
+    command:
+      - mlflow
+      - server
+      - --host=0.0.0.0
+      - --port=5000
+      # Driver named explicitly: MLflow 3.18 resolved a bare postgresql:// to psycopg (v3).
+      - --backend-store-uri=postgresql+psycopg2://postgres:${AML_PG_PASSWORD:-postgres}@postgres:5432/mlflow
+      - --workers=1 # the default spawned several workers and used ~2.4 GiB idle
+      - --serve-artifacts
+      - --artifacts-destination=/mlflow-artifacts
+      # MLflow 3.x rejects Host headers it does not know; containers call it as mlflow:5000.
+      - --allowed-hosts=localhost,localhost:*,127.0.0.1,127.0.0.1:*,mlflow,mlflow:*
+    ports:
+      - "127.0.0.1:${MLFLOW_PORT:-5000}:5000"
+    volumes:
+      - ${AML_ROOT}/var/mlflow:/mlflow-artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # The image has no curl.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u; u.urlopen('http://localhost:5000/health', timeout=3)"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  # --------------------------------------------------------- orchestration
+  airflow:
+    image: apache/airflow:3.4.0
+    profiles: [orchestration]
+    command: standalone # dev only
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:${AML_PG_PASSWORD:-postgres}@postgres:5432/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    ports:
+      - "127.0.0.1:8085:8080"
+    volumes:
+      - ../../airflow/dags:/opt/airflow/dags:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/v2/monitor/health > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  # ------------------------------------------------------------------- obs
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    profiles: [obs]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "127.0.0.1:9090:9090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  grafana:
+    image: grafana/grafana:13.3.1
+    profiles: [obs]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # `apps` profile: replayer, connectors, scorer, alerts, agent-worker, api are added in M3-M7.
+
+volumes:
+  redpanda-data:
+  pgdata:
