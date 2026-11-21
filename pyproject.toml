@@ -7,7 +7,8 @@ dependencies = []
 
 [tool.uv]
 package = false
-default-groups = "all"
+# Explicit, not "all": `shap` is optional (it pulls numba and llvmlite). `uv sync --group shap` adds it.
+default-groups = ["core", "kafka", "lake", "spark", "ml", "svc", "dev"]
 
 [dependency-groups]
 core = ["pyyaml", "pydantic", "numpy", "pandas", "pyarrow"]

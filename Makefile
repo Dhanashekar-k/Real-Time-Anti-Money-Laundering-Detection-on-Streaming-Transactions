@@ -56,7 +56,9 @@ logs: ## follow one service: make logs S=redpanda
 	@test -n "$(S)" || { echo "usage: make logs S=<service>" >&2; exit 2; }
 	$(COMPOSE) $(PROFILES_ALL) logs -f --tail=200 $(S)
 
-nuke-local: ## DELETE all compose volumes (Postgres, Redpanda data). Asks first.
+nuke-local: ## DELETE all compose volumes (Postgres, Redpanda data); you type "nuke" to confirm
+	@[ -t 0 ] || { echo "nuke-local needs an interactive terminal to confirm (stdin is not a TTY)" >&2; exit 2; }
+	@printf 'This deletes the Postgres and Redpanda volumes. Type "nuke" to continue: '; read -r answer; [ "$$answer" = nuke ] || { echo "aborted" >&2; exit 1; }
 	$(COMPOSE) $(PROFILES_ALL) down -v --remove-orphans
 
 bootstrap: ## uv sync (+ maven offline deps once the Flink module exists)
@@ -75,7 +77,7 @@ lint: ## ruff check + format check
 
 tf-check: ## terraform fmt -check + validate for every root (no AWS access needed)
 	terraform fmt -check -recursive infra/terraform
-	@for d in $$(find infra/terraform -name versions.tf -exec dirname {} \;); do \
+	@for d in $$(find infra/terraform -name '*.tf' -not -path '*/.terraform/*' -exec dirname {} \; | sort -u); do \
 		echo "validate $$d"; \
 		terraform -chdir=$$d init -backend=false -input=false >/dev/null && terraform -chdir=$$d validate || exit 1; \
 	done
@@ -108,8 +110,11 @@ teardown-check: ; $(call stub,M9)
 TF_BOOTSTRAP := infra/terraform/bootstrap
 
 # Never -auto-approve (CLAUDE.md rule 5): terraform shows the plan and waits for you to type yes.
-#   - stdin must be a terminal, so `yes | make cloud-bootstrap` cannot answer for you
-#   - TF_CLI_ARGS* are scrubbed, so an environment variable cannot add -auto-approve
+#   - stdin must be a terminal, which stops a plain `yes | make cloud-bootstrap`
+#   - TF_CLI_ARGS* are scrubbed, so an environment variable cannot add the auto-approve flag
+# These are guards against accidents, not a security boundary: a pseudo-terminal fed by a pipe
+# (`yes | script -q /dev/null make ...`) would still get through. The ask rule for make cloud-*
+# in .claude/settings.json is the real gate for Claude Code.
 cloud-bootstrap: ## [AWS] create the state bucket + budgets; asks you to type yes
 	@test -f $(TF_BOOTSTRAP)/terraform.tfvars || { echo "create $(TF_BOOTSTRAP)/terraform.tfvars from terraform.tfvars.example first" >&2; exit 2; }
 	@[ -t 0 ] || { echo "cloud-bootstrap needs an interactive terminal to type 'yes' (stdin is not a TTY): run it in your own terminal" >&2; exit 2; }

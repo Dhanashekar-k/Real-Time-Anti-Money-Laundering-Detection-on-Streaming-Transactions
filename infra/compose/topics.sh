@@ -24,6 +24,16 @@ TOPICS=(
   "tx.scores      12  $((48 * HOUR))"
 )
 
+# Tests set AML_TOPICS_SPEC (one "name partitions retention.ms" row per line) to run this whole
+# script against a scratch topic, so they never alter a real topic. Unset = the list above.
+# (while-read, not mapfile: macOS ships bash 3.2.)
+if [[ -n "${AML_TOPICS_SPEC:-}" ]]; then
+  TOPICS=()
+  while IFS= read -r line; do
+    [[ -n "${line// /}" ]] && TOPICS+=("$line")
+  done <<<"$AML_TOPICS_SPEC"
+fi
+
 rpk_() { rpk "$@" -X "brokers=$BROKERS"; }
 
 if ! existing_json=$(rpk_ topic list --format json 2>&1); then

@@ -67,6 +67,12 @@ services:
     depends_on:
       redpanda:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/admin/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
 
   postgres:
     image: postgres:17.12
@@ -87,7 +93,9 @@ services:
       - ../../contracts/postgres_schema.sql:/docker-entrypoint-initdb.d/10_aml_schema.sql:ro
       - ./postgres-init/20_roles.sql:/docker-entrypoint-initdb.d/20_roles.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d aml"]
+      # -h 127.0.0.1 forces TCP. On a fresh volume the entrypoint's temporary init server listens
+      # only on the unix socket, so a socket check would report healthy before the real server is up.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d aml"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -128,10 +136,13 @@ services:
         condition: service_healthy
     healthcheck:
       # The TaskManager has no HTTP endpoint and a random RPC port, so ask the JobManager whether
-      # this container has registered (its IP appears in /taskmanagers).
+      # this container has registered. Its id looks like "172.20.0.4:34047-27b978"; matching the
+      # opening quote and the trailing colon keeps 172.20.0.6 from matching 172.20.0.60.
       test:
         - CMD-SHELL
-        - "curl -sf http://flink-jobmanager:8081/taskmanagers | grep -q \"$$(hostname -i)\""
+        - |
+          ip=$$(hostname -i | cut -d' ' -f1)
+          curl -sf http://flink-jobmanager:8081/taskmanagers | grep -qF "\"$$ip:"
       interval: 5s
       timeout: 5s
       retries: 20
