@@ -47,14 +47,15 @@ Pipeline: replayer → two simulated banks (different formats) → config-driven
 
 ## Commands (keep this list current as milestones add targets)
 ```
-make up | up-all | down | ps | logs S=<svc>        # local stack (compose profiles)
-make fmt | lint | test | itest                      # quality; itest needs `make up`
-make topics                                          # create Kafka topics
+make up | up-all | down | ps | logs S=<svc> | rebuild   # local stack (compose profiles); rebuild = local mlflow image
+make fmt | lint | tf-check | test | itest | test-rls    # quality; itest and test-rls need `make up`; tf-check = terraform fmt + validate
+make topics                                          # create Kafka topics (idempotent; exits 1 on drift); needs `make up`
+make help                                            # list the implemented targets. Targets for later milestones are stubs that exit 1
 make iceberg DS=hi_small | eda DS= | split DS=       # M1
 make golden | features DS= | rules DS= | train DS= | eval DS= FINAL=1   # M2
 make replay DS= SPEEDUP= | connectors | onboard-check BANK= SAMPLE=      # M3
 make flink-build | flink-deploy MODE=eos|alo CKPT=5s | flink-stop | parity DS= | restart-test   # M4
-make apps | latency-matrix | seed-thresholds | test-rls   # M5
+make apps | latency-matrix | seed-thresholds   # M5 (test-rls already exists, see above)
 make agent | agent-eval                              # M6 (v2: cascade, tool-use, injection, hallucination blocks)
 make api | ui | retrain AS_OF= | airflow             # M7
 make chaos RUNS=20 | reconcile RUN= | drift-experiment   # M8
