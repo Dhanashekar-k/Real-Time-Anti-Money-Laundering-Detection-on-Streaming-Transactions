@@ -1,0 +1,41 @@
+name: flink
+
+# Java build for the Flink job. Runs only when the module changes. There is deliberately no
+# "skip if pom.xml is missing" guard: once someone changes files under the module, a missing pom
+# must fail loudly, not pass vacuously.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "stream/flink-features/**"
+  pull_request:
+    paths:
+      - "stream/flink-features/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flink-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  maven:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: stream/flink-features
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: stream/flink-features/pom.xml
+      - name: Build and test
+        run: mvn -B -q verify
