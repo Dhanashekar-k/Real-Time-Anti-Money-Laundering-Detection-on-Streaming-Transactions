@@ -62,7 +62,8 @@ services:
       REDPANDA_ADMINAPI_ENABLED: "true"
       REDPANDA_ADMINAPI_URLS: http://redpanda:9644
     ports:
-      - "127.0.0.1:${CONSOLE_PORT:-8080}:8080"
+      # 8082, not 8080: 8080 is commonly taken (another local project held it here).
+      - "127.0.0.1:${CONSOLE_PORT:-8082}:8080"
     depends_on:
       redpanda:
         condition: service_healthy
@@ -155,7 +156,8 @@ services:
       # MLflow 3.x rejects Host headers it does not know; containers call it as mlflow:5000.
       - --allowed-hosts=localhost,localhost:*,127.0.0.1,127.0.0.1:*,mlflow,mlflow:*
     ports:
-      - "127.0.0.1:${MLFLOW_PORT:-5000}:5000"
+      # 5001, not 5000: macOS Control Center (AirPlay Receiver) listens on 5000.
+      - "127.0.0.1:${MLFLOW_PORT:-5001}:5000"
     volumes:
       - ${AML_ROOT}/var/mlflow:/mlflow-artifacts
     depends_on:
