@@ -56,3 +56,17 @@ def test_all_days_sparse_cannot_double_count() -> None:
 def test_sparse_days_rejects_empty() -> None:
     with pytest.raises(ValueError):
         find_sparse_days([])
+
+
+def test_sparse_day_totals_sum_rows_and_laundering_in_the_run() -> None:
+    from batch.spark.eda import sparse_day_totals
+
+    per_day = [
+        {"day": "d1", "rows": 1000, "laundering": 1},
+        {"day": "d2", "rows": 10, "laundering": 6},
+        {"day": "d3", "rows": 10, "laundering": 4},
+    ]
+    sparse = {"leading": [], "trailing": ["d2", "d3"]}
+    out = sparse_day_totals(sparse, per_day)
+    assert out["trailing"] == {"days": 2, "rows": 20, "laundering": 10, "laundering_rate": 0.5}
+    assert out["leading"]["rows"] == 0 and out["leading"]["laundering_rate"] == 0.0

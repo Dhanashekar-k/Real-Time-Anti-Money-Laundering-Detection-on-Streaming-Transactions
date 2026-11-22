@@ -70,6 +70,18 @@ def find_sparse_days(days: list[tuple[str, int]], fraction: float = SPARSE_FRACT
     }
 
 
+def sparse_day_totals(sparse: dict, per_day: list[dict[str, Any]]) -> dict[str, Any]:
+    """Rows and laundering rows inside the sparse leading and trailing runs, and their rate."""
+    by_day = {d["day"]: d for d in per_day}
+    out: dict[str, Any] = {}
+    for run in ("leading", "trailing"):
+        rows = sum(by_day[day]["rows"] for day in sparse[run])
+        laundering = sum(by_day[day]["laundering"] for day in sparse[run])
+        out[run] = {"days": len(sparse[run]), "rows": rows, "laundering": laundering,
+                    "laundering_rate": _rate(laundering, rows)}  # fmt: skip
+    return out
+
+
 def _rate(laundering: int, rows: int) -> float:
     return laundering / rows if rows else 0.0
 
@@ -328,6 +340,17 @@ def run_eda(
         owners = _group(df, "owner_bank_id")
         for o in owners:
             o["share"] = _rate(o["rows"], totals["rows"])
+        sparse = find_sparse_days([(d["day"], d["rows"]) for d in per_day])
+        sparse["totals"] = sparse_day_totals(sparse, per_day)
+        in_sparse = sparse["leading"] + sparse["trailing"]
+        sparse["by_split"] = (
+            _group(
+                df.filter(F.date_format("event_ts", "yyyy-MM-dd").isin(in_sparse)),
+                "split",
+            )
+            if in_sparse
+            else []
+        )
         return {
             **common.provenance(),
             "dataset": ds,
@@ -338,7 +361,7 @@ def run_eda(
             },
             "totals": totals,
             "per_day": per_day,
-            "sparse_days": find_sparse_days([(d["day"], d["rows"]) for d in per_day]),
+            "sparse_days": sparse,
             "accounts": _accounts(df),
             "self_transfers": _self_transfers(df, totals["rows"]),
             "by_payment_format": _group(df, "payment_format"),
@@ -368,12 +391,12 @@ def _table(header: list[str], rows: list[list[Any]]) -> str:
     return "\n".join(lines)
 
 
-def _rate_table(title: str, rows: list[dict[str, Any]]) -> str:
+def _rate_table(title: str, key_header: str, rows: list[dict[str, Any]]) -> str:
     body = [
         [r["key"], f"{r['rows']:,}", f"{r['laundering']:,}", _pct(r["laundering_rate"])]
         for r in rows
     ]
-    return f"{title}\n\n" + _table([title.split()[-1], "rows", "laundering", "rate"], body)
+    return f"{title}\n\n" + _table([key_header, "rows", "laundering", "rate"], body)
 
 
 def render_markdown(doc: dict[str, Any]) -> str:
@@ -421,6 +444,28 @@ def render_markdown(doc: dict[str, Any]) -> str:
         f"{sparse['threshold_rows']:,.1f} rows. Leading sparse days: "
         f"{', '.join(sparse['leading']) or 'none'}. Trailing sparse days: "
         f"{', '.join(sparse['trailing']) or 'none'}.",
+        _table(
+            ["sparse run", "days", "rows", "laundering", "rate"],
+            [
+                [
+                    run,
+                    t["days"],
+                    f"{t['rows']:,}",
+                    f"{t['laundering']:,}",
+                    _pct(t["laundering_rate"]),
+                ]
+                for run, t in sparse["totals"].items()
+            ],
+        ),
+        "Sparse-day rows by split:",
+        _table(
+            ["split", "rows", "laundering", "rate"],
+            [
+                [r["key"], f"{r['rows']:,}", f"{r['laundering']:,}", _pct(r["laundering_rate"])]
+                for r in sparse["by_split"]
+            ]
+            or [["none", 0, 0, _pct(0.0)]],
+        ),
         "## Accounts",
         _table(
             ["", ""],
@@ -461,13 +506,14 @@ def render_markdown(doc: dict[str, Any]) -> str:
                 ["laundering rows among them", f"{sp['laundering']:,}"],
             ],
         ),
-        _rate_table("Self-transfers by payment format", sp["by_payment_format"]),
+        _rate_table("Self-transfers by payment format", "format", sp["by_payment_format"]),
         "## Laundering rate by group",
-        _rate_table("Rate by payment format", doc["by_payment_format"]),
-        _rate_table("Rate by payment currency", doc["by_payment_currency"]),
-        _rate_table("Rate by receiving currency", doc["by_receiving_currency"]),
+        _rate_table("Rate by payment format", "format", doc["by_payment_format"]),
+        _rate_table("Rate by payment currency", "currency", doc["by_payment_currency"]),
+        _rate_table("Rate by receiving currency", "currency", doc["by_receiving_currency"]),
         _rate_table(
             "Rate by cross-currency (true = paid and received currency differ)",
+            "cross-currency",
             list(doc["cross_currency"].values()),
         ),
         "## Owner bank (A/B, stable hash of the sender bank)",

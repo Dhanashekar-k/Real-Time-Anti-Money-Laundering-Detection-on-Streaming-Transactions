@@ -73,6 +73,8 @@ def test_transactions_per_day(eda: dict) -> None:
         "2022-09-03": (3, 0),
     }
     assert eda["sparse_days"]["leading"] == [] and eda["sparse_days"]["trailing"] == []
+    assert eda["sparse_days"]["totals"]["trailing"]["rows"] == 0
+    assert eda["sparse_days"]["by_split"] == []
 
 
 def test_accounts_and_max_transactions_per_account(eda: dict) -> None:
