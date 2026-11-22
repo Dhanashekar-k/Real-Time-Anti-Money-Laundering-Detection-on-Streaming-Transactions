@@ -35,6 +35,18 @@ def _ratio(numerator: Decimal, denominator: Decimal) -> str | None:
         return str(+(numerator / denominator))  # unary plus applies the context precision
 
 
+def _require_sums(rows: Any, what: str) -> None:
+    """Spark returns NULL, not an error, when a decimal sum overflows decimal(38,18). A pair with
+    a NULL sum would then be reported as a missing rate; refuse and name the pair instead."""
+    bad = [
+        f"{r['paid_ccy']}>{r['recv_ccy']}"
+        for r in rows
+        if r["sum_paid"] is None or r["sum_recv"] is None
+    ]
+    if bad:
+        raise ValueError(f"{what}: decimal sum overflowed (NULL) for pair(s) {', '.join(bad)}")
+
+
 def analyze(spark: SparkSession, *, ds: str, trans_path: Path, results_dir: Path) -> dict[str, Any]:
     raw = csv_to_iceberg.read_transactions(spark, trans_path)
     currency_names, _ = csv_to_iceberg.value_maps()
@@ -71,9 +83,9 @@ def analyze(spark: SparkSession, *, ds: str, trans_path: Path, results_dir: Path
         )
         .collect()
     )
-    large = {
-        (r["paid_ccy"], r["recv_ccy"]): r
-        for r in positive.filter(F.col("paid") >= F.lit(LARGE_PAID_THRESHOLD))
+    _require_sums(overall, "all rows")
+    large_rows = (
+        positive.filter(F.col("paid") >= F.lit(LARGE_PAID_THRESHOLD))
         .groupBy(*keys)
         .agg(
             F.count("*").alias("n"),
@@ -83,7 +95,9 @@ def analyze(spark: SparkSession, *, ds: str, trans_path: Path, results_dir: Path
             F.stddev(F.col("recv").cast("double") / F.col("paid").cast("double")).alias("sd_rate"),
         )
         .collect()
-    }
+    )
+    _require_sums(large_rows, "rows paying >= 100")
+    large = {(r["paid_ccy"], r["recv_ccy"]): r for r in large_rows}
     daily = (
         positive.groupBy(*keys, "day")
         .agg(F.sum("paid").alias("p"), F.sum("recv").alias("r"), F.count("*").alias("n"))
@@ -95,9 +109,13 @@ def analyze(spark: SparkSession, *, ds: str, trans_path: Path, results_dir: Path
             F.stddev("day_rate").alias("sd_day_rate"),
             F.min("day_rate").alias("min_day_rate"),
             F.max("day_rate").alias("max_day_rate"),
+            F.sum(F.col("day_rate").isNull().cast("int")).alias("n_null_days"),
         )
         .collect()
     )
+    null_days = [f"{r['paid_ccy']}>{r['recv_ccy']}" for r in daily if r["n_null_days"]]
+    if null_days:
+        raise ValueError(f"daily sums overflowed (NULL) for pair(s) {', '.join(null_days)}")
     daily_by_pair = {(r["paid_ccy"], r["recv_ccy"]): r for r in daily}
 
     pairs = []
