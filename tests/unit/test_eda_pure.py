@@ -1,8 +1,11 @@
 """EDA helpers that need no Spark: percentiles, sparse-day rule, markdown rendering."""
 
+import collections
+import random
+
 import pytest
 
-from batch.spark.eda import find_sparse_days, nearest_rank
+from batch.spark.eda import find_sparse_days, nearest_rank, nearest_rank_hist
 
 
 @pytest.mark.parametrize(
@@ -78,3 +81,21 @@ def test_a_tail_longer_than_half_the_period_is_still_found() -> None:
     out = find_sparse_days(days)
     assert out["reference_rows_per_day"] == 1000
     assert out["trailing"] == [f"d{i:02d}" for i in range(7, 16)]
+
+
+# --- nearest_rank on a histogram equals nearest_rank on the expanded list ------------------------
+
+
+@pytest.mark.parametrize("seed", range(20))
+def test_nearest_rank_hist_equals_nearest_rank_on_the_expanded_values(seed: int) -> None:
+    rng = random.Random(seed)
+    values = [rng.choice([1, 1, 1, 2, 3, 5, 8, 100, 4000]) for _ in range(rng.randint(1, 500))]
+    histogram = list(collections.Counter(values).items())
+    rng.shuffle(histogram)  # order must not matter
+    for p in (0.0001, 0.5, 0.9, 0.99, 0.999, 1.0):
+        assert nearest_rank_hist(histogram, p) == nearest_rank(sorted(values), p)
+
+
+def test_nearest_rank_hist_rejects_empty() -> None:
+    with pytest.raises(ValueError):
+        nearest_rank_hist([], 0.5)

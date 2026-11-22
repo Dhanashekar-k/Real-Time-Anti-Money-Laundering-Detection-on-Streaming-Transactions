@@ -47,6 +47,25 @@ def nearest_rank(sorted_values: list[int], p: float) -> int:
     return sorted_values[rank - 1]
 
 
+def nearest_rank_hist(histogram: list[tuple[int, int]], p: float) -> int:
+    """`nearest_rank` on a histogram of (value, frequency) pairs, without expanding it.
+
+    The result equals nearest_rank(sorted(expanded values), p): the value at rank ceil(p * n),
+    where n is the sum of the frequencies. Lets the driver hold one row per distinct count instead
+    of one per account.
+    """
+    n = sum(freq for _, freq in histogram)
+    if n == 0:
+        raise ValueError("no values")
+    rank = max(1, math.ceil(p * n))
+    seen = 0
+    for value, freq in sorted(histogram):
+        seen += freq
+        if seen >= rank:
+            return value
+    raise AssertionError("unreachable: rank <= n")
+
+
 def find_sparse_days(days: list[tuple[str, int]], fraction: float = SPARSE_FRACTION) -> dict:
     """Leading and trailing runs of days (ascending) with rows < fraction * reference daily rows."""
     if not days:
@@ -185,11 +204,21 @@ def _accounts(df: DataFrame) -> dict[str, Any]:
     per_account = (
         legs.groupBy("account")
         .agg(F.countDistinct("tx_id").alias("tx"), F.count("*").alias("legs"))
-        .collect()
+        .persist()
     )
-    tx_counts = sorted(r["tx"] for r in per_account)
-    leg_counts = sorted(r["legs"] for r in per_account)
-    top = sorted(per_account, key=lambda r: (-r["tx"], r["account"]))[:TOP_ACCOUNTS]
+    try:
+        distinct = per_account.count()
+        tx_hist = [
+            (r["tx"], r["n"])
+            for r in per_account.groupBy("tx").agg(F.count("*").alias("n")).collect()
+        ]
+        leg_hist = [
+            (r["legs"], r["n"])
+            for r in per_account.groupBy("legs").agg(F.count("*").alias("n")).collect()
+        ]
+        top = per_account.orderBy(F.col("tx").desc(), "account").limit(TOP_ACCOUNTS).collect()
+    finally:
+        per_account.unpersist()
     window_ms = int(yaml.safe_load(_SPEC_PATH.read_text())["windows"]["state_retention_ms"])
     worst = (
         window_entries(legs, window_ms)
@@ -199,19 +228,19 @@ def _accounts(df: DataFrame) -> dict[str, Any]:
         .first()
     )
     return {
-        "distinct": len(per_account),
+        "distinct": distinct,
         "distinct_senders": df.select("sender_key").distinct().count(),
         "distinct_receivers": df.select("receiver_key").distinct().count(),
         "tx_per_account": {
             "percentile_method": "nearest rank",
-            **{f"p{p * 100:g}": nearest_rank(tx_counts, p) for p in PERCENTILES},
-            "max": tx_counts[-1],
+            **{f"p{p * 100:g}": nearest_rank_hist(tx_hist, p) for p in PERCENTILES},
+            "max": max(v for v, _ in tx_hist),
             "max_account": top[0]["account"],
             "top": [{"account": r["account"], "tx": r["tx"], "legs": r["legs"]} for r in top],
         },
         "legs_per_account": {
-            **{f"p{p * 100:g}": nearest_rank(leg_counts, p) for p in PERCENTILES},
-            "max": leg_counts[-1],
+            **{f"p{p * 100:g}": nearest_rank_hist(leg_hist, p) for p in PERCENTILES},
+            "max": max(v for v, _ in leg_hist),
         },
         "max_entries_in_retention_window": {
             "window_ms": window_ms,
