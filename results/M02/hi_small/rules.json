@@ -1,0 +1,219 @@
+{
+  "baseline": "R5",
+  "burn_in_end_ms": 1662076800000,
+  "dataset": "hi_small",
+  "fits": {
+    "original_r1": {
+      "derived": {
+        "amount_threshold": 263341202,
+        "train_f1": 0.0
+      },
+      "params": {
+        "q": 0.99
+      },
+      "rule_id": "R1_original"
+    },
+    "rules": [
+      {
+        "derived": {
+          "amount_threshold": 4594227745,
+          "train_f1": 0.006408544726301735
+        },
+        "params": {
+          "q": 0.999
+        },
+        "rule_id": "R1"
+      },
+      {
+        "derived": {
+          "train_f1": 0.01257615317667537
+        },
+        "params": {
+          "hi": 1.05,
+          "lo": 0.95,
+          "min_in": 1
+        },
+        "rule_id": "R2"
+      },
+      {
+        "derived": {
+          "train_f1": 0.002709329860910566
+        },
+        "params": {
+          "k": 20
+        },
+        "rule_id": "R3"
+      },
+      {
+        "derived": {
+          "train_f1": 0.012143484860589597
+        },
+        "params": {
+          "k": 4
+        },
+        "rule_id": "R4"
+      },
+      {
+        "derived": {
+          "train_f1": 0.05819051414906337
+        },
+        "params": {},
+        "rule_id": "R5"
+      }
+    ]
+  },
+  "git_dirty": false,
+  "git_sha": "897c666617e8b36f9e840a8c3face0328dc7d1ba",
+  "protocol": [
+    "  - thresholds: grid search on TRAIN rows (after the 24 h burn-in), one rule at a time,",
+    "  - rule set = OR of R1..R5; R1_original is reported but is NOT in the rule set",
+    "  - baseline for T2 = the better of the rule set and the best single rule on VAL F1",
+    "  - test is read once, in eval/model_eval.py --final, and reported both ways:",
+    "  - labels score a threshold; no rule reads them"
+  ],
+  "timestamp": "2026-11-22T21:28:41+00:00",
+  "train": {
+    "R1": {
+      "alerts": 1770,
+      "alerts_per_day": 354.0,
+      "f1": 0.006408544726301735,
+      "positives": 1975,
+      "precision": 0.006779661016949152,
+      "recall": 0.0060759493670886075,
+      "rows": 1931940,
+      "tp": 12
+    },
+    "R1_original": {
+      "alerts": 783,
+      "alerts_per_day": 156.6,
+      "f1": 0.0,
+      "positives": 1975,
+      "precision": 0.0,
+      "recall": 0.0,
+      "rows": 1931940,
+      "tp": 0
+    },
+    "R2": {
+      "alerts": 43985,
+      "alerts_per_day": 8797.0,
+      "f1": 0.01257615317667537,
+      "positives": 1975,
+      "precision": 0.0065704217346822785,
+      "recall": 0.14632911392405062,
+      "rows": 1931940,
+      "tp": 289
+    },
+    "R3": {
+      "alerts": 188478,
+      "alerts_per_day": 37695.6,
+      "f1": 0.002709329860910566,
+      "positives": 1975,
+      "precision": 0.0013688600261038424,
+      "recall": 0.13063291139240507,
+      "rows": 1931940,
+      "tp": 258
+    },
+    "R4": {
+      "alerts": 35576,
+      "alerts_per_day": 7115.2,
+      "f1": 0.012143484860589597,
+      "positives": 1975,
+      "precision": 0.0064088149314144366,
+      "recall": 0.11544303797468354,
+      "rows": 1931940,
+      "tp": 228
+    },
+    "R5": {
+      "alerts": 534,
+      "alerts_per_day": 106.8,
+      "f1": 0.05819051414906337,
+      "positives": 1975,
+      "precision": 0.13670411985018727,
+      "recall": 0.0369620253164557,
+      "rows": 1931940,
+      "tp": 73
+    },
+    "rule_set": {
+      "alerts": 267672,
+      "alerts_per_day": 53534.4,
+      "f1": 0.0058669297266426106,
+      "positives": 1975,
+      "precision": 0.002955109238172091,
+      "recall": 0.40050632911392403,
+      "rows": 1931940,
+      "tp": 791
+    }
+  },
+  "val": {
+    "R1": {
+      "alerts": 512,
+      "alerts_per_day": 170.66666666666666,
+      "f1": 0.0075282308657465494,
+      "positives": 1082,
+      "precision": 0.01171875,
+      "recall": 0.005545286506469501,
+      "rows": 1015602,
+      "tp": 6
+    },
+    "R1_original": {
+      "alerts": 378,
+      "alerts_per_day": 126.0,
+      "f1": 0.0,
+      "positives": 1082,
+      "precision": 0.0,
+      "recall": 0.0,
+      "rows": 1015602,
+      "tp": 0
+    },
+    "R2": {
+      "alerts": 9228,
+      "alerts_per_day": 3076.0,
+      "f1": 0.029485935984481085,
+      "positives": 1082,
+      "precision": 0.0164716081491114,
+      "recall": 0.14048059149722736,
+      "rows": 1015602,
+      "tp": 152
+    },
+    "R3": {
+      "alerts": 104697,
+      "alerts_per_day": 34899.0,
+      "f1": 0.002741564960909065,
+      "positives": 1082,
+      "precision": 0.0013849489479163682,
+      "recall": 0.13401109057301294,
+      "rows": 1015602,
+      "tp": 145
+    },
+    "R4": {
+      "alerts": 15280,
+      "alerts_per_day": 5093.333333333333,
+      "f1": 0.012834616795012835,
+      "positives": 1082,
+      "precision": 0.0068717277486911,
+      "recall": 0.09704251386321626,
+      "rows": 1015602,
+      "tp": 105
+    },
+    "R5": {
+      "alerts": 248,
+      "alerts_per_day": 82.66666666666667,
+      "f1": 0.04962406015037594,
+      "positives": 1082,
+      "precision": 0.13306451612903225,
+      "recall": 0.030499075785582256,
+      "rows": 1015602,
+      "tp": 33
+    },
+    "rule_set": {
+      "alerts": 129521,
+      "alerts_per_day": 43173.666666666664,
+      "f1": 0.0062326286532468625,
+      "positives": 1082,
+      "precision": 0.0031423475729804432,
+      "recall": 0.37615526802218113,
+      "rows": 1015602,
+      "tp": 407
+    }
+  }
+}
