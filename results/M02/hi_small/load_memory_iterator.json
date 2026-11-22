@@ -1,0 +1,74 @@
+{
+  "dataset": "hi_small",
+  "extrapolation": {
+    "method": "straight line through the last two scale points (peak RSS after the DMatrix build against rows); an extrapolation, not a measurement",
+    "peak_rss_mb_at_target": 8995,
+    "points_rows_mb": [
+      [
+        3863880,
+        4872
+      ],
+      [
+        7727760,
+        6346
+      ]
+    ],
+    "target_rows": 14671661,
+    "target_rows_basis": "results/M01/hi_medium/split.json train rows 19,137,646 minus the first 24 h, 4,465,985 rows in results/M01/hi_medium/eda.json per_day[0]"
+  },
+  "git_dirty": false,
+  "git_sha": "46398ccc58f8956bda6fea3d65bc7dcf0fcd5810",
+  "mode": "iterator",
+  "note": "scale rows are HI-Small training rows repeated k times, not HI-Medium data",
+  "scale": [
+    {
+      "factor": 1,
+      "peak_rss_mb": {
+        "after_10_rounds": 4596,
+        "after_dmatrix": 4464,
+        "after_imports": 200,
+        "after_spill": 3007
+      },
+      "rows": 1931940,
+      "seconds": {
+        "dmatrix": 2.6,
+        "spill": 14.9,
+        "ten_rounds": 0.3
+      },
+      "x_float32_mb_on_disk": 657
+    },
+    {
+      "factor": 2,
+      "peak_rss_mb": {
+        "after_10_rounds": 5200,
+        "after_dmatrix": 4872,
+        "after_imports": 199,
+        "after_spill": 3155
+      },
+      "rows": 3863880,
+      "seconds": {
+        "dmatrix": 4.3,
+        "spill": 10.6,
+        "ten_rounds": 0.7
+      },
+      "x_float32_mb_on_disk": 1314
+    },
+    {
+      "factor": 4,
+      "peak_rss_mb": {
+        "after_10_rounds": 6454,
+        "after_dmatrix": 6346,
+        "after_imports": 199,
+        "after_spill": 3342
+      },
+      "rows": 7727760,
+      "seconds": {
+        "dmatrix": 9.8,
+        "spill": 13.1,
+        "ten_rounds": 1.1
+      },
+      "x_float32_mb_on_disk": 2627
+    }
+  ],
+  "timestamp": "2026-11-22T22:40:59+00:00"
+}
