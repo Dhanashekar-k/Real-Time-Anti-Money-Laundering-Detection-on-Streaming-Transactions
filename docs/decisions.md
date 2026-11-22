@@ -57,7 +57,22 @@ Accepted (Nov 2026); M0 facts filled in on 2026-11-21. New project-based sign-up
 - **Billing access:** this account cannot list cost-allocation tags (`aws ce list-cost-allocation-tags` returns "Linked account doesn't have access to cost allocation tags"), so activating the `project` tag may need an Organization management account. See D33.
 
 ## D17 — Split boundaries
-TODO at M1: t1, t2, row and laundering counts per split for hi_small and hi_medium.
+Measured in M1 on HI-Small (`results/M01/hi_small/split.json`, 2026-11-22). Rule: `t1`, `t2` are the `event_ts` at index floor(0.6N) and floor(0.8N) in `(event_ts_ms, tx_id)` order; train `< t1`, val `[t1, t2)`, test `>= t2`. A timestamp never straddles two sets.
+
+| | HI-Small |
+|---|---|
+| N | 5,078,345 |
+| boundary indexes | 3,047,007 and 4,062,676 |
+| `t1` | 2022-09-06T13:36:00+00:00 (1662471360000) |
+| `t2` | 2022-09-08T16:12:00+00:00 (1662653520000) |
+| train | 3,046,861 rows, 2,297 laundering (0.075%) |
+| val | 1,015,602 rows, 1,082 laundering (0.107%) |
+| test | 1,015,882 rows, 1,798 laundering (0.177%) |
+| rows that differ from a pure index split | 359 |
+
+- The laundering rate rises over time (0.075% in train, 0.107% in val, 0.177% in test; percentages computed from the counts above). The precision, recall and PR-AUC on val and test are therefore not comparable with train, and a threshold chosen on val is chosen on a lower base rate than test has. Report both.
+- Training excludes rows with `event_ts < data_start + 24h` (D04), so the effective train set is smaller than shown.
+- HI-Medium: TBD (not measured).
 
 ## D18 — Watermark strategy and out-of-orderness bound
 TODO at M04 (§4).

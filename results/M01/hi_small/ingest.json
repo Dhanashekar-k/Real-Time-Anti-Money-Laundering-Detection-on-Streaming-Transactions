@@ -1,0 +1,34 @@
+{
+  "config": {
+    "driver_memory": "6g",
+    "namespace": "aml_hi_small",
+    "spark_master": "local[*]",
+    "table": "lake.aml_hi_small.raw_transactions",
+    "timezone": "UTC",
+    "ts_format": "yyyy/MM/dd HH:mm"
+  },
+  "dataset": "hi_small",
+  "fx_version": 1,
+  "git_dirty": false,
+  "git_sha": "ef494ab11faef54bf7452979549d60fea971bc2a",
+  "laundering": 5177,
+  "rows": 5078345,
+  "source": {
+    "lines_minus_header": 5078345,
+    "path": "/Volumes/Shekar_ssd/project_2/raw/HI-Small_Trans.csv",
+    "sha256": "b19d39f515523373f991b689c07e11e7b0b95c17a2c27a87d91584ae16c5b040",
+    "size_bytes": 475664283
+  },
+  "source_lines_minus_header": 5078345,
+  "source_partitions": 12,
+  "split_boundaries_ms": {
+    "t1": 1662471360000,
+    "t2": 1662653520000
+  },
+  "split_counts": {
+    "test": 1015882,
+    "train": 3046861,
+    "val": 1015602
+  },
+  "timestamp": "2026-11-22T06:38:16+00:00"
+}

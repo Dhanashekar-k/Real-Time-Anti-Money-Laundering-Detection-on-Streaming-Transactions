@@ -1,0 +1,59 @@
+{
+  "ambiguous_lines": 0,
+  "attempts": 370,
+  "by_type": {
+    "BIPARTITE": {
+      "attempts": 49,
+      "lines": 263
+    },
+    "CYCLE": {
+      "attempts": 54,
+      "lines": 287
+    },
+    "FAN-IN": {
+      "attempts": 40,
+      "lines": 318
+    },
+    "FAN-OUT": {
+      "attempts": 48,
+      "lines": 342
+    },
+    "GATHER-SCATTER": {
+      "attempts": 51,
+      "lines": 716
+    },
+    "RANDOM": {
+      "attempts": 41,
+      "lines": 191
+    },
+    "SCATTER-GATHER": {
+      "attempts": 44,
+      "lines": 626
+    },
+    "STACK": {
+      "attempts": 43,
+      "lines": 466
+    }
+  },
+  "config": {
+    "namespace": "aml_hi_small",
+    "table": "lake.aml_hi_small.patterns"
+  },
+  "coverage_assigned": 0.6198570600734016,
+  "coverage_upper_bound": 0.6198570600734016,
+  "dataset": "hi_small",
+  "git_dirty": true,
+  "git_sha": "ef494ab11faef54bf7452979549d60fea971bc2a",
+  "laundering_in_pattern_assigned": 3209,
+  "laundering_in_pattern_upper_bound": 3209,
+  "laundering_outside_any_pattern_lower_bound": 1968,
+  "laundering_outside_any_pattern_upper_bound": 1968,
+  "laundering_total": 5177,
+  "lines": 3209,
+  "pattern_lines_not_labelled_laundering": 0,
+  "source": {
+    "path": "/Volumes/Shekar_ssd/project_2/raw/HI-Small_Patterns.txt"
+  },
+  "timestamp": "2026-11-22T06:38:44+00:00",
+  "unmatched_lines": 0
+}
