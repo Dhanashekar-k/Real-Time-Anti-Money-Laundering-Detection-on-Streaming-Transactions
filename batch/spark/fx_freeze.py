@@ -161,6 +161,7 @@ def build(doc: dict[str, Any], currencies: list[str]) -> str:
 
 
 BTC_CHECK_SIGMAS = 3
+MIN_BTC_ROWS = 20  # fewer paid>=100 rows than this and the cv/sqrt(n) error estimate means little
 
 
 def check(doc: dict[str, Any], frozen: dict[str, Any], currencies: list[str]) -> list[str]:
@@ -171,7 +172,12 @@ def check(doc: dict[str, Any], frozen: dict[str, Any], currencies: list[str]) ->
     recovered from the measurement must be identical to the frozen one (and recoverable at all).
     BTC: the measured paid>=100 rate must lie within BTC_CHECK_SIGMAS standard errors of the frozen
     constant, where the standard error is that of the difference of two independent estimates,
-    sqrt(se_frozen^2 + se_measured^2). `build()`'s own invariant (BTC all-amounts rate within 1e-6
+    sqrt(se_frozen^2 + se_measured^2). That standard error is cv/sqrt(n) of the per-row rates (the
+    standard error of their unweighted mean), used as an approximation for the amount-weighted
+    ratio that is actually compared: with a few very large payments the true error is larger,
+    and with errors that shrink with the amount it is smaller. Because the frozen table's own
+    error (25 rows on HI-Small) dominates the combined one, the check cannot see a BTC shift
+    smaller than about three times that. `build()`'s own invariant (BTC all-amounts rate within 1e-6
     of its subset constant) belongs to freezing and is deliberately not applied here.
     """
     usd_pairs = {p["received_currency"]: p for p in doc["pairs"] if p["paid_currency"] == "USD"}
@@ -197,8 +203,9 @@ def check(doc: dict[str, Any], frozen: dict[str, Any], currencies: list[str]) ->
 
 def _check_btc(pair: dict[str, Any], old: dict[str, Any]) -> list[str]:
     subset = pair["weighted_rate_paid_ge_100"]
-    if subset is None or not pair["n_paid_ge_100"] or pair["cv_paid_ge_100"] is None:
-        return ["BTC: too few rows with paid >= 100 units to compare"]
+    n = pair["n_paid_ge_100"]
+    if subset is None or not n or n < MIN_BTC_ROWS or pair["cv_paid_ge_100"] is None:
+        return [f"BTC: only {n or 0} rows with paid >= 100 units (need {MIN_BTC_ROWS}) to compare"]
     with localcontext() as ctx:
         ctx.prec = 60
         rel = float((Decimal(subset) - Decimal(old["per_usd"])) / Decimal(old["per_usd"]))
@@ -216,16 +223,16 @@ def _check_btc(pair: dict[str, Any], old: dict[str, Any]) -> list[str]:
 
 def format_check(doc: dict[str, Any], frozen: dict[str, Any], currencies: list[str]) -> str:
     """Per currency: measured vs frozen constant, for the person reading the check."""
-    lines = [f"{'ccy':<5}{'measured per_usd':>22}{'frozen per_usd':>20}  rows(measured)"]
+    lines = [f"{'ccy':<5}{'measured per_usd':>22}{'frozen per_usd':>20}  rows used"]
     for p in doc["pairs"]:
         ccy = p["received_currency"]
         if p["paid_currency"] != "USD" or ccy not in currencies or ccy == "USD":
             continue
+        # BTC is judged on the paid>=100 subset, so show that rate and that row count
         weighted = p["weighted_rate_paid_ge_100"] if ccy == "BTC" else p["weighted_rate"]
-        lines.append(
-            f"{ccy:<5}{plain(round_sig(Decimal(weighted), 12)):>22}"
-            f"{frozen['evidence'][ccy]['per_usd']:>20}  {p['n']}"
-        )
+        rows = p["n_paid_ge_100"] if ccy == "BTC" else p["n"]
+        shown = "-" if weighted is None else plain(round_sig(Decimal(weighted), 12))
+        lines.append(f"{ccy:<5}{shown:>22}{frozen['evidence'][ccy]['per_usd']:>20}  {rows}")
     return "\n".join(lines)
 
 

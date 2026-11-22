@@ -214,3 +214,52 @@ def test_check_reports_every_currency_that_differs_not_just_the_first() -> None:
     doc = _measured(EUR="0.8535", JPY="110.5", BTC=str(frozen_constant * Decimal("1.01")))
     problems = fx_freeze.check(doc, FROZEN, money.CURRENCIES)
     assert sorted(line.split(":")[0] for line in problems) == ["BTC", "EUR", "JPY"]
+
+
+# --- fx-check edge cases and pinned results ------------------------------------------------------
+
+
+def _btc_pair(doc: dict) -> dict:
+    return next(
+        p for p in doc["pairs"] if p["paid_currency"] == "USD" and p["received_currency"] == "BTC"
+    )
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"n_paid_ge_100": 0},
+        {"n_paid_ge_100": fx_freeze.MIN_BTC_ROWS - 1},
+        {"weighted_rate_paid_ge_100": None},
+        {"cv_paid_ge_100": None},
+    ],
+)
+def test_check_says_so_when_there_are_too_few_btc_rows(change: dict) -> None:
+    doc = _measured()
+    _btc_pair(doc).update(change)
+    problems = fx_freeze.check(doc, FROZEN, money.CURRENCIES)
+    assert len(problems) == 1 and problems[0].startswith("BTC:") and "need" in problems[0]
+    fx_freeze.format_check(doc, FROZEN, money.CURRENCIES)  # must not raise on the missing rate
+
+
+@pytest.mark.parametrize(("factor", "agrees"), [(0.9, True), (1.1, False)])
+def test_check_btc_band_edges(factor: float, agrees: bool) -> None:
+    import math
+
+    doc = _measured()
+    pair = _btc_pair(doc)
+    se = math.hypot(
+        pair["cv_paid_ge_100"] / math.sqrt(pair["n_paid_ge_100"]),
+        float(FROZEN["evidence"]["BTC"]["rel_stderr"]),
+    )
+    drift = Decimal(repr(fx_freeze.BTC_CHECK_SIGMAS * se * factor))
+    pair["weighted_rate_paid_ge_100"] = str(
+        Decimal(FROZEN["evidence"]["BTC"]["per_usd"]) * (1 + drift)
+    )
+    assert (fx_freeze.check(doc, FROZEN, money.CURRENCIES) == []) is agrees
+
+
+def test_the_committed_hi_medium_measurement_agrees_with_the_frozen_table() -> None:
+    # What `make fx-check DS=hi_medium` printed, pinned so the claim in D36 is guarded.
+    path = ROOT / "results" / "M01" / "hi_medium" / "fx_variance.json"
+    assert fx_freeze.check(json.loads(path.read_text()), FROZEN, money.CURRENCIES) == []

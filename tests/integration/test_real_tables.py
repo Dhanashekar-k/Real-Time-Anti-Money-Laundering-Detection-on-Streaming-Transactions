@@ -1,12 +1,13 @@
 """The real Iceberg tables (HI-Small, HI-Medium), checked with DuckDB (an engine other than the one
-that wrote them), and the recorded results files checked against each other and the table.
+that wrote them), against the recorded ingest results.
 
-Each dataset skips, with a stated reason, if the SSD or its table is absent: a fresh clone has no
-data. DuckDB reads the Parquet files directly and ignores the `._*` AppleDouble files exFAT leaves
-next to them. Needs no compose stack.
+Each dataset skips, with a stated reason, if the SSD is not mounted or the dataset was never
+ingested (no committed ingest.json): a fresh clone has no data. If the SSD is mounted and the
+dataset was ingested, a missing table fails. The checks that need no SSD (the results files agree
+with each other) are in tests/unit/test_results_consistency.py. DuckDB reads the Parquet files
+directly and ignores the `._*` AppleDouble files exFAT leaves next to them. Needs no compose stack.
 """
 
-import hashlib
 import json
 from pathlib import Path
 
@@ -14,7 +15,6 @@ import duckdb
 import pytest
 
 from batch.spark import common
-from features import money
 
 pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
@@ -28,10 +28,8 @@ def _table_dir(ds: str) -> Path:
 
 
 def _result(ds: str, name: str) -> dict:
-    path = ROOT / "results" / "M01" / ds / f"{name}.json"
-    if not path.is_file():
-        pytest.skip(f"{path} not found (`make` target for it not run yet)")
-    return json.loads(path.read_text())
+    """A committed results file. A missing one is an error, not a skip."""
+    return json.loads((ROOT / "results" / "M01" / ds / f"{name}.json").read_text())
 
 
 def _source_lines(ds: str) -> int:
@@ -49,6 +47,11 @@ def table(request: pytest.FixtureRequest) -> tuple[str, duckdb.DuckDBPyConnectio
     ds = request.param
     data_dir = _table_dir(ds)
     if not data_dir.is_dir():
+        recorded = (ROOT / "results" / "M01" / ds / "ingest.json").is_file()
+        if common.DATA_ROOT.is_dir() and recorded:
+            pytest.fail(
+                f"{ds}: ingest.json is committed and the SSD is mounted, but {data_dir} is gone"
+            )
         pytest.skip(f"{ds} table not found at {data_dir} (SSD unmounted or `make iceberg` not run)")
     connection = common.duckdb_connection()
     connection.execute(
@@ -130,57 +133,3 @@ def test_every_data_file_is_in_tx_id_order(table) -> None:  # noqa: ANN001
                 WHERE prev >= tx_id""",
         )
         assert bad == 0, path.name
-
-
-# --- the recorded results agree with each other ---------------------------------------------------
-
-
-@pytest.mark.parametrize("ds", sorted(DATASETS))
-def test_every_results_file_counts_the_same_rows(ds: str) -> None:
-    ingest = _result(ds, "ingest")
-    expected = ingest["rows"]
-    assert ingest["source_lines_minus_header"] == expected
-    assert _result(ds, "split")["rows"] == expected
-    assert _result(ds, "money_parity")["rows_compared"] == expected
-    assert _result(ds, "eda")["totals"]["rows"] == expected
-    assert _result(ds, "eda")["totals"]["laundering"] == ingest["laundering"]
-
-
-@pytest.mark.parametrize("ds", sorted(DATASETS))
-def test_split_results_agree_with_the_ingest(ds: str) -> None:
-    ingest, split = _result(ds, "ingest"), _result(ds, "split")
-    assert split["stored_split_mismatches"] == 0
-    assert {k: v["rows"] for k, v in split["splits"].items()} == ingest["split_counts"]
-    assert (split["t1_ms"], split["t2_ms"]) == (
-        ingest["split_boundaries_ms"]["t1"],
-        ingest["split_boundaries_ms"]["t2"],
-    )
-    assert sum(v["laundering"] for v in split["splits"].values()) == ingest["laundering"]
-
-
-@pytest.mark.parametrize("ds", sorted(DATASETS))
-def test_money_parity_has_no_mismatch_and_used_the_committed_fx_table(ds: str) -> None:
-    parity = _result(ds, "money_parity")
-    assert parity["mismatches"] == {
-        "minor_paid": 0,
-        "minor_received": 0,
-        "cents_paid": 0,
-        "cents_received": 0,
-    }
-    assert parity["config"]["fx_version"] == money.FX_VERSION_REQUIRED
-    assert (
-        parity["config"]["fx_rates_sha256"]
-        == hashlib.sha256(money.FX_PATH.read_bytes()).hexdigest()
-    )
-    assert _result(ds, "ingest")["fx_version"] == money.FX_VERSION_REQUIRED
-
-
-@pytest.mark.parametrize("ds", sorted(DATASETS))
-def test_ingest_recorded_the_source_file_the_checksums_describe(ds: str) -> None:
-    name = f"{DATASETS[ds]}_Trans.csv"
-    sha = next(
-        line.split()[0]
-        for line in CHECKSUMS.read_text().splitlines()
-        if line.strip().endswith(name) and len(line.split()[0]) == 64
-    )
-    assert _result(ds, "ingest")["source"]["sha256"] == sha
