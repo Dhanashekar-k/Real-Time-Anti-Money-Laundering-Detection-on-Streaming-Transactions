@@ -5,9 +5,9 @@ vectors in `tests/golden/`. Nothing else defines the features.
 
 Who wrote what
 --------------
-Everything in this file except `_compute_rows` is scaffolding (columns, dtypes, validation, null
+Everything in this file except `_compute_columns` is scaffolding (columns, dtypes, validation, null
 helpers, the frame builder) and is covered by `tests/unit/test_reference_contract.py`.
-`_compute_rows` is the window logic. It is OWNER: human (CLAUDE.md rule 4) and is deliberately
+`_compute_columns` is the window logic. It is OWNER: human (CLAUDE.md rule 4) and is deliberately
 not written: it raises NotImplementedError until you write it.
 
 The contract of `compute_account_legs`
@@ -224,6 +224,25 @@ def _to_frame(rows: Sequence[Mapping[str, Any]], spec: Spec) -> pd.DataFrame:
     return pd.DataFrame(data)
 
 
+def _columns_to_frame(columns: Mapping[str, list[Any]], spec: Spec) -> pd.DataFrame:
+    """Typed frame from one list per output column (no per-row dicts: the fast path).
+
+    Strict like `_to_frame`: exactly the output columns, all the same length. The per-role rule
+    (which columns a row of each role fills, the rest null) is kept by construction in
+    `_compute_columns` and checked by the contract tests against `_to_frame`.
+    """
+    dtypes = output_dtypes(spec)
+    if set(columns) != set(dtypes):
+        raise KeyError(
+            f"columns differ: missing {sorted(set(dtypes) - set(columns))}, "
+            f"unexpected {sorted(set(columns) - set(dtypes))}"
+        )
+    lengths = {len(v) for v in columns.values()}
+    if len(lengths) > 1:
+        raise ValueError(f"column lengths differ: {sorted(lengths)}")
+    return pd.DataFrame({c: pd.Series(columns[c], dtype=dtype) for c, dtype in dtypes.items()})
+
+
 def compute_account_legs(legs: pd.DataFrame, spec: Spec) -> pd.DataFrame:
     """Features for every leg of ONE account, as of just before each transaction.
 
@@ -232,7 +251,7 @@ def compute_account_legs(legs: pd.DataFrame, spec: Spec) -> pd.DataFrame:
     validate_legs(legs, spec)
     if legs.empty:
         return _to_frame([], spec)
-    return _to_frame(_compute_rows(legs, spec), spec)
+    return _columns_to_frame(_compute_columns(legs, spec), spec)
 
 
 # =================================================================================================
@@ -242,12 +261,13 @@ def compute_account_legs(legs: pd.DataFrame, spec: Spec) -> pd.DataFrame:
 # =================================================================================================
 
 
-def _compute_rows(legs: pd.DataFrame, spec: Spec) -> list[dict[str, Any]]:
-    """One dict per input leg, in processing order, keyed by the columns `_to_frame` demands.
+def _compute_columns(legs: pd.DataFrame, spec: Spec) -> dict[str, list[Any]]:
+    """One list per output column, one entry per input leg, in processing order.
 
-    Each dict has `tx_id`, `role` ('S' for OUT, 'R' for IN) and exactly
-    `role_columns(spec, role)`; None is a null. The single pass of manual M02 §2 with the spec
-    decisions D40 to D43. See the comments for the order of operations.
+    The single pass of manual M02 §2 with the spec decisions D40 to D43 (see the comments for the
+    order of operations). Values go straight into column lists: building one dict per leg and
+    transposing afterwards was two thirds of the run time. A leg fills `tx_id`, `role` and its
+    role's columns; the relational column of the other role gets None.
     """
     n = len(legs)
     tx_ids = legs["tx_id"].tolist()
@@ -286,7 +306,20 @@ def _compute_rows(legs: pd.DataFrame, spec: Spec) -> list[dict[str, Any]]:
 
     first_seen: int | None = None  # kept forever: never evicted (account_age, log_empty)
     last_in_ts: int | None = None  # kept forever: the hold of an OUT entry may reach past 72 h
-    rows: list[dict[str, Any]] = []
+    cols: dict[str, list[Any]] = {name: [] for name in output_columns(spec)}
+    put = {name: column.append for name, column in cols.items()}  # bound methods: no lookups later
+    put_window = {name: tuple(put[c] for c in names[name]) for name in windows}
+    put_share = {
+        window: [(fmt, put[column]) for fmt, column in per_format]
+        for window, per_format in share_names.items()
+    }
+    put_tx, put_role = put["tx_id"], put["role"]
+    put_age, put_empty = put["account_age_minutes"], put["log_empty"]
+    put_new, put_back, put_vs = (
+        put["new_counterparty_72h"],
+        put["returned_funds_24h"],
+        put["amount_vs_out_avg_72h"],
+    )
 
     i = 0
     while i < n:
@@ -303,39 +336,39 @@ def _compute_rows(legs: pd.DataFrame, spec: Spec) -> list[dict[str, Any]]:
             t = stamps[k]
             for w in windows.values():
                 w.evict_until(t)  # drop entries with ts <= t - W: start exclusive
-            row: dict[str, Any] = {"tx_id": tx_ids[k], "role": "S" if outs[k] else "R"}
+            put_tx(tx_ids[k])
+            put_role("S" if outs[k] else "R")
             for name, w in windows.items():
-                c = names[name]
-                row[c[0]] = w.n_out
-                row[c[1]] = w.n_in
-                row[c[2]] = w.sum_out
-                row[c[3]] = w.sum_in
-                row[c[4]] = len(w.cp_out)  # distinct = number of keys in the multiset
-                row[c[5]] = len(w.cp_in)
-                row[c[6]] = ratio_or_none(w.sum_out, w.sum_in)
-                row[c[7]] = avg_hold_minutes(w.hold_total_ms, w.hold_n)
-                row[c[8]] = ratio_or_none(w.n_cross, w.n_out + w.n_in)
-            for fmt_window, per_format in share_names.items():
+                p = put_window[name]
+                p[0](w.n_out)
+                p[1](w.n_in)
+                p[2](w.sum_out)
+                p[3](w.sum_in)
+                p[4](len(w.cp_out))  # distinct = number of keys in the multiset
+                p[5](len(w.cp_in))
+                p[6](ratio_or_none(w.sum_out, w.sum_in))
+                p[7](avg_hold_minutes(w.hold_total_ms, w.hold_n))
+                p[8](ratio_or_none(w.n_cross, w.n_out + w.n_in))
+            for fmt_window, per_format in put_share.items():
                 w = windows[fmt_window]
-                for fmt, column in per_format:
-                    row[column] = ratio_or_none(w.formats.get(fmt, 0), w.n_out)
-            row["account_age_minutes"] = (
-                None if first_seen is None else (t - first_seen) / MS_PER_MINUTE
-            )
-            row["log_empty"] = int(first_seen is None)
+                for fmt, put_fmt in per_format:
+                    put_fmt(ratio_or_none(w.formats.get(fmt, 0), w.n_out))
+            put_age(None if first_seen is None else (t - first_seen) / MS_PER_MINUTE)
+            put_empty(int(first_seen is None))
 
             cp = cps[k]
             if outs[k]:
                 known = windows[_NEW_CP_WINDOW].cp_out
-                row["new_counterparty_72h"] = 0 if is_self else int(cp not in known)
+                put_new(0 if is_self else int(cp not in known))
                 a = windows[_AVG_WINDOW]
-                row["amount_vs_out_avg_72h"] = vs_avg_or_none(amounts[k], a.sum_out, a.n_out)
+                put_vs(vs_avg_or_none(amounts[k], a.sum_out, a.n_out))
+                put_back(None)  # an R-role feature: null on an S row
             else:
                 known = windows[_NEW_CP_WINDOW].cp_in
-                row["new_counterparty_72h"] = 0 if is_self else int(cp not in known)
+                put_new(0 if is_self else int(cp not in known))
                 back = windows[_RETURNED_WINDOW].cp_out
-                row["returned_funds_24h"] = 0 if is_self else int(cp in back)
-            rows.append(row)
+                put_back(0 if is_self else int(cp in back))
+                put_vs(None)  # an S-role feature: null on an R row
 
         # 4. Only now append the transaction's entries (OUT first). The hold of an OUT entry is
         #    fixed at append time from last_in_ts as it stands BEFORE this transaction's IN leg.
@@ -351,7 +384,7 @@ def _compute_rows(legs: pd.DataFrame, spec: Spec) -> list[dict[str, Any]]:
             if first_seen is None:
                 first_seen = t
         i = j
-    return rows
+    return cols
 
 
 # --- window state (part of the same OWNER block) ------------------------------------------------

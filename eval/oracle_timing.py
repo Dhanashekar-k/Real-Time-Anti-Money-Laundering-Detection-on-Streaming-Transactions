@@ -77,7 +77,7 @@ def _rss_mb() -> float:
 
 
 def time_oracle(legs: pd.DataFrame, spec: Spec, repeats: int = 3) -> dict[str, Any]:
-    runs, rows_only = [], []
+    runs, loop_only = [], []
     for _ in range(repeats):
         t0 = time.perf_counter()
         out = reference.compute_account_legs(legs, spec)
@@ -85,13 +85,13 @@ def time_oracle(legs: pd.DataFrame, spec: Spec, repeats: int = 3) -> dict[str, A
         assert len(out) == len(legs)
     for _ in range(repeats):
         t0 = time.perf_counter()
-        reference._compute_rows(legs, spec)
-        rows_only.append(time.perf_counter() - t0)
+        reference._compute_columns(legs, spec)
+        loop_only.append(time.perf_counter() - t0)
     return {
         "legs": len(legs),
         "seconds_full": [round(x, 3) for x in runs],
         "seconds_full_median": round(statistics.median(runs), 3),
-        "seconds_compute_rows_only": [round(x, 3) for x in rows_only],
+        "seconds_loop_only": [round(x, 3) for x in loop_only],
         "microseconds_per_leg_full": round(statistics.median(runs) / len(legs) * 1e6, 2),
         "rss_peak_mb": round(_rss_mb(), 1),
     }
