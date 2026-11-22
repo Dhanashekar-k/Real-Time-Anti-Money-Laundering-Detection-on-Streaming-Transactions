@@ -66,8 +66,8 @@ _FLOAT_PREFIXES = (
 class Entry:
     """One appended log entry (spec.yaml `legs.entry_fields`).
 
-    `hold_minutes` is set when an OUT entry is appended and is None for IN entries and for an OUT
-    entry from an account that has no earlier IN entry.
+    `hold_ms` (int64 milliseconds, D40) is set when an OUT entry is appended and is None for IN
+    entries and for an OUT entry from an account that has no earlier IN entry.
     """
 
     tx_id: int
@@ -78,7 +78,7 @@ class Entry:
     payment_currency: str
     receiving_currency: str
     payment_format: str
-    hold_minutes: float | None = None
+    hold_ms: int | None = None
 
 
 # --- columns and dtypes ---------------------------------------------------------------------------
@@ -150,11 +150,26 @@ def ratio_or_none(numerator: float, denominator: float) -> float | None:
     return numerator / denominator
 
 
-def mean_or_none(total: float, count: int) -> float | None:
-    """total / count, or None for an empty set."""
+MS_PER_MINUTE = 60_000
+
+
+def avg_hold_minutes(total_hold_ms: int, count: int) -> float | None:
+    """`avg_hold_minutes_*` (D40): ONE division of two integers, `total_ms / (count * 60000)`.
+
+    `total_hold_ms` is the exact int64 sum of `hold_ms` over the OUT entries of the window that
+    have a hold, `count` how many there are. None when there are none.
+    """
     if count == 0:
         return None
-    return total / count
+    return total_hold_ms / (count * MS_PER_MINUTE)
+
+
+def vs_avg_or_none(amount: int, total: int, count: int) -> float | None:
+    """`amount / (total / count)` (D41): None for an empty window (count == 0) AND for a zero
+    average (total == 0). Evaluated as written: the average is a double, then amount / average."""
+    if count == 0 or total == 0:
+        return None
+    return amount / (total / count)
 
 
 # --- input validation and the frame builder -----------------------------------
@@ -247,15 +262,17 @@ def _compute_rows(legs: pd.DataFrame, spec: Spec) -> list[dict[str, Any]]:
          evict.
       4. The 72 h window also needs the per-format counts of OUT entries (the format shares).
       5. Outside the window state, kept forever: first_seen (for account_age_minutes and
-         log_empty) and last_in_ts (for hold_minutes, which is stored on an OUT entry at append
-         time: (entry.event_ts_ms - last_in_ts) / 60000, None if there is no earlier IN entry).
+         log_empty) and last_in_ts (for hold_ms, which is stored on an OUT entry at append
+         time: entry.event_ts_ms - last_in_ts as an int64, None if there is no earlier IN entry).
+         The window keeps a running int64 sum of hold_ms and a count (add on append, subtract on
+         evict); avg_hold_minutes is `avg_hold_minutes(total_ms, count)`, never a float sum (D40).
       6. Relational features, from this account's own state: new_counterparty_72h,
          returned_funds_24h (R legs, 24 h OUT multiset contains the sender), and
          amount_vs_out_avg_72h (S legs). See spec.yaml for the exact definitions and
-         `ratio_or_none` / `mean_or_none` for the null rules.
-      Spec subtleties to decide and write down in the golden vectors: a self-transfer's
-      counterparty is the account itself (D36 asks M2 to decide how that counts);
-      amount_vs_out_avg_72h divides by an average that is 0 when the window holds only
-      zero-amount entries (null_policy says null when the denominator is 0).
+         `ratio_or_none`, `avg_hold_minutes` and `vs_avg_or_none` for the null rules.
+      Decided in the spec (D40, D41): avg_hold_minutes is an exact int64 ms sum and one
+      division; amount_vs_out_avg_72h is null for an empty window and for a zero average.
+      Still yours to decide and write down in the golden vectors: a self-transfer's
+      counterparty is the account itself (D36 asks M2 to decide how that counts).
     """
     raise NotImplementedError("TODO(human): features/reference.py::_compute_rows")

@@ -18,7 +18,7 @@ legs:
   description: "Each transaction produces two legs. Each account keeps one log containing both directions."
   OUT: {account: sender_key, counterparty: receiver_key, amount: amount_paid_usd_cents, role_prefix: s_}
   IN:  {account: receiver_key, counterparty: sender_key, amount: amount_received_usd_cents, role_prefix: r_}
-  entry_fields: [tx_id, event_ts_ms, direction, counterparty_key, amount_usd_cents, payment_currency, receiving_currency, payment_format, hold_minutes]
+  entry_fields: [tx_id, event_ts_ms, direction, counterparty_key, amount_usd_cents, payment_currency, receiving_currency, payment_format, hold_ms]
 
 account_key: "<bank_id>:<account_id>  # account ids are only unique within a bank"
 
@@ -47,6 +47,7 @@ windows:
 null_policy:
   counts_and_sums: "0 when the window is empty"
   ratios_and_averages: "null when the denominator is 0 (model sees NaN)"
+  vs_average_ratios: "A feature of the form amount / (sum / count) (names *_vs_*_avg_*) has the AVERAGE as its denominator, so it is null when count == 0 (empty window) OR sum == 0 (zero average). Both cases give the same null; the model cannot tell them apart. (D41)"
   booleans: "0/1 integers, never null"
 
 account_features:
@@ -67,8 +68,8 @@ account_features:
   - name: pass_through_ratio_{w}
     def: "out_sum_usd_cents / in_sum_usd_cents; null if in_sum == 0"
   - name: avg_hold_minutes_{w}
-    def: "mean of hold_minutes over OUT entries in window with non-null hold_minutes; null if none"
-    hold_minutes: "set when an OUT entry is appended: (entry.event_ts_ms - event_ts_ms of the most recent IN entry with smaller tx_id) / 60000 as a double; null if the account has no earlier IN entry (evicted IN entries still count: keep last_in_ts outside the window state)"
+    def: "total_ms / (count * 60000), ONE division of two int64 values (IEEE double, correctly rounded), where total_ms is the int64 sum of hold_ms over OUT entries in the window whose hold_ms is non-null and count is how many such entries there are; null if count == 0. total_ms is a running sum: add hold_ms on append, subtract it on evict (exact in int64). Never accumulate floats, never divide twice (D40)."
+    hold_ms: "int64 milliseconds, set when an OUT entry is appended: entry.event_ts_ms - event_ts_ms of the most recent IN entry with smaller tx_id; null if the account has no earlier IN entry (evicted IN entries still count: keep last_in_ts outside the window state)"
   - name: cross_currency_share_{w}
     def: "count of entries (both directions) with payment_currency != receiving_currency / count of entries in window; null if window empty"
   - name: format_share_{fmt}_72h
@@ -95,11 +96,11 @@ relational_features:
     def: "1 if the receiver's 24h window contains an OUT entry whose counterparty_key == sender_key (2-hop cycle: money returns), else 0"
   - name: s_amount_vs_out_avg_72h
     role: OUT
-    def: "amount_paid_usd_cents / (s_out_sum_usd_cents_72h / s_out_count_72h); null if s_out_count_72h == 0"
+    def: "amount_paid_usd_cents / (s_out_sum_usd_cents_72h / s_out_count_72h); null if s_out_count_72h == 0 (empty window) OR s_out_sum_usd_cents_72h == 0 (zero average). Both conditions give the same null (D41). Evaluate exactly as written: int sum / int count first (a double), then amount / that double."
 
 tx_features:
   - name: log10_amount_paid_usd
-    def: "log10(1 + amount_paid_usd_cents / 100.0)"
+    def: "log10(1 + amount_paid_usd_cents / 100.0), then rounded as in derived_float_rounding (D42)"
   - name: is_cross_currency
     def: "1 if payment_currency != receiving_currency else 0"
   - name: payment_format_code
@@ -116,6 +117,15 @@ tx_features:
     def: "1 if sender_bank == receiver_bank else 0"
   - name: self_transfer
     def: "1 if sender_key == receiver_key else 0"
+
+derived_float_rounding:
+  # D42. Python, Spark and Flink compute log10 with different libm/JVM routines, which can differ by
+  # an ulp. Rounding to 6 decimals removes that difference except for a value within an ulp of a
+  # rounding boundary; the mode below makes every other case identical in all three engines.
+  applies_to: "every tx feature whose name starts with log10_"
+  decimals: 6
+  mode: ROUND_HALF_EVEN
+  procedure: "x = log10(1 + amount_usd_cents / 100.0) as an IEEE double. r = the EXACT decimal expansion of x (Python Decimal(x), Java new BigDecimal(x)) quantized to `decimals` places with `mode`. The feature value is r converted to the nearest double by correctly rounded decimal parsing (Python float(r), Java Double.parseDouble(r.toPlainString())). Not the shortest-repr string: Java 17 Double.toString is not always the shortest."
 
 vector_order:
   rule: "tx_features (listed order), then s_ account_features (listed order; windows in windows.default order; format shares in vocabulary order; then account_age_minutes, log_empty), then r_ account_features (same), then relational_features (listed order)"

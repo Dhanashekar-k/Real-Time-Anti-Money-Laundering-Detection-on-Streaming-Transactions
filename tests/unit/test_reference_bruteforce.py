@@ -6,20 +6,16 @@ purpose, so the only way it can agree with the oracle is that both read the spec
 It is NOT the oracle: nothing imports it, and if the two disagree the hand-computed golden
 vectors decide which one is wrong.
 
-What is compared exactly: every count, sum, distinct count, flag, ratio and share. What is not:
-`avg_hold_minutes_*`, compared with a relative tolerance of 1e-9, because the spec defines it as
-the mean of float minutes and a running sum (add on append, subtract on evict) and a fresh sum can
-differ in the last bits. That is a real parity question for Flink (see docs/decisions.md when the
-owner has decided it), not a reason to loosen the other columns.
-
-Amounts here are always >= 1 cent: `s_amount_vs_out_avg_72h` when the window holds only zero-amount
-entries is a decision for the oracle's owner (spec null_policy vs the feature's own definition).
+Everything is compared exactly, with no tolerance, including `avg_hold_minutes_*` (D40): the hold
+of an entry is an int64 number of milliseconds, the window sum is an exact integer, and the feature
+is ONE division `total_ms / (count * 60000)`, so a running sum and the fresh sum computed here must
+agree to the bit. Zero-amount entries are generated on purpose: `amount_vs_out_avg_72h` is null for
+an empty window AND for a zero average (D41).
 
 Until the oracle body exists the comparison tests report xfail; the self-checks of the brute-force
 code against cases worked out by hand run now.
 """
 
-import math
 import random
 from typing import Any
 
@@ -33,7 +29,6 @@ pytestmark = pytest.mark.unit
 
 MIN = 60_000
 T0 = 1662033600000
-HOLD_COLUMNS = {f"avg_hold_minutes_{w}" for w in ("1h", "24h", "72h")}
 
 
 @pytest.fixture(scope="module")
@@ -49,15 +44,15 @@ def _window(visible: list[dict], t: int, width_ms: int) -> list[dict]:
     return [e for e in visible if e["event_ts_ms"] > t - width_ms]
 
 
-def _hold(rows: list[dict], e: dict) -> float | None:
-    """OUT entry: minutes since the latest IN entry with a smaller tx_id (kept forever)."""
+def _hold_ms(rows: list[dict], e: dict) -> int | None:
+    """OUT entry: milliseconds since the latest IN entry with a smaller tx_id (kept forever)."""
     if e["direction"] != "OUT":
         return None
     earlier_in = [x for x in rows if x["direction"] == "IN" and x["tx_id"] < e["tx_id"]]
     if not earlier_in:
         return None
     last = max(earlier_in, key=lambda x: (x["event_ts_ms"], x["tx_id"]))
-    return (e["event_ts_ms"] - last["event_ts_ms"]) / 60000
+    return e["event_ts_ms"] - last["event_ts_ms"]
 
 
 def brute_account(legs: pd.DataFrame, sp: spec.Spec) -> dict[tuple[int, str], dict[str, Any]]:
@@ -78,7 +73,7 @@ def brute_account(legs: pd.DataFrame, sp: spec.Spec) -> dict[tuple[int, str], di
             ins = [e for e in win if e["direction"] == "IN"]
             out_sum = sum(e["amount_usd_cents"] for e in outs)
             in_sum = sum(e["amount_usd_cents"] for e in ins)
-            holds = [h for h in (_hold(rows, e) for e in outs) if h is not None]
+            holds = [h for h in (_hold_ms(rows, e) for e in outs) if h is not None]
             cross = [e for e in win if e["payment_currency"] != e["receiving_currency"]]
             row[f"out_count_{w}"] = len(outs)
             row[f"in_count_{w}"] = len(ins)
@@ -87,7 +82,7 @@ def brute_account(legs: pd.DataFrame, sp: spec.Spec) -> dict[tuple[int, str], di
             row[f"distinct_out_cp_{w}"] = len({e["counterparty_key"] for e in outs})
             row[f"distinct_in_cp_{w}"] = len({e["counterparty_key"] for e in ins})
             row[f"pass_through_ratio_{w}"] = None if in_sum == 0 else out_sum / in_sum
-            row[f"avg_hold_minutes_{w}"] = sum(holds) / len(holds) if holds else None
+            row[f"avg_hold_minutes_{w}"] = sum(holds) / (len(holds) * 60000) if holds else None
             row[f"cross_currency_share_{w}"] = len(cross) / len(win) if win else None
         win72 = _window(visible, t, sp.window_ms["72h"])
         outs72 = [e for e in win72 if e["direction"] == "OUT"]
@@ -104,9 +99,9 @@ def brute_account(legs: pd.DataFrame, sp: spec.Spec) -> dict[tuple[int, str], di
             row["new_counterparty_72h"] = int(cp not in {e["counterparty_key"] for e in outs72})
             n_out = len(outs72)
             total = sum(e["amount_usd_cents"] for e in outs72)
-            avg = total / n_out if n_out else None
+            # D41: null when the window is empty OR the average is 0
             row["amount_vs_out_avg_72h"] = (
-                None if not avg else leg["amount_usd_cents"] / avg  # None for 0 or no entries
+                None if n_out == 0 or total == 0 else leg["amount_usd_cents"] / (total / n_out)
             )
         else:
             role = "R"
@@ -188,6 +183,37 @@ def test_selfcheck_self_transfer_and_empty_history(s: spec.Spec) -> None:
     assert got[(1, "R")]["returned_funds_24h"] == 0
 
 
+def test_selfcheck_avg_hold_is_one_exact_division(s: spec.Spec) -> None:
+    # IN at minute 0; OUT at minutes 10, 20, 50 -> holds 10, 20, 50 minutes
+    # = 600,000 + 1,200,000 + 3,000,000 ms = 4,800,000 ms over 3 entries
+    legs = _frame(
+        [
+            _leg(1, 0, "IN", cp="X"),
+            _leg(2, 10, "OUT", cp="B"),
+            _leg(3, 20, "OUT", cp="C"),
+            _leg(4, 50, "OUT", cp="D"),
+            _leg(5, 55, "OUT", cp="E"),
+        ]
+    )
+    got = brute_account(legs, s)
+    assert got[(5, "S")]["avg_hold_minutes_1h"] == 4_800_000 / (3 * 60_000)  # 26.666...
+    assert got[(3, "S")]["avg_hold_minutes_1h"] == 600_000 / 60_000  # only tx 2: 10.0
+
+
+def test_selfcheck_vs_avg_null_for_empty_window_and_zero_average(s: spec.Spec) -> None:
+    legs = _frame(
+        [
+            _leg(1, 0, "OUT", cp="B", cents=0),
+            _leg(2, 10, "OUT", cp="C", cents=500),
+            _leg(3, 20, "OUT", cp="D", cents=300),
+        ]
+    )
+    got = brute_account(legs, s)
+    assert got[(1, "S")]["amount_vs_out_avg_72h"] is None  # empty window
+    assert got[(2, "S")]["amount_vs_out_avg_72h"] is None  # one entry, average 0
+    assert got[(3, "S")]["amount_vs_out_avg_72h"] == 300 / (500 / 2)  # entries 0 and 500
+
+
 # --- random accounts ----------------------------------------------------------------------------
 
 
@@ -204,7 +230,7 @@ def random_account(seed: int, n_tx: int) -> pd.DataFrame:
         kind = rnd.choice(["OUT", "OUT", "IN", "IN", "SELF"])
         pay, recv = rnd.choice(currencies), rnd.choice(currencies)
         fmt = rnd.choice(formats)
-        cents = rnd.randint(1, 1_000_000)
+        cents = 0 if rnd.random() < 0.1 else rnd.randint(1, 1_000_000)  # zero amounts exist (D41)
         cp = rnd.choice(counterparties)
         if kind in ("OUT", "SELF"):
             rows.append((tx_id, ts, "OUT", "ME" if kind == "SELF" else cp, cents, pay, recv, fmt))
@@ -222,15 +248,12 @@ def _compare(oracle_out: pd.DataFrame, expected: dict, sp: spec.Spec) -> list[st
         seen.add(key)
         for col in reference.role_columns(sp, rec["role"]):
             got, want = _py(rec[col]), expected[key][col]
-            if col in HOLD_COLUMNS and got is not None and want is not None:
-                same = math.isclose(got, want, rel_tol=1e-9, abs_tol=1e-12)
-            else:
-                same = (got is None and want is None) or (
-                    got is not None
-                    and want is not None
-                    and got == want
-                    and isinstance(got, float) == isinstance(want, float)
-                )
+            same = (got is None and want is None) or (
+                got is not None
+                and want is not None
+                and got == want
+                and isinstance(got, float) == isinstance(want, float)
+            )
             if not same:
                 problems.append(f"{key} {col}: oracle {got!r} vs spec-literal {want!r}")
     if seen != set(expected):

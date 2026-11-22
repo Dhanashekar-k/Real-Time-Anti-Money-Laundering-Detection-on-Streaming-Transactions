@@ -117,8 +117,23 @@ def test_null_helpers() -> None:
     assert reference.ratio_or_none(990, 1000) == 0.99
     assert reference.ratio_or_none(5, 0) is None
     assert reference.ratio_or_none(0, 7) == 0.0
-    assert reference.mean_or_none(90.0, 3) == 30.0
-    assert reference.mean_or_none(0.0, 0) is None
+
+
+def test_avg_hold_is_one_division_of_two_integers() -> None:
+    # D40: total_ms / (count * 60000). 3 entries holding 30, 60 and 90 minutes: 10,800,000 ms
+    assert reference.avg_hold_minutes(10_800_000, 3) == 60.0
+    assert reference.avg_hold_minutes(0, 2) == 0.0  # holds of 0 ms are real, not null
+    assert reference.avg_hold_minutes(0, 0) is None  # no OUT entry with a hold
+    assert reference.avg_hold_minutes(1, 3) == 1 / 180_000  # one correctly rounded division
+    assert reference.MS_PER_MINUTE == 60_000
+
+
+def test_vs_avg_is_null_for_an_empty_window_and_for_a_zero_average() -> None:
+    # D41: amount / (total / count); null if count == 0 OR total == 0
+    assert reference.vs_avg_or_none(100, 99_000, 1) == 100 / (99_000 / 1)
+    assert reference.vs_avg_or_none(100, 0, 0) is None  # empty window
+    assert reference.vs_avg_or_none(100, 0, 3) is None  # entries exist, but their average is 0
+    assert reference.vs_avg_or_none(0, 500, 2) == 0.0  # a zero amount over a real average
 
 
 # --- input validation -----------------------------------------------------------------------------

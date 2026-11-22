@@ -4,7 +4,10 @@ Expected values are worked out from the spec text, not by running the function:
 - 2022-09-01T12:00:00Z = 1662033600000 ms, a Thursday (Monday=0 -> 3)
 - 2022-09-05T00:00:00Z = 1662336000000 ms, a Monday
 - log10(1 + cents/100): 0 cents -> log10(1) = 0; 900 cents -> log10(10) = 1; 99,900 cents ->
-  log10(1000) = 3; 10,000 cents -> log10(101) = 2.00432137378264...
+  log10(1000) = 3; 10,000 cents -> log10(101) = 2.00432137378264..., which D42 rounds to
+  6 decimals (ROUND_HALF_EVEN on the exact binary value) -> 2.004321.
+- exact binary ties at the 7th decimal (so HALF_EVEN and HALF_UP differ):
+  2^-7 = 0.0078125 -> 0.007812 (2 is even); 3 * 2^-7 = 0.0234375 -> 0.023438 (7 is odd).
 """
 
 import pytest
@@ -53,9 +56,34 @@ def test_log10_exact_at_powers_of_ten(s: spec.Spec, cents: int, expected: float)
     )
 
 
-def test_log10_of_101(s: spec.Spec) -> None:
+def test_log10_of_101_is_rounded_to_six_decimals(s: spec.Spec) -> None:
     got = tx_features.compute(_tx(amount_paid_usd_cents=10_000), s)["log10_amount_paid_usd"]
-    assert got == pytest.approx(2.00432137378264, rel=1e-13)
+    assert got == 2.004321  # not 2.00432137378264...
+
+
+def test_spec_states_the_rounding_mode(s: spec.Spec) -> None:
+    assert (s.log10_decimals, s.log10_rounding) == (6, "ROUND_HALF_EVEN")
+
+
+@pytest.mark.parametrize(
+    ("x", "expected"),
+    [
+        (0.0078125, 0.007812),  # exact tie, 2 is even: HALF_UP would give 0.007813
+        (0.0234375, 0.023438),  # exact tie, 7 is odd: rounds up
+        (2.0043213737826426, 2.004321),
+        (2.0043216, 2.004322),
+        (0.0, 0.0),
+        (3.0, 3.0),
+    ],
+)
+def test_quantize_log10_half_even_on_the_exact_binary_value(s: spec.Spec, x, expected) -> None:
+    assert tx_features.quantize_log10(x, s) == expected
+
+
+def test_quantized_values_have_at_most_six_decimals(s: spec.Spec) -> None:
+    for cents in (1, 7, 99, 12_345, 987_654_321, 10**12):
+        v = tx_features.compute(_tx(amount_paid_usd_cents=cents), s)["log10_amount_paid_usd"]
+        assert float(f"{v:.6f}") == v, cents
 
 
 def test_codes_follow_vocabulary_order(s: spec.Spec) -> None:

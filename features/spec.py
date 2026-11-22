@@ -48,6 +48,8 @@ class Spec:
     account_features: tuple[Template, ...]
     relational_features: tuple[Template, ...]
     forbidden_inputs: tuple[str, ...]
+    log10_decimals: int
+    log10_rounding: str  # name of a `decimal` rounding mode, e.g. ROUND_HALF_EVEN
 
     def vocabulary(self, name: str) -> tuple[str, ...]:
         """`currencies` or `payment_formats`."""
@@ -124,6 +126,11 @@ def parse_spec(doc: Mapping[str, Any]) -> Spec:
         return tuple(_template(e, defaults, window_ms) for e in doc.get(key, []))
 
     vocab = doc["vocabularies"]
+    rounding = doc["derived_float_rounding"]
+    if rounding["mode"] != "ROUND_HALF_EVEN":
+        raise ValueError(
+            f"derived_float_rounding.mode must be ROUND_HALF_EVEN, got {rounding['mode']!r}"
+        )
     return Spec(
         spec_version=int(doc["spec_version"]),
         fx_version_required=int(doc["fx_version_required"]),
@@ -138,4 +145,6 @@ def parse_spec(doc: Mapping[str, Any]) -> Spec:
         account_features=templates("account_features", default_windows),
         relational_features=templates("relational_features"),
         forbidden_inputs=tuple(str(x) for x in doc["forbidden_inputs"]),
+        log10_decimals=int(rounding["decimals"]),
+        log10_rounding=str(rounding["mode"]),
     )

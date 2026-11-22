@@ -5,6 +5,7 @@ and a test compares the two; Flink reimplements them in Java and must reproduce 
 The function reads only the columns it names, so label-like columns in the input are ignored.
 """
 
+import decimal
 import math
 from collections.abc import Mapping
 from typing import Any
@@ -27,12 +28,26 @@ def _code(value: str, vocabulary: tuple[str, ...], what: str) -> int:
         raise ValueError(f"unknown {what} {value!r}: not in the spec vocabulary") from None
 
 
+def quantize_log10(x: float, spec: Spec) -> float:
+    """Round a log10 value as the spec says (D42): exact binary value, ROUND_HALF_EVEN, 6 places.
+
+    Decimal(x) is the exact expansion of the double, not its shortest repr, so a tie is a true tie
+    and the same in Java (`new BigDecimal(x)`). float(Decimal) rounds correctly to the nearest
+    double, like Java's `Double.parseDouble`.
+    """
+    mode = getattr(decimal, spec.log10_rounding)
+    step = decimal.Decimal(1).scaleb(-spec.log10_decimals)
+    return float(decimal.Decimal(x).quantize(step, rounding=mode))
+
+
 def compute(tx: Mapping[str, Any], spec: Spec) -> dict[str, float | int]:
     """The tx features of one transaction, in spec order (the first nine names of the vector)."""
     # Integer arithmetic only: the hour and weekday must not depend on a float.
     ts = tx["event_ts_ms"]
     return {
-        "log10_amount_paid_usd": math.log10(1 + tx["amount_paid_usd_cents"] / 100.0),
+        "log10_amount_paid_usd": quantize_log10(
+            math.log10(1 + tx["amount_paid_usd_cents"] / 100.0), spec
+        ),
         "is_cross_currency": int(tx["payment_currency"] != tx["receiving_currency"]),
         "payment_format_code": _code(tx["payment_format"], spec.payment_formats, "payment_format"),
         "payment_currency_code": _code(tx["payment_currency"], spec.currencies, "currency"),
