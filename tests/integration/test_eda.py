@@ -84,10 +84,39 @@ def test_accounts_and_max_transactions_per_account(eda: dict) -> None:
     assert a["tx_per_account"]["max_account"] == "10:ACC001"
     assert a["legs_per_account"]["max"] == 7
     assert a["tx_per_account"]["top"][0] == {"account": "10:ACC001", "tx": 6, "legs": 7}
-    # 20:ACC004: its legs span exactly 72 h, and the window is start-exclusive, so 4 of its 5 legs
     assert a["max_entries_in_retention_window"]["max"] == 7
     assert a["max_entries_in_retention_window"]["account"] == "10:ACC001"
     assert a["max_entries_in_retention_window"]["window_ms"] == 259_200_000
+
+
+def test_window_is_start_exclusive_and_counts_per_account() -> None:
+    """20:ACC004 has 5 legs spanning exactly 72 h (08/31 23:59 ... 09/03 23:59). The first falls
+    on the excluded edge of the window ending at the last one, so no window holds all five."""
+    from pyspark.sql import functions as F
+
+    from batch.spark.eda import _legs, window_entries
+
+    spark = common.get_spark("eda-test", max_partition_bytes=256)
+    legs = _legs(spark.table(f"lake.{NAMESPACE}.raw_transactions"))
+    per_account = {
+        r["account"]: r["m"]
+        for r in window_entries(legs, 259_200_000)
+        .groupBy("account")
+        .agg(F.max("entries").alias("m"))
+        .collect()
+    }
+    assert per_account["20:ACC004"] == 4
+    assert per_account["10:ACC001"] == 7
+    assert per_account["30:ACC010"] == 5
+    # a window one millisecond longer admits the edge leg
+    longer = {
+        r["account"]: r["m"]
+        for r in window_entries(legs, 259_200_001)
+        .groupBy("account")
+        .agg(F.max("entries").alias("m"))
+        .collect()
+    }
+    assert longer["20:ACC004"] == 5
 
 
 def test_self_transfers(eda: dict) -> None:

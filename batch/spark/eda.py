@@ -11,7 +11,9 @@ Definitions that matter downstream (they size Spark `applyInPandas` and Flink st
    window of `windows.state_retention_ms` (spec.yaml), `e.ts > t - W` and `e.ts <= t`; legs with
    the same timestamp as `t` are all counted, so it is an upper bound on Flink's per-key state.
  - sparse days: a leading or trailing run of days whose row count is below `SPARSE_FRACTION` of the
-   median daily row count (the manual asks whether a sparse tail of extra days exists).
+   reference daily row count, the median of the busier half of the days (a plain median breaks
+   once half the days or more are sparse; the manual asks whether a sparse tail of extra days
+   exists).
 """
 
 import argparse
@@ -46,11 +48,12 @@ def nearest_rank(sorted_values: list[int], p: float) -> int:
 
 
 def find_sparse_days(days: list[tuple[str, int]], fraction: float = SPARSE_FRACTION) -> dict:
-    """Leading and trailing runs of days (ascending) whose rows < fraction * median daily rows."""
+    """Leading and trailing runs of days (ascending) with rows < fraction * reference daily rows."""
     if not days:
         raise ValueError("no days")
-    median = statistics.median(count for _, count in days)
-    threshold = median * fraction
+    counts = sorted(count for _, count in days)
+    reference = statistics.median(counts[len(counts) // 2 :])  # median of the busier half
+    threshold = reference * fraction
     leading: list[str] = []
     for day, count in days:
         if count >= threshold:
@@ -63,7 +66,7 @@ def find_sparse_days(days: list[tuple[str, int]], fraction: float = SPARSE_FRACT
         trailing.append(day)
     return {
         "fraction": fraction,
-        "median_rows_per_day": median,
+        "reference_rows_per_day": reference,
         "threshold_rows": threshold,
         "leading": leading,
         "trailing": list(reversed(trailing)),
@@ -163,6 +166,20 @@ def _legs(df: DataFrame) -> DataFrame:
     return out.unionByName(inn)
 
 
+def window_entries(legs: DataFrame, window_ms: int) -> DataFrame:
+    """Per leg: how many legs the same account has in (t - window_ms, t], itself included.
+
+    Start-exclusive, like the spec's `e.event_ts_ms > t - W`; legs with the same timestamp as `t`
+    are all counted (an upper bound on the entries a keyed state holds at that moment).
+    """
+    return legs.withColumn(
+        "entries",
+        F.count("*").over(
+            Window.partitionBy("account").orderBy("event_ts_ms").rangeBetween(-(window_ms - 1), 0)
+        ),
+    )
+
+
 def _accounts(df: DataFrame) -> dict[str, Any]:
     legs = _legs(df)
     per_account = (
@@ -174,14 +191,12 @@ def _accounts(df: DataFrame) -> dict[str, Any]:
     leg_counts = sorted(r["legs"] for r in per_account)
     top = sorted(per_account, key=lambda r: (-r["tx"], r["account"]))[:TOP_ACCOUNTS]
     window_ms = int(yaml.safe_load(_SPEC_PATH.read_text())["windows"]["state_retention_ms"])
-    in_window = legs.withColumn(
-        "entries",
-        F.count("*").over(
-            Window.partitionBy("account").orderBy("event_ts_ms").rangeBetween(-(window_ms - 1), 0)
-        ),
-    )
     worst = (
-        in_window.orderBy(F.col("entries").desc(), "account").select("account", "entries").first()
+        window_entries(legs, window_ms)
+        .groupBy("account")
+        .agg(F.max("entries").alias("entries"))
+        .orderBy(F.col("entries").desc(), "account")
+        .first()
     )
     return {
         "distinct": len(per_account),
@@ -440,7 +455,8 @@ def render_markdown(doc: dict[str, Any]) -> str:
             ],
         ),
         f"Sparse-day rule: a leading or trailing run of days below {sparse['fraction']:g} x the "
-        f"median daily row count ({sparse['median_rows_per_day']:,.1f}), i.e. fewer than "
+        f"reference daily row count ({sparse['reference_rows_per_day']:,.1f}, the median of the "
+        f"busier half of the days), i.e. fewer than "
         f"{sparse['threshold_rows']:,.1f} rows. Leading sparse days: "
         f"{', '.join(sparse['leading']) or 'none'}. Trailing sparse days: "
         f"{', '.join(sparse['trailing']) or 'none'}.",

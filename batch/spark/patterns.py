@@ -124,24 +124,31 @@ def build_patterns(
         F.row_number().over(
             Window.partitionBy(*MATCH_KEY).orderBy("attempt_id", "line_in_attempt")
         ),
-    )
+    ).withColumn("n_lines", F.count("*").over(Window.partitionBy(*MATCH_KEY)))
 
     raw_tx = spark.table(f"lake.{namespace}.raw_transactions")
     candidates = raw_tx.join(F.broadcast(pat.select(*MATCH_KEY).distinct()), MATCH_KEY, "left_semi")
     candidates = candidates.select("tx_id", *MATCH_KEY).withColumn(
         "ord", F.row_number().over(Window.partitionBy(*MATCH_KEY).orderBy("tx_id"))
     ).withColumn("n_candidates", F.count("*").over(Window.partitionBy(*MATCH_KEY)))  # fmt: skip
+    # The candidate count per key must not depend on a line having a partner at its own `ord`:
+    # a line beyond the last candidate has no tx_id but its key still has candidates.
+    per_key = candidates.select(*MATCH_KEY, "n_candidates").distinct()
 
-    matched = pat.join(
-        candidates.select("tx_id", "n_candidates", "ord", *MATCH_KEY), [*MATCH_KEY, "ord"], "left"
-    )
+    matched = pat.join(candidates.select("tx_id", "ord", *MATCH_KEY), [*MATCH_KEY, "ord"], "left")
+    matched = matched.join(per_key, MATCH_KEY, "left")
+    n_candidates = F.coalesce(F.col("n_candidates"), F.lit(0))
+    # ambiguous: the key does not identify exactly one transaction for this line, i.e. several
+    # candidates, or more pattern lines with this key than transactions. A line whose key matches
+    # no transaction at all stays unmatched and not ambiguous.
+    ambiguous = (n_candidates > 1) | ((n_candidates >= 1) & (F.col("n_lines") > n_candidates))
     out = matched.select(
         "attempt_id",
         "pattern_type",
         "pattern_detail",
         "line_in_attempt",
         "tx_id",
-        (F.coalesce(F.col("n_candidates"), F.lit(0)) > 1).alias("ambiguous"),
+        ambiguous.alias("ambiguous"),
     )
     table = f"lake.{namespace}.patterns"
     spark.sql(f"DROP TABLE IF EXISTS {table} PURGE")

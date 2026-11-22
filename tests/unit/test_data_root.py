@@ -37,7 +37,7 @@ def test_paths_hang_off_the_data_root(monkeypatch: pytest.MonkeyPatch, tmp_path:
         importlib.reload(common)
 
 
-@pytest.mark.parametrize("target", ["fx", "iceberg", "split"])
+@pytest.mark.parametrize("target", ["fx", "iceberg", "split", "eda", "money-check"])
 def test_make_targets_fail_fast_without_the_ssd(target: str) -> None:
     result = subprocess.run(
         ["make", target, "DS=hi_small", "AML_DATA_ROOT=/Volumes/definitely_not_mounted/project_2"],

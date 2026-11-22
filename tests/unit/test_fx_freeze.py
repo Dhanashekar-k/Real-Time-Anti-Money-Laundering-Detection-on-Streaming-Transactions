@@ -42,10 +42,8 @@ def test_fx_version_matches_the_spec() -> None:
 def test_basis_is_stated_for_every_currency() -> None:
     for ccy, ev in FROZEN["evidence"].items():
         if ccy == "BTC":
-            assert ev["basis"] == (
-                "estimated from the paid≥100 subset, last digit uncertain (~±4e-7), "
-                "immaterial to cents"
-            )
+            assert ev["basis"] == fx_freeze.BTC_BASIS
+            assert "immaterial" not in ev["basis"]  # not supported: see the stderr test below
         else:
             assert ev["basis"] == "recovered round constant", ccy
 
@@ -56,8 +54,16 @@ def test_every_fiat_constant_is_within_1e8_of_what_was_measured() -> None:
             assert abs(float(ev["rel_dev"])) <= 1e-8, ccy
 
 
-def test_btc_uncertainty_is_what_the_basis_text_says() -> None:
-    assert abs(float(FROZEN["evidence"]["BTC"]["rel_dev"])) <= 4e-7
+def test_btc_uncertainty_is_stated_from_the_sample_not_from_the_rounding() -> None:
+    ev = FROZEN["evidence"]["BTC"]
+    # The 6-digit constant is within ~4e-7 of the subset mean, but the mean itself rests on a few
+    # rows: its standard error is what the last digit really depends on.
+    assert float(ev["rel_stderr"]) > 10 * abs(float(ev["rel_dev"]))
+    assert float(ev["rel_stderr"]) == pytest.approx(
+        float(ev["cv_paid_ge_100"]) / ev["rows"] ** 0.5, rel=0.05
+    )
+    # the independent BTC>USD pair must agree within a few standard errors
+    assert abs(float(ev["cross_check_rel_dev"])) <= 3 * float(ev["rel_stderr"])
 
 
 def test_committed_table_is_what_the_script_produces_from_the_variance_file() -> None:
@@ -116,6 +122,7 @@ def test_btc_uses_the_paid_ge_100_subset_and_checks_the_all_amounts_rate() -> No
     good = _pair("BTC", "0.0000841607176199", weighted_rate_paid_ge_100="0.0000841606685855")
     table = yaml.safe_load(fx_freeze.build(_doc(BTC=good), money.CURRENCIES))
     assert table["evidence"]["BTC"]["per_usd"] == "0.0000841607"
+    assert "rel_stderr" in table["evidence"]["BTC"]
     assert table["rates_to_usd"]["BTC"] == "11882.0304488912"
     bad = _pair("BTC", "0.0000900000", weighted_rate_paid_ge_100="0.0000841606685855")
     with pytest.raises(ValueError, match="disagrees"):

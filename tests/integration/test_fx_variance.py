@@ -23,12 +23,18 @@ FIXTURE = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "aml" / "
 
 @pytest.fixture(scope="module")
 def table(tmp_path_factory: pytest.TempPathFactory) -> Iterator[dict]:
+    fx_file = common.ROOT / "features" / "fx_rates.yaml"
+    before = fx_file.read_bytes() if fx_file.exists() else None
     spark = common.get_spark("fx-test", catalog=False, max_partition_bytes=256)
     try:
         results_dir = tmp_path_factory.mktemp("results")
+        doc = analyze(spark, ds="mini", trans_path=FIXTURE, results_dir=results_dir)
+        after = fx_file.read_bytes() if fx_file.exists() else None
         yield {
-            "doc": analyze(spark, ds="mini", trans_path=FIXTURE, results_dir=results_dir),
+            "doc": doc,
             "results_dir": results_dir,
+            "fx_file_before": before,
+            "fx_file_after": after,
         }
     finally:
         spark.stop()
@@ -72,4 +78,6 @@ def test_json_has_provenance_and_does_not_touch_the_fx_file(table: dict) -> None
     doc = json.loads((table["results_dir"] / "mini" / "fx_variance.json").read_text())
     for key in ("git_sha", "dataset", "timestamp", "pairs", "cross_currency_rows"):
         assert key in doc, key
-    assert not (common.ROOT / "features" / "fx_rates.yaml").exists()
+    # analyze() must never write the frozen table (only `make fx-freeze` does): compare against the
+    # bytes the file had before this module ran `analyze`.
+    assert table["fx_file_after"] == table["fx_file_before"]

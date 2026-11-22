@@ -183,12 +183,12 @@ def ingest(
     table = f"lake.{namespace}.raw_transactions"
     spark.sql(f"CREATE NAMESPACE IF NOT EXISTS lake.{namespace}")
     spark.sql(f"DROP TABLE IF EXISTS {table} PURGE")
-    # tx_id order is event-time order, so each write task sees days in order (clustered by day)
-    # and rows in tx_id order. The sort order is declared afterwards so later writers keep it.
-    final.writeTo(table).partitionedBy(F.days("event_ts")).option(
-        "fanout-enabled", "true"
-    ).createOrReplace()
+    # Create the empty table, declare the sort order, then append: Iceberg then sorts each write
+    # task's rows by (partition, tx_id), so every data file is in tx_id order by declaration, not
+    # by luck of the shuffle (the manual's "sort within partitions by tx_id").
+    final.limit(0).writeTo(table).partitionedBy(F.days("event_ts")).create()
     spark.sql(f"ALTER TABLE {table} WRITE ORDERED BY tx_id")
+    final.writeTo(table).option("fanout-enabled", "true").append()
 
     written = spark.table(table)
     rows = written.count()

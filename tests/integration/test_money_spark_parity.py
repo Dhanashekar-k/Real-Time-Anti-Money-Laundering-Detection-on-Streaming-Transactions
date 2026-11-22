@@ -48,15 +48,18 @@ def rows() -> list[tuple[int, str, str]]:
     return out
 
 
-def test_spark_and_python_agree_on_one_million_rows(rows: list[tuple[int, str, str]]) -> None:
+@pytest.mark.parametrize("table", ["synthetic", "frozen"])
+def test_spark_and_python_agree_on_one_million_rows(
+    rows: list[tuple[int, str, str]], table: str
+) -> None:
+    # "frozen" is features/fx_rates.yaml: 15-digit rates, the widest the integer arithmetic sees.
+    fx = {k: Decimal(v) for k, v in FX.items()} if table == "synthetic" else money.load_fx()
     spark = common.get_spark("money-parity", catalog=False)
     try:
         df = spark.createDataFrame(rows, "id long, currency string, amount string")
         amount = F.col("amount").cast("decimal(38,18)")
         minor = common.to_minor_col(amount, F.col("currency"))
-        cents = common.usd_cents_col(
-            minor, F.col("currency"), {k: Decimal(v) for k, v in FX.items()}
-        )
+        cents = common.usd_cents_col(minor, F.col("currency"), fx)
         out = {
             r["id"]: (r["minor"], r["cents"])
             for r in df.select("id", minor.alias("minor"), cents.alias("cents")).collect()
@@ -65,7 +68,6 @@ def test_spark_and_python_agree_on_one_million_rows(rows: list[tuple[int, str, s
         spark.stop()
 
     assert len(out) == N
-    fx = {k: Decimal(v) for k, v in FX.items()}
     mismatches = []
     for i, currency, text in rows:
         expected_minor = money.to_minor(text, currency)
@@ -82,6 +84,8 @@ def test_out_of_range_values_become_null_in_spark_and_raise_in_python() -> None:
         ("BTC", "92233720368.54775808"),  # one satoshi more: minor out of range
         ("USD", "92233720368547758.07"),  # int64 max cents; rate 2 doubles it: cents out of range
         ("USD", "1.00"),
+        ("USD", "-0.125"),  # money.to_minor raises on a negative amount; Spark must not keep it
+        ("JPY", "-3"),
     ]
     spark = common.get_spark("money-overflow", catalog=False)
     try:
@@ -96,9 +100,13 @@ def test_out_of_range_values_become_null_in_spark_and_raise_in_python() -> None:
     assert got[cases[1]] == (None, None)
     assert got[cases[2]] == (money.INT64_MAX, None)
     assert got[cases[3]] == (100, 200)
+    assert got[cases[4]] == (None, None)
+    assert got[cases[5]] == (None, None)
     # The Python implementation refuses the same inputs instead of returning NULL.
     assert money.minor_to_usd_cents(money.INT64_MAX, "BTC", fx=fx) == 461168601842738790
     with pytest.raises(ValueError, match="int64"):
         money.to_minor(cases[1][1], "BTC")
+    with pytest.raises(ValueError, match="negative"):
+        money.to_minor(cases[4][1], "USD")
     with pytest.raises(ValueError, match="int64"):
         money.minor_to_usd_cents(money.INT64_MAX, "USD", fx=fx)

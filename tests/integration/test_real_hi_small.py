@@ -89,3 +89,17 @@ def test_every_split_is_non_empty_and_time_ordered(con) -> None:  # noqa: ANN001
     assert set(by) == {"train", "val", "test"}
     assert by["train"][3] < by["val"][2] and by["val"][3] < by["test"][2]
     assert sum(r[1] for r in rows) == json.loads(INGEST.read_text())["rows"]
+
+
+def test_every_data_file_is_in_tx_id_order(con) -> None:  # noqa: ANN001
+    files = sorted(TABLE_DIR.glob("*/[0-9]*.parquet"))
+    assert files
+    for path in files:
+        (bad,) = _one(
+            con,
+            f"""SELECT count(*) FROM (
+                  SELECT tx_id, lag(tx_id) OVER (ORDER BY file_row_number) AS prev
+                  FROM read_parquet('{path}', file_row_number=true))
+                WHERE prev >= tx_id""",
+        )
+        assert bad == 0, path.name

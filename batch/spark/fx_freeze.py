@@ -17,6 +17,7 @@ Method (approved 2026-11-22):
 
 import argparse
 import json
+import math
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from pathlib import Path
 from typing import Any
@@ -32,7 +33,11 @@ BTC_CONSISTENCY = Decimal("1e-6")
 RATE_DIGITS = 15
 
 FIAT_BASIS = "recovered round constant"
-BTC_BASIS = "estimated from the paid≥100 subset, last digit uncertain (~±4e-7), immaterial to cents"
+BTC_BASIS = (
+    "estimated from the paid≥100 subset, last digit uncertain: rel_stderr (cv/sqrt(n) of that "
+    "subset) is larger than the rounding of the constant; BTC USD cents are exact relative to "
+    "this table only"
+)
 
 
 def round_sig(value: Decimal, digits: int) -> Decimal:
@@ -70,6 +75,30 @@ def _rel(measured: Decimal, constant: Decimal) -> str:
         return f"{float((measured - constant) / constant):.1e}"
 
 
+def _btc_uncertainty(pair: dict[str, Any], doc: dict[str, Any], constant: Decimal) -> str:
+    """Extra evidence fields for BTC: the standard error of the subset's mean rate (cv/sqrt(n))
+    and the independent BTC>USD pair, whose implied BTC-per-USD is 1/weighted_rate."""
+    rel_stderr = pair["cv_paid_ge_100"] / math.sqrt(pair["n_paid_ge_100"])
+    reverse = next(
+        (
+            p
+            for p in doc["pairs"]
+            if p["paid_currency"] == "BTC" and p["received_currency"] == "USD"
+        ),
+        None,
+    )
+    out = f', rel_stderr: "{rel_stderr:.1e}"'
+    if reverse is not None and reverse["weighted_rate"]:
+        with localcontext() as ctx:
+            ctx.prec = 60
+            implied = 1 / Decimal(reverse["weighted_rate"])  # BTC per USD from BTC>USD rows
+            out += (
+                f", cross_check_btc_to_usd_rows: {reverse['n']}, "
+                f'cross_check_rel_dev: "{float((implied - constant) / constant):.1e}"'
+            )
+    return out
+
+
 def build(doc: dict[str, Any], currencies: list[str]) -> str:
     """The YAML text for a fx_variance document. Raises if a currency cannot be frozen honestly."""
     usd_pairs = {
@@ -92,7 +121,9 @@ def build(doc: dict[str, Any], currencies: list[str]) -> str:
             if abs(weighted - constant) / constant > BTC_CONSISTENCY:
                 raise ValueError(f"USD>BTC all-amounts rate {weighted} disagrees with {constant}")
             basis, measured, rows = BTC_BASIS, Decimal(subset), pair["n_paid_ge_100"]
+            extra = _btc_uncertainty(pair, doc, constant)
         else:
+            extra = ""
             recovered = recover_constant(weighted)
             if recovered is None:
                 raise ValueError(f"USD>{ccy}: no round constant within 1e-8 of {weighted}")
@@ -102,7 +133,7 @@ def build(doc: dict[str, Any], currencies: list[str]) -> str:
             f'{{basis: "{basis}", per_usd: "{plain(constant)}", '
             f'measured_per_usd: "{plain(round_sig(measured, 12))}", '
             f'rel_dev: "{_rel(measured, constant)}", rows: {rows}, '
-            f'cv_paid_ge_100: "{pair["cv_paid_ge_100"]:.1e}"}}'
+            f'cv_paid_ge_100: "{pair["cv_paid_ge_100"]:.1e}"{extra}}}'
         )
     rate_lines = "\n".join(f'  {c}: "{rates[c]}"' for c in currencies)
     evidence_lines = "\n".join(f"  {c}: {evidence[c]}" for c in currencies if c != "USD")

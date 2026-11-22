@@ -123,9 +123,10 @@ def drop_namespace(spark: SparkSession, namespace: str) -> None:
 def to_minor_col(amount: Column, currency: Column) -> Column:
     """`amount` (decimal(38,18)) -> minor units as long, half-even, per the currency's exponent.
 
-    Same result as `money.to_minor`. Out of int64 range gives NULL (a plain cast would wrap
-    silently), and ingest refuses any NULL. A string with more than 18 fractional digits is
-    rounded half-up by Spark's string->decimal cast before this runs; the data has far fewer.
+    Same result as `money.to_minor`. Out of int64 range or negative gives NULL (a plain cast
+    would wrap silently), and ingest refuses any NULL. A string with more than 18 fractional
+    digits is rounded half-up by Spark's string->decimal cast before this runs; the data has far
+    fewer.
     """
     by_exponent: dict[int, list[str]] = {}
     for code, exp in money.EXPONENTS.items():
@@ -134,7 +135,9 @@ def to_minor_col(amount: Column, currency: Column) -> Column:
     expr: Column | None = None
     for exp, codes in sorted(by_exponent.items()):
         scaled = F.bround(amount, exp) * F.lit(Decimal(10**exp))
-        value = F.when(scaled <= int64_max, scaled.cast("long"))
+        # a negative amount gives NULL like an out-of-range one: money.to_minor raises on it, and
+        # `%` in usd_cents_col truncates toward zero, which would break half-even for negatives
+        value = F.when((amount >= 0) & (scaled <= int64_max), scaled.cast("long"))
         expr = (
             F.when(currency.isin(codes), value)
             if expr is None
@@ -237,7 +240,11 @@ def provenance() -> dict[str, Any]:
 
     return {
         "git_sha": git("rev-parse", "HEAD"),
-        "git_dirty": bool(git("status", "--porcelain")),
+        # results/ and the generated docs/eda_*.md are outputs of these scripts: they do not make
+        # the code that produced them "dirty" (an untracked result from the previous run would)
+        "git_dirty": bool(
+            git("status", "--porcelain", "--", ".", ":(exclude)results", ":(exclude)docs/eda_*.md")
+        ),
         "timestamp": datetime.now(UTC).isoformat(timespec="seconds"),
     }
 

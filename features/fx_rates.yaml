@@ -42,4 +42,4 @@ evidence:
   RUB: {basis: "recovered round constant", per_usd: "77.804", measured_per_usd: "77.8040000005", rel_dev: "6.4e-12", rows: 1934, cv_paid_ge_100: "1.6e-06"}
   SAR: {basis: "recovered round constant", per_usd: "3.7511", measured_per_usd: "3.75109998772", rel_dev: "-3.3e-09", rows: 838, cv_paid_ge_100: "6.5e-06"}
   ILS: {basis: "recovered round constant", per_usd: "3.377", measured_per_usd: "3.37700000018", rel_dev: "5.3e-11", rows: 2204, cv_paid_ge_100: "5.0e-06"}
-  BTC: {basis: "estimated from the paid≥100 subset, last digit uncertain (~±4e-7), immaterial to cents", per_usd: "0.0000841607", measured_per_usd: "0.0000841606685855", rel_dev: "-3.7e-07", rows: 25, cv_paid_ge_100: "3.5e-05"}
+  BTC: {basis: "estimated from the paid≥100 subset, last digit uncertain: rel_stderr (cv/sqrt(n) of that subset) is larger than the rounding of the constant; BTC USD cents are exact relative to this table only", per_usd: "0.0000841607", measured_per_usd: "0.0000841606685855", rel_dev: "-3.7e-07", rows: 25, cv_paid_ge_100: "3.5e-05", rel_stderr: "6.9e-06", cross_check_btc_to_usd_rows: 13, cross_check_rel_dev: "1.1e-05"}

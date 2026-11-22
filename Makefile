@@ -20,7 +20,7 @@ stub = @echo "make $@: not implemented yet (added in $(1))" >&2; exit 1
 .DEFAULT_GOAL := help
 
 .PHONY: help up up-all rebuild down ps logs nuke-local dirs bootstrap fmt lint tf-check test itest test-rls topics \
-	iceberg fx fx-freeze eda split golden features rules train eval replay connectors onboard-check \
+	iceberg fx fx-freeze money-check eda split golden features rules train eval replay connectors onboard-check \
 	flink-build flink-deploy flink-stop parity restart-test apps latency-matrix seed-thresholds \
 	agent agent-eval api ui retrain airflow chaos reconcile drift-experiment results demo \
 	teardown-check cloud-bootstrap cloud-up cloud-images cloud-deploy cloud-glue-run cloud-replay \
@@ -119,6 +119,11 @@ iceberg: ## CSV + patterns -> Iceberg tables aml_<ds>.raw_transactions / .patter
 	$(ssd_check)
 	uv run python -m batch.spark.csv_to_iceberg --ds $(DS)
 	uv run python -m batch.spark.patterns --ds $(DS)
+
+money-check: ## recompute every row's money with features/money.py (DuckDB reads the table) -> money_parity.json
+	$(require_ds)
+	$(ssd_check)
+	uv run python -m batch.spark.money_check --ds $(DS)
 
 eda: ## EDA -> results/M01/<ds>/eda.json and docs/eda_<ds>.md (needs make up and the SSD)
 	$(require_ds)

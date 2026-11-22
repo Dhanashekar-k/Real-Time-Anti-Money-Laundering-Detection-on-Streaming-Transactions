@@ -235,3 +235,39 @@ def test_split_json_is_recomputed_from_the_table_and_agrees(result: dict) -> Non
     }
     on_disk = json.loads((result["results_dir"] / "mini" / "split.json").read_text())
     assert on_disk["git_sha"] and on_disk["dataset"] == "mini"
+
+
+def _data_dir() -> Path:
+    return common.WAREHOUSE / NAMESPACE / "raw_transactions" / "data"
+
+
+def test_every_data_file_is_in_tx_id_order(result: dict) -> None:
+    """The sort order is declared before the write, so each file is ordered by construction."""
+    import duckdb
+
+    files = sorted(_data_dir().glob("*/[0-9]*.parquet"))
+    assert files, "no data files found"
+    con = duckdb.connect()
+    for path in files:
+        ids = [
+            r[0]
+            for r in con.execute(
+                f"SELECT tx_id FROM read_parquet('{path}', file_row_number=true) "
+                "ORDER BY file_row_number"
+            ).fetchall()
+        ]
+        assert ids == sorted(ids), path.name
+        assert len(set(ids)) == len(ids)
+
+
+def test_money_check_agrees_on_the_fixture_and_can_disagree() -> None:
+    from batch.spark.money_check import check_money
+
+    fx = {k: Decimal(v) for k, v in FX.items()}
+    ok = check_money(_data_dir(), FIXTURE, fx=fx)
+    assert ok["rows_compared"] == 16
+    assert not any(ok["mismatches"].values()), ok
+    # positive control: a different rate for a currency present in the data must be noticed
+    wrong = check_money(_data_dir(), FIXTURE, fx=fx | {"EUR": Decimal("2")})
+    assert wrong["mismatches"]["cents_paid"] + wrong["mismatches"]["cents_received"] > 0
+    assert wrong["examples"]
