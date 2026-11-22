@@ -24,7 +24,7 @@ FEATURES_DIR = Path(__file__).resolve().parent
 ROLE_PREFIXES = ("s_", "r_")  # OUT leg (sender side) first, then IN leg (receiver side)
 
 
-def _expand(template: Template, spec: Spec) -> list[str]:
+def expand_template(template: Template, spec: Spec) -> list[str]:
     values: list[str | None] = [None]
     if template.for_each is not None:
         values = list(spec.vocabulary(template.for_each))
@@ -45,12 +45,12 @@ def feature_names(spec: Spec) -> list[str]:
     """All feature names in vector order. Raises ValueError on a duplicate."""
     names: list[str] = []
     for t in spec.tx_features:
-        names += _expand(t, spec)
+        names += expand_template(t, spec)
     for prefix in ROLE_PREFIXES:
         for t in spec.account_features:
-            names += [prefix + n for n in _expand(t, spec)]
+            names += [prefix + n for n in expand_template(t, spec)]
     for t in spec.relational_features:
-        names += _expand(t, spec)  # already carry their s_/r_ prefix in the spec
+        names += expand_template(t, spec)  # already carry their s_/r_ prefix in the spec
 
     seen: set[str] = set()
     for n in names:
