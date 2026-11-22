@@ -59,6 +59,28 @@ def test_to_minor_rejects_unknown_currency() -> None:
         money.to_minor("1.00", "XXX")
 
 
+def test_to_minor_int64_limit() -> None:
+    # The spec says int64. 2**63 - 1 satoshi is the largest BTC amount; one more is an error,
+    # never a silently wrapped or arbitrary-precision value.
+    assert money.to_minor("92233720368.54775807", "BTC") == money.INT64_MAX
+    with pytest.raises(ValueError, match="int64"):
+        money.to_minor("92233720368.54775808", "BTC")
+
+
+def test_usd_cents_int64_limit() -> None:
+    # INT64_MAX satoshi at 50000 USD/BTC is ~4.6e17 cents: fits. A rate of 2 on INT64_MAX USD
+    # minor units is ~1.8e19 cents: does not.
+    assert money.minor_to_usd_cents(money.INT64_MAX, "BTC", fx={"BTC": "50000.00"}) == (
+        461168601842738790
+    )
+    with pytest.raises(ValueError, match="int64"):
+        money.minor_to_usd_cents(money.INT64_MAX, "USD", fx={"USD": "2"})
+    with pytest.raises(ValueError, match="int64"):
+        money.minor_to_usd_cents(money.INT64_MAX + 1, "USD", fx={"USD": "1"})
+    with pytest.raises(ValueError, match="int64"):
+        money.minor_to_usd_cents(-1, "USD", fx={"USD": "1"})
+
+
 # --- exponents come from the spec -------------------------------------------------------------
 
 

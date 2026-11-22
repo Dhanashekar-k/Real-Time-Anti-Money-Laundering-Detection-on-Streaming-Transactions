@@ -19,6 +19,8 @@ _FEATURES_DIR = Path(__file__).resolve().parent
 SPEC_PATH = _FEATURES_DIR / "spec.yaml"
 FX_PATH = _FEATURES_DIR / "fx_rates.yaml"
 
+INT64_MAX = 2**63 - 1  # the spec says int64: larger values are errors, never silently wrapped
+
 # BTC amounts up to ~1e12 with 8 decimals, times an FX rate, times 100, need well under 60 digits.
 # The default context (28 digits) would make `quantize` raise on large exact values.
 _PRECISION = 60
@@ -64,7 +66,10 @@ def to_minor(amount: str, currency: str) -> int:
             quantized = value.quantize(Decimal(1).scaleb(-exp), rounding=ROUND_HALF_EVEN)
         except InvalidOperation:
             raise ValueError(f"amount out of range: {amount!r}") from None
-        return int(quantized.scaleb(exp))
+        minor = int(quantized.scaleb(exp))
+    if minor > INT64_MAX:
+        raise ValueError(f"amount exceeds int64 minor units: {amount!r} {currency}")
+    return minor
 
 
 def minor_to_usd_cents(
@@ -75,13 +80,18 @@ def minor_to_usd_cents(
     `fx` maps currency -> USD per one unit of the currency; default is the frozen table.
     """
     exp = _exponent(currency)
+    if minor < 0 or minor > INT64_MAX:
+        raise ValueError(f"minor units out of int64 range: {minor}")
     rates = load_fx() if fx is None else fx
     if currency not in rates:
         raise ValueError(f"no FX rate for currency {currency!r}")
     with localcontext() as ctx:
         ctx.prec = _PRECISION
         usd = Decimal(minor).scaleb(-exp) * Decimal(rates[currency]) * 100
-        return int(usd.quantize(Decimal(1), rounding=ROUND_HALF_EVEN))
+        cents = int(usd.quantize(Decimal(1), rounding=ROUND_HALF_EVEN))
+    if cents > INT64_MAX:
+        raise ValueError(f"USD cents exceed int64: {minor} {currency}")
+    return cents
 
 
 def load_fx(path: Path = FX_PATH) -> dict[str, Decimal]:
