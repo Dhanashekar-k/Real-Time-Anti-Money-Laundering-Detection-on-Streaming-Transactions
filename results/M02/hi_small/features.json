@@ -57,8 +57,8 @@
     "target": "lake.aml_hi_small.features_tx"
   },
   "dataset": "hi_small",
-  "git_dirty": true,
-  "git_sha": "f8ca1722914be40282bb9305f8fb39473d0dbef4",
-  "timestamp": "2026-11-22T20:57:10+00:00",
-  "write_seconds": 586.2
+  "git_dirty": false,
+  "git_sha": "773369731d2839721e8a89fc9bf9a3866a9ef965",
+  "timestamp": "2026-11-22T21:06:53+00:00",
+  "write_seconds": 530.1
 }
