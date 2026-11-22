@@ -1,0 +1,44 @@
+{
+  "config": {
+    "account": "070:100428660",
+    "python": "3.11.15",
+    "repeats": 3
+  },
+  "dataset": "hi_small",
+  "git_dirty": true,
+  "git_sha": "740bb7da166c6cfe4f0c7988c218ae8402fd0519",
+  "hot_account": {
+    "legs": 169756,
+    "microseconds_per_leg_full": 17.31,
+    "rss_peak_mb": 800.4,
+    "seconds_compute_rows_only": [
+      0.882,
+      0.885,
+      0.876
+    ],
+    "seconds_full": [
+      2.921,
+      2.938,
+      2.977
+    ],
+    "seconds_full_median": 2.938
+  },
+  "scaled_to_other_dataset_hot_account": {
+    "legs": 1083821,
+    "microseconds_per_leg_full": 18.02,
+    "note": "the real legs repeated end to end; HI-Medium's own hot account has 1,083,821",
+    "rss_peak_mb": 3757.2,
+    "seconds_compute_rows_only": [
+      5.922,
+      5.899,
+      5.952
+    ],
+    "seconds_full": [
+      19.468,
+      19.531,
+      19.573
+    ],
+    "seconds_full_median": 19.531
+  },
+  "timestamp": "2026-11-22T20:46:39+00:00"
+}
