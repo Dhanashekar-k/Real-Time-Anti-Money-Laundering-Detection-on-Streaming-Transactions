@@ -1,0 +1,20 @@
+{
+  "config": {
+    "fx_rates_sha256": "08c634a59d5ea4ba54fb6c780de22b19af2d6dcce58b21cb466968ab345a59f2",
+    "fx_version": 1,
+    "source": "/Volumes/Shekar_ssd/project_2/raw/HI-Small_Trans.csv",
+    "table_data_dir": "/Volumes/Shekar_ssd/project_2/warehouse/aml_hi_small/raw_transactions/data"
+  },
+  "dataset": "hi_small",
+  "examples": [],
+  "git_dirty": false,
+  "git_sha": "b9563dcf9ec0591e35372f921e84eff53fe6f21a",
+  "mismatches": {
+    "cents_paid": 0,
+    "cents_received": 0,
+    "minor_paid": 0,
+    "minor_received": 0
+  },
+  "rows_compared": 5078345,
+  "timestamp": "2026-11-22T07:21:25+00:00"
+}

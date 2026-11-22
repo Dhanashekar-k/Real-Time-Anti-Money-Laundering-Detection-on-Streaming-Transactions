@@ -12,8 +12,8 @@
     "table": "lake.aml_hi_small.raw_transactions"
   },
   "dataset": "hi_small",
-  "git_dirty": true,
-  "git_sha": "ef494ab11faef54bf7452979549d60fea971bc2a",
+  "git_dirty": false,
+  "git_sha": "b9563dcf9ec0591e35372f921e84eff53fe6f21a",
   "rows": 5078345,
   "rows_differing_from_pure_index_split": 359,
   "splits": {
@@ -41,5 +41,5 @@
   "t1_utc": "2022-09-06T13:36:00+00:00",
   "t2_ms": 1662653520000,
   "t2_utc": "2022-09-08T16:12:00+00:00",
-  "timestamp": "2026-11-22T06:38:55+00:00"
+  "timestamp": "2026-11-22T07:14:46+00:00"
 }

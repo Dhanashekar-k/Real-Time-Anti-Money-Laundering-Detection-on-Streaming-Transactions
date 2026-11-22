@@ -421,7 +421,7 @@ def _rate_table(title: str, key_header: str, rows: list[dict[str, Any]]) -> str:
 
 
 def _paired(all_days: list[dict], kept: list[dict]) -> list[tuple[dict, dict]]:
-    """Split rows in train, val, test order: all days next to the days left after the sparse ones."""
+    """Split rows in train, val, test order: all days beside the days left after the sparse ones."""
     order = {"train": 0, "val": 1, "test": 2}
     by_kept = {r["key"]: r for r in kept}
     empty = {"rows": 0, "laundering": 0, "laundering_rate": 0.0}

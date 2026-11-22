@@ -310,8 +310,8 @@
     }
   },
   "dataset": "hi_small",
-  "git_dirty": true,
-  "git_sha": "83c6680193480f43efe523f6d44ec6837b6ea819",
+  "git_dirty": false,
+  "git_sha": "a208d19d82d6e1a7fd6267e2daa92d452a563270",
   "owner_bank": [
     {
       "key": "A",
@@ -604,10 +604,50 @@
         "rows": 1108
       }
     ],
+    "by_split_all_days": [
+      {
+        "key": "train",
+        "laundering": 2297,
+        "laundering_rate": 0.0007538906435180338,
+        "rows": 3046861
+      },
+      {
+        "key": "test",
+        "laundering": 1798,
+        "laundering_rate": 0.0017698905975300282,
+        "rows": 1015882
+      },
+      {
+        "key": "val",
+        "laundering": 1082,
+        "laundering_rate": 0.001065377972867324,
+        "rows": 1015602
+      }
+    ],
+    "by_split_without_sparse_days": [
+      {
+        "key": "train",
+        "laundering": 2297,
+        "laundering_rate": 0.0007538906435180338,
+        "rows": 3046861
+      },
+      {
+        "key": "val",
+        "laundering": 1082,
+        "laundering_rate": 0.001065377972867324,
+        "rows": 1015602
+      },
+      {
+        "key": "test",
+        "laundering": 1143,
+        "laundering_rate": 0.0011263591696279171,
+        "rows": 1014774
+      }
+    ],
     "fraction": 0.1,
     "leading": [],
-    "median_rows_per_day": 207406.0,
-    "threshold_rows": 20740.600000000002,
+    "reference_rows_per_day": 482751,
+    "threshold_rows": 48275.100000000006,
     "totals": {
       "leading": {
         "days": 0,
@@ -633,7 +673,7 @@
       "2022-09-18"
     ]
   },
-  "timestamp": "2026-11-22T06:53:24+00:00",
+  "timestamp": "2026-11-22T07:24:10+00:00",
   "totals": {
     "first_ts_ms": 1661990400000,
     "last_ts_ms": 1663517880000,
