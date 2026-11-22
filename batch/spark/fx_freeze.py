@@ -167,38 +167,51 @@ def check(doc: dict[str, Any], frozen: dict[str, Any], currencies: list[str]) ->
     """Compare a measured fx_variance document with the frozen table; never writes anything.
 
     Returns one line per difference (empty list = the measurement agrees with the frozen table).
-    Fiat: the recovered constant must be identical (and recoverable at all). BTC: the measured
-    paid>=100 rate must lie within BTC_CHECK_SIGMAS standard errors of the frozen constant, where
-    the standard error is that of the difference of two independent estimates,
-    sqrt(se_frozen^2 + se_measured^2).
+    Each currency is compared on its own, so one problem does not hide another. Fiat: the constant
+    recovered from the measurement must be identical to the frozen one (and recoverable at all).
+    BTC: the measured paid>=100 rate must lie within BTC_CHECK_SIGMAS standard errors of the frozen
+    constant, where the standard error is that of the difference of two independent estimates,
+    sqrt(se_frozen^2 + se_measured^2). `build()`'s own invariant (BTC all-amounts rate within 1e-6
+    of its subset constant) belongs to freezing and is deliberately not applied here.
     """
-    try:
-        measured = yaml.safe_load(build(doc, currencies))
-    except ValueError as exc:  # e.g. no round constant: that is itself a difference
-        return [f"cannot recover the table from the measurement: {exc}"]
+    usd_pairs = {p["received_currency"]: p for p in doc["pairs"] if p["paid_currency"] == "USD"}
     problems: list[str] = []
     for ccy in currencies:
         if ccy == "USD":
             continue
-        new, old = measured["evidence"][ccy], frozen["evidence"][ccy]
-        if ccy != "BTC":
-            if new["per_usd"] != old["per_usd"]:
+        pair, old = usd_pairs.get(ccy), frozen["evidence"][ccy]
+        if pair is None:
+            problems.append(f"{ccy}: no USD>{ccy} pair in the measurement")
+        elif ccy != "BTC":
+            recovered = recover_constant(Decimal(pair["weighted_rate"]))
+            if recovered is None:
+                problems.append(f"{ccy}: no round constant within 1e-8 of {pair['weighted_rate']}")
+            elif plain(recovered) != old["per_usd"]:
                 problems.append(
-                    f"{ccy}: measured constant {new['per_usd']} != frozen {old['per_usd']}"
+                    f"{ccy}: measured constant {plain(recovered)} != frozen {old['per_usd']}"
                 )
-            continue
-        with localcontext() as ctx:
-            ctx.prec = 60
-            rel = (Decimal(new["measured_per_usd"]) - Decimal(old["per_usd"])) / Decimal(
-                old["per_usd"]
-            )
-        se = math.hypot(float(new["rel_stderr"]), float(old["rel_stderr"]))
-        if abs(float(rel)) > BTC_CHECK_SIGMAS * se:
-            problems.append(
-                f"BTC: measured {new['measured_per_usd']} differs from frozen {old['per_usd']} by "
-                f"{float(rel):.1e}, more than {BTC_CHECK_SIGMAS} standard errors ({se:.1e})"
-            )
+        else:
+            problems += _check_btc(pair, old)
     return problems
+
+
+def _check_btc(pair: dict[str, Any], old: dict[str, Any]) -> list[str]:
+    subset = pair["weighted_rate_paid_ge_100"]
+    if subset is None or not pair["n_paid_ge_100"] or pair["cv_paid_ge_100"] is None:
+        return ["BTC: too few rows with paid >= 100 units to compare"]
+    with localcontext() as ctx:
+        ctx.prec = 60
+        rel = float((Decimal(subset) - Decimal(old["per_usd"])) / Decimal(old["per_usd"]))
+    se = math.hypot(
+        pair["cv_paid_ge_100"] / math.sqrt(pair["n_paid_ge_100"]), float(old["rel_stderr"])
+    )
+    if abs(rel) > BTC_CHECK_SIGMAS * se:
+        return [
+            f"BTC: measured {plain(round_sig(Decimal(subset), 12))} differs from frozen "
+            f"{old['per_usd']} by {rel:.1e}, more than {BTC_CHECK_SIGMAS} standard errors "
+            f"({se:.1e})"
+        ]
+    return []
 
 
 def format_check(doc: dict[str, Any], frozen: dict[str, Any], currencies: list[str]) -> str:

@@ -191,3 +191,26 @@ def test_check_cli_writes_nothing_and_sets_the_exit_code(tmp_path: Path) -> None
         fx_freeze.main(argv)
     assert different.value.code == 1
     assert table.read_bytes() == before  # the frozen table is never touched by --check
+
+
+def test_check_accepts_btc_all_amounts_gap_that_build_refuses() -> None:
+    # HI-Medium: the all-amounts BTC rate is ~6e-6 from its own 6-digit subset constant. That
+    # breaks the freezing invariant (1e-6) but is small-BTC rounding, not drift: check() must
+    # judge the subset rate against the frozen constant only, while build() still refuses.
+    frozen_constant = Decimal(FROZEN["evidence"]["BTC"]["per_usd"])
+    doc = _measured()
+    btc = next(
+        p for p in doc["pairs"] if p["paid_currency"] == "USD" and p["received_currency"] == "BTC"
+    )
+    btc["weighted_rate_paid_ge_100"] = str(frozen_constant * (1 + Decimal("5e-6")))
+    btc["weighted_rate"] = str(frozen_constant * (1 - Decimal("1e-6")))
+    with pytest.raises(ValueError, match="disagrees"):
+        fx_freeze.build(doc, money.CURRENCIES)
+    assert fx_freeze.check(doc, FROZEN, money.CURRENCIES) == []
+
+
+def test_check_reports_every_currency_that_differs_not_just_the_first() -> None:
+    frozen_constant = Decimal(FROZEN["evidence"]["BTC"]["per_usd"])
+    doc = _measured(EUR="0.8535", JPY="110.5", BTC=str(frozen_constant * Decimal("1.01")))
+    problems = fx_freeze.check(doc, FROZEN, money.CURRENCIES)
+    assert sorted(line.split(":")[0] for line in problems) == ["BTC", "EUR", "JPY"]
