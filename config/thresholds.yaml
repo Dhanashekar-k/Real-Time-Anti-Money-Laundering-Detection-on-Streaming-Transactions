@@ -33,6 +33,6 @@ meta:
   dataset: hi_small
   k_alerts_per_day: 200
   model: aml-xgb
-  model_version: '1'
+  model_version: '3'
   rule: alert when score >= threshold
   tuned_on: val

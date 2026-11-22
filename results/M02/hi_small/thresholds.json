@@ -38,15 +38,15 @@
     }
   },
   "dataset": "hi_small",
-  "git_dirty": true,
-  "git_sha": "5843f9de6546f4f479aa408b6e176fd560889a7a",
+  "git_dirty": false,
+  "git_sha": "e4f43d552aa41fefae77d69b2742d0117bd26f72",
   "meta": {
     "dataset": "hi_small",
     "k_alerts_per_day": 200,
     "model": "aml-xgb",
-    "model_version": "1",
+    "model_version": "3",
     "rule": "alert when score >= threshold",
     "tuned_on": "val"
   },
-  "timestamp": "2026-11-22T21:33:47+00:00"
+  "timestamp": "2026-11-22T23:12:04+00:00"
 }

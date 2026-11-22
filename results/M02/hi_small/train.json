@@ -43,32 +43,32 @@
     "val_rows": 1015602
   },
   "dataset": "hi_small",
-  "git_dirty": true,
-  "git_sha": "5843f9de6546f4f479aa408b6e176fd560889a7a",
-  "importance_caption": "Gain importance. is_cross_currency is a generator artifact: 0 of 30,177 cross-currency rows are laundering, so it separates the classes perfectly in this data (D36). It is not evidence about real laundering.",
-  "seconds_total": 298.0,
+  "git_dirty": false,
+  "git_sha": "e4f43d552aa41fefae77d69b2742d0117bd26f72",
+  "importance_caption": "Gain importance. 0 of 30,177 cross-currency rows are laundering, so any feature built on the cross-currency flag (is_cross_currency and the s_/r_ cross_currency_share_* features) can separate the classes in this data for a reason that is a generator artifact (D36). It is not evidence about real laundering.",
+  "seconds_total": 298.5,
   "selection": {
     "champion": {
       "best_iteration": 169,
-      "fit_seconds": 36.0,
+      "fit_seconds": 34.4,
       "seed": 0,
       "val_pr_auc": 0.6046409300258362,
       "val_roc_auc": 0.9853950969264542,
       "variant": "unweighted"
     },
-    "mlflow_run_id": "01a41e1fb16e47af945caa6ea7339727",
-    "model_version": "1",
+    "mlflow_run_id": "2cace4e7524243f7abb59412095f8a57",
+    "model_version": "3",
     "rule": "higher mean val PR-AUC; champion = median seed by val PR-AUC",
     "test_rows_read": 0,
     "variant": "unweighted"
   },
-  "timestamp": "2026-11-22T21:33:47+00:00",
+  "timestamp": "2026-11-22T23:12:04+00:00",
   "variants": {
     "unweighted": {
       "seeds": [
         {
           "best_iteration": 169,
-          "fit_seconds": 36.0,
+          "fit_seconds": 34.4,
           "seed": 0,
           "val_pr_auc": 0.6046409300258362,
           "val_roc_auc": 0.9853950969264542,
@@ -76,7 +76,7 @@
         },
         {
           "best_iteration": 187,
-          "fit_seconds": 39.5,
+          "fit_seconds": 37.7,
           "seed": 1,
           "val_pr_auc": 0.6137004400317873,
           "val_roc_auc": 0.9817752126370936,
@@ -84,7 +84,7 @@
         },
         {
           "best_iteration": 202,
-          "fit_seconds": 43.2,
+          "fit_seconds": 41.1,
           "seed": 2,
           "val_pr_auc": 0.6222671134078644,
           "val_roc_auc": 0.9844940944546187,
@@ -92,7 +92,7 @@
         },
         {
           "best_iteration": 184,
-          "fit_seconds": 38.9,
+          "fit_seconds": 38.0,
           "seed": 3,
           "val_pr_auc": 0.5973278051895465,
           "val_roc_auc": 0.9795936135774361,
@@ -120,7 +120,7 @@
       "seeds": [
         {
           "best_iteration": 72,
-          "fit_seconds": 17.7,
+          "fit_seconds": 17.3,
           "seed": 0,
           "val_pr_auc": 0.5550699068763111,
           "val_roc_auc": 0.9857966362610824,
@@ -128,7 +128,7 @@
         },
         {
           "best_iteration": 64,
-          "fit_seconds": 16.8,
+          "fit_seconds": 16.3,
           "seed": 1,
           "val_pr_auc": 0.5586010501174989,
           "val_roc_auc": 0.9854967033935281,
@@ -136,7 +136,7 @@
         },
         {
           "best_iteration": 44,
-          "fit_seconds": 13.7,
+          "fit_seconds": 13.0,
           "seed": 2,
           "val_pr_auc": 0.5688412043931519,
           "val_roc_auc": 0.9857333326932132,
@@ -144,7 +144,7 @@
         },
         {
           "best_iteration": 57,
-          "fit_seconds": 16.2,
+          "fit_seconds": 15.0,
           "seed": 3,
           "val_pr_auc": 0.5445097308605027,
           "val_roc_auc": 0.9859922251459637,
@@ -152,7 +152,7 @@
         },
         {
           "best_iteration": 66,
-          "fit_seconds": 18.3,
+          "fit_seconds": 17.1,
           "seed": 4,
           "val_pr_auc": 0.5473388489027226,
           "val_roc_auc": 0.9852275568723649,
