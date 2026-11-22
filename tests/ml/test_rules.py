@@ -203,3 +203,62 @@ def test_rules_read_only_feature_columns_and_the_amount() -> None:
     with_label = rb.rule_set_alert(fits, df)
     without = rb.rule_set_alert(fits, df.drop(columns=["is_laundering"]))
     assert with_label.tolist() == without.tolist()
+
+
+# --- the run: fit on train, score on val, write rules.json (test is never read here) -------------
+
+
+def _train_val() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Positives have 6 distinct out-counterparties (R3, k=5 is perfect); R5 never fires."""
+
+    def make(n_neg: int, n_pos: int, seed: int) -> pd.DataFrame:
+        rng = np.random.default_rng(seed)
+        y = np.array([0] * n_neg + [1] * n_pos)
+        distinct = np.where(y == 1, 6, rng.integers(0, 3, len(y)))
+        return _frame(
+            s_distinct_out_cp_24h=distinct,
+            is_laundering=y,
+            amount_paid_usd_cents=rng.integers(1, 10_000, len(y)),
+            event_ts_ms=np.arange(len(y)) + CUTOFF + 1,
+        )
+
+    return make(400, 20, 1), make(200, 10, 2)
+
+
+def test_fits_round_trip_through_json() -> None:
+    train, _ = _train_val()
+    fits = rb.fit_all(train, burn_in_end_ms=CUTOFF)
+    doc = rb.fits_to_json(fits)
+    import json
+
+    again = rb.fits_from_json(json.loads(json.dumps(doc)))
+    assert [(f.rule_id, f.params) for f in again.rules] == [
+        (f.rule_id, f.params) for f in fits.rules
+    ]
+    assert again.original_r1 == fits.original_r1
+    df = _frame(s_distinct_out_cp_24h=[0, 6, 7], amount_paid_usd_cents=[1, 2, 3])
+    assert rb.rule_set_alert(again, df).tolist() == rb.rule_set_alert(fits, df).tolist()
+
+
+def test_run_frames_reports_train_and_val_never_test() -> None:
+    train, val = _train_val()
+    doc = rb.run_frames(train, val, burn_in_end_ms=CUTOFF)
+    assert set(doc) >= {"fits", "train", "val", "baseline", "protocol"}
+    assert "test" not in doc  # the rules run does not read or report the test split
+    assert doc["val"]["rule_set"]["f1"] > 0.5  # R3 finds the 6-counterparty positives
+    assert doc["val"]["R3"]["recall"] == 1.0
+    assert doc["baseline"] in {"rule_set", "R1", "R2", "R3", "R4", "R5"}
+    assert doc["val"]["R1_original"]["recall"] == 0.0  # cross-currency rule: no positive is cross
+    assert set(doc["val"]) == {"rule_set", "R1", "R2", "R3", "R4", "R5", "R1_original"}
+
+
+def test_baseline_alert_resolves_a_name() -> None:
+    train, val = _train_val()
+    fits = rb.fit_all(train, burn_in_end_ms=CUTOFF)
+    assert (
+        rb.baseline_alert(fits, "rule_set", val).tolist() == rb.rule_set_alert(fits, val).tolist()
+    )
+    r3 = rb.apply(_rule("R3"), next(f for f in fits.rules if f.rule_id == "R3"), val)
+    assert rb.baseline_alert(fits, "R3", val).tolist() == r3.tolist()
+    with pytest.raises(KeyError):
+        rb.baseline_alert(fits, "R9", val)

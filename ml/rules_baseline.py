@@ -21,6 +21,7 @@ import argparse
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from itertools import product
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -225,6 +226,85 @@ def choose_baseline(val_f1: Mapping[str, float]) -> str:
     return "rule_set" if val_f1["rule_set"] >= val_f1[best_single] else best_single
 
 
+def baseline_alert(fits: FitSet, name: str, df: pd.DataFrame) -> np.ndarray:
+    """Alerts of the chosen baseline: 'rule_set' or one rule's id."""
+    if name == "rule_set":
+        return rule_set_alert(fits, df)
+    for f in fits.rules:
+        if f.rule_id == name:
+            return apply(RULES_BY_ID[name], f, df)
+    raise KeyError(f"unknown baseline {name!r}")
+
+
+def fits_to_json(fits: FitSet) -> dict[str, Any]:
+    def one(f: FittedRule) -> dict[str, Any]:
+        return {"rule_id": f.rule_id, "params": f.params, "derived": f.derived}
+
+    return {"rules": [one(f) for f in fits.rules], "original_r1": one(fits.original_r1)}
+
+
+def fits_from_json(doc: Mapping[str, Any]) -> FitSet:
+    def one(d: Mapping[str, Any]) -> FittedRule:
+        return FittedRule(d["rule_id"], dict(d["params"]), dict(d["derived"]))
+
+    return FitSet([one(d) for d in doc["rules"]], one(doc["original_r1"]))
+
+
+def _scores(df: pd.DataFrame, alert: np.ndarray) -> dict[str, Any]:
+    y, ts = df[LABEL].to_numpy(), df["event_ts_ms"].to_numpy()
+    tp, fp, fn, _ = metrics.confusion(y, alert)
+    p, r, f1 = metrics.prf1(tp, fp, fn)
+    return {
+        "rows": int(len(df)),
+        "positives": int(y.sum()),
+        "alerts": int(alert.sum()),
+        "tp": tp,
+        "precision": p,
+        "recall": r,
+        "f1": f1,
+        "alerts_per_day": metrics.alerts_per_day(ts, alert),
+    }
+
+
+def _all_scores(fits: FitSet, df: pd.DataFrame) -> dict[str, Any]:
+    out = {"rule_set": _scores(df, rule_set_alert(fits, df))}
+    for f in fits.rules:
+        out[f.rule_id] = _scores(df, apply(RULES_BY_ID[f.rule_id], f, df))
+    out["R1_original"] = _scores(df, apply(ORIGINAL_R1, fits.original_r1, df))
+    return out
+
+
+def run_frames(train: pd.DataFrame, val: pd.DataFrame, burn_in_end_ms: int) -> dict[str, Any]:
+    """Fit on train, score train and val, choose the baseline on val F1. Never sees test."""
+    fits = fit_all(train, burn_in_end_ms)
+    val_scores = _all_scores(fits, val)
+    baseline = choose_baseline({k: v["f1"] for k, v in val_scores.items() if k != "R1_original"})
+    return {
+        "protocol": [line for line in definitions_text().splitlines() if line.startswith("  - ")],
+        "fits": fits_to_json(fits),
+        "train": _all_scores(fits, train),
+        "val": val_scores,
+        "baseline": baseline,
+        "burn_in_end_ms": burn_in_end_ms,
+    }
+
+
+def run(ds: str, results_dir: Path | None = None) -> dict[str, Any]:
+    """Load train (after the burn-in) and val, run, write results/M02/<ds>/rules.json."""
+    from batch.spark import common
+    from ml import data
+
+    results_dir = results_dir or common.ROOT / "results" / "M02"
+    cols = ("amount_paid_usd_cents",)
+    cutoff = data.burn_in_end_ms(ds)
+    train = data.read_split(ds, "train", burn_in=True, extra_raw_columns=cols)
+    val = data.read_split(ds, "val", extra_raw_columns=cols)
+    frames = [f.rename(columns={"y": LABEL, "bank": "owner_bank_id"}) for f in (train, val)]
+    doc = {"dataset": ds, **common.provenance(), **run_frames(frames[0], frames[1], cutoff)}
+    common.write_json(results_dir / ds / "rules.json", doc)
+    return doc
+
+
 # --- the printout the owner reviews ---------------------------------------------------------------
 
 
@@ -273,14 +353,21 @@ def _grid_text(rule: Rule) -> str:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--definitions", action="store_true", help="print the rules and exit")
+    parser.add_argument("--ds", choices=["hi_small", "hi_medium"])
     args = parser.parse_args(argv)
-    if args.definitions:
+    if args.definitions or not args.ds:
         print(definitions_text())
         return 0
-    raise SystemExit(
-        "ml.rules_baseline: running needs features_tx (M02 step 8, not built yet). "
-        "Review the definitions with --definitions first."
-    )
+    print(definitions_text())  # every run prints what it is about to do
+    doc = run(args.ds)
+    v = doc["val"]
+    print(f"\n{args.ds}: baseline for T2 = {doc['baseline']} (chosen on val F1)")
+    for name, s in v.items():
+        print(
+            f"  val {name:12s} F1 {s['f1']:.4f}  P {s['precision']:.4f}  R {s['recall']:.4f}  "
+            f"alerts/day {s['alerts_per_day']:.1f}"
+        )
+    return 0
 
 
 if __name__ == "__main__":
