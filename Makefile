@@ -140,7 +140,11 @@ split: ## recompute the 60/20/20 temporal split from the table and write split.j
 	uv run python -m batch.spark.split --ds $(DS)
 
 # --------------------------------------------------------------------- later milestones
-golden features rules train eval: ; $(call stub,M2)
+golden: ## oracle: name list + golden vectors + oracle contract (skips/xfails name what is still open)
+	uv run python -m features.expand --check
+	uv run pytest tests/golden tests/unit/test_expand.py tests/unit/test_reference_contract.py tests/unit/test_vectors.py tests/unit/test_tx_features.py -rsx
+
+features rules train eval: ; $(call stub,M2)
 replay connectors onboard-check: ; $(call stub,M3)
 flink-build flink-deploy flink-stop parity restart-test: ; $(call stub,M4)
 apps latency-matrix seed-thresholds: ; $(call stub,M5)

@@ -1,0 +1,70 @@
+{
+  "name": "s06_two_cycle_return",
+  "description": "A -> B, then B -> A 6h later: money returns (r_returned_funds_24h = 1 on tx 2). Later transactions check the negatives: a sender A never paid, and a return after 24h.",
+  "time_origin": "event_ts_ms = 1662033600000 + minutes * 60000 (2022-09-01T12:00:00Z)",
+  "notes": {
+    "4": "minute 1800 = 30h: A's only OUT entry (minute 0) is older than 24h; B sent to A at minute 360 (inside 72h)"
+  },
+  "transactions": [
+    {
+      "tx_id": 1,
+      "event_ts_ms": 1662033600000,
+      "sender_key": "001:A",
+      "receiver_key": "002:B",
+      "amount_paid_usd_cents": 5000,
+      "amount_received_usd_cents": 5000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 2,
+      "event_ts_ms": 1662055200000,
+      "sender_key": "002:B",
+      "receiver_key": "001:A",
+      "amount_paid_usd_cents": 4000,
+      "amount_received_usd_cents": 4000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 3,
+      "event_ts_ms": 1662058800000,
+      "sender_key": "001:C",
+      "receiver_key": "001:A",
+      "amount_paid_usd_cents": 100,
+      "amount_received_usd_cents": 100,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 4,
+      "event_ts_ms": 1662141600000,
+      "sender_key": "002:B",
+      "receiver_key": "001:A",
+      "amount_paid_usd_cents": 100,
+      "amount_received_usd_cents": 100,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    }
+  ],
+  "expected": {
+    "2": {
+      "r_returned_funds_24h": "TODO(human)",
+      "r_new_counterparty_72h": "TODO(human)",
+      "s_new_counterparty_72h": "TODO(human)"
+    },
+    "3": {
+      "r_returned_funds_24h": "TODO(human)",
+      "r_new_counterparty_72h": "TODO(human)"
+    },
+    "4": {
+      "r_returned_funds_24h": "TODO(human)",
+      "r_new_counterparty_72h": "TODO(human)",
+      "s_new_counterparty_72h": "TODO(human)"
+    }
+  }
+}

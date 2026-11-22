@@ -1,0 +1,59 @@
+{
+  "name": "s07_pass_through",
+  "description": "A receives 1000.00 USD, 30 min later pays out 990.00, 10 min after that pays out 1.00.",
+  "time_origin": "event_ts_ms = 1662033600000 + minutes * 60000 (2022-09-01T12:00:00Z)",
+  "notes": {
+    "2": "the OUT entry of tx 2 gets hold = 30; tx 2 itself does not see it",
+    "3": "tx 3 sees the OUT entry of tx 2 (hold 30) and the IN entry of tx 1"
+  },
+  "transactions": [
+    {
+      "tx_id": 1,
+      "event_ts_ms": 1662033600000,
+      "sender_key": "002:X",
+      "receiver_key": "001:A",
+      "amount_paid_usd_cents": 100000,
+      "amount_received_usd_cents": 100000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 2,
+      "event_ts_ms": 1662035400000,
+      "sender_key": "001:A",
+      "receiver_key": "001:Y",
+      "amount_paid_usd_cents": 99000,
+      "amount_received_usd_cents": 99000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 3,
+      "event_ts_ms": 1662036000000,
+      "sender_key": "001:A",
+      "receiver_key": "001:Z",
+      "amount_paid_usd_cents": 100,
+      "amount_received_usd_cents": 100,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    }
+  ],
+  "expected": {
+    "2": {
+      "s_in_sum_usd_cents_1h": "TODO(human)",
+      "s_out_sum_usd_cents_1h": "TODO(human)",
+      "s_pass_through_ratio_1h": "TODO(human)",
+      "s_avg_hold_minutes_1h": "TODO(human)"
+    },
+    "3": {
+      "s_in_sum_usd_cents_1h": "TODO(human)",
+      "s_out_sum_usd_cents_1h": "TODO(human)",
+      "s_pass_through_ratio_1h": "TODO(human)",
+      "s_avg_hold_minutes_1h": "TODO(human)",
+      "s_amount_vs_out_avg_72h": "TODO(human)"
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "name": "s08_currency_and_formats",
+  "description": "A has one cross-currency IN entry and three OUT entries with different formats; cross-currency share counts both directions, format shares count OUT entries only.",
+  "time_origin": "event_ts_ms = 1662033600000 + minutes * 60000 (2022-09-01T12:00:00Z)",
+  "notes": {},
+  "transactions": [
+    {
+      "tx_id": 1,
+      "event_ts_ms": 1662033600000,
+      "sender_key": "002:X",
+      "receiver_key": "001:A",
+      "amount_paid_usd_cents": 1000,
+      "amount_received_usd_cents": 850,
+      "payment_currency": "USD",
+      "receiving_currency": "EUR",
+      "payment_format": "CREDIT_CARD"
+    },
+    {
+      "tx_id": 2,
+      "event_ts_ms": 1662034200000,
+      "sender_key": "001:A",
+      "receiver_key": "002:B",
+      "amount_paid_usd_cents": 10000,
+      "amount_received_usd_cents": 10000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 3,
+      "event_ts_ms": 1662034800000,
+      "sender_key": "001:A",
+      "receiver_key": "002:B",
+      "amount_paid_usd_cents": 10000,
+      "amount_received_usd_cents": 10000,
+      "payment_currency": "EUR",
+      "receiving_currency": "USD",
+      "payment_format": "WIRE"
+    },
+    {
+      "tx_id": 4,
+      "event_ts_ms": 1662035400000,
+      "sender_key": "001:A",
+      "receiver_key": "001:C",
+      "amount_paid_usd_cents": 10000,
+      "amount_received_usd_cents": 10000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "WIRE"
+    },
+    {
+      "tx_id": 5,
+      "event_ts_ms": 1662036000000,
+      "sender_key": "001:A",
+      "receiver_key": "001:D",
+      "amount_paid_usd_cents": 10000,
+      "amount_received_usd_cents": 10000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "CASH"
+    }
+  ],
+  "expected": {
+    "1": {
+      "r_cross_currency_share_72h": "TODO(human)",
+      "is_cross_currency": "TODO(human)",
+      "payment_currency_code": "TODO(human)"
+    },
+    "3": {
+      "is_cross_currency": "TODO(human)",
+      "payment_format_code": "TODO(human)",
+      "payment_currency_code": "TODO(human)",
+      "receiving_currency_code": "TODO(human)"
+    },
+    "5": {
+      "s_cross_currency_share_1h": "TODO(human)",
+      "s_cross_currency_share_72h": "TODO(human)",
+      "s_format_share_ACH_72h": "TODO(human)",
+      "s_format_share_WIRE_72h": "TODO(human)",
+      "s_format_share_CASH_72h": "TODO(human)",
+      "s_format_share_CREDIT_CARD_72h": "TODO(human)"
+    }
+  }
+}

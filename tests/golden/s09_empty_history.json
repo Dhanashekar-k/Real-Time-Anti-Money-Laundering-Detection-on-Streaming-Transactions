@@ -1,0 +1,57 @@
+{
+  "name": "s09_empty_history",
+  "description": "The very first transaction of two accounts: counts and sums are 0, ratios and averages are null, log_empty is 1. tx 2 is A's second transaction.",
+  "time_origin": "event_ts_ms = 1662033600000 + minutes * 60000 (2022-09-01T12:00:00Z)",
+  "notes": {},
+  "transactions": [
+    {
+      "tx_id": 1,
+      "event_ts_ms": 1662033600000,
+      "sender_key": "001:A",
+      "receiver_key": "002:B",
+      "amount_paid_usd_cents": 1000,
+      "amount_received_usd_cents": 1000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 2,
+      "event_ts_ms": 1662039000000,
+      "sender_key": "001:A",
+      "receiver_key": "001:C",
+      "amount_paid_usd_cents": 500,
+      "amount_received_usd_cents": 500,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    }
+  ],
+  "expected": {
+    "1": {
+      "s_out_count_1h": "TODO(human)",
+      "s_in_count_72h": "TODO(human)",
+      "s_out_sum_usd_cents_24h": "TODO(human)",
+      "s_distinct_out_cp_1h": "TODO(human)",
+      "s_pass_through_ratio_1h": "TODO(human)",
+      "s_avg_hold_minutes_72h": "TODO(human)",
+      "s_cross_currency_share_1h": "TODO(human)",
+      "s_format_share_ACH_72h": "TODO(human)",
+      "s_account_age_minutes": "TODO(human)",
+      "s_log_empty": "TODO(human)",
+      "s_new_counterparty_72h": "TODO(human)",
+      "s_amount_vs_out_avg_72h": "TODO(human)",
+      "r_log_empty": "TODO(human)",
+      "r_account_age_minutes": "TODO(human)",
+      "r_new_counterparty_72h": "TODO(human)",
+      "r_returned_funds_24h": "TODO(human)"
+    },
+    "2": {
+      "s_account_age_minutes": "TODO(human)",
+      "s_log_empty": "TODO(human)",
+      "s_pass_through_ratio_1h": "TODO(human)",
+      "s_avg_hold_minutes_72h": "TODO(human)",
+      "s_amount_vs_out_avg_72h": "TODO(human)"
+    }
+  }
+}

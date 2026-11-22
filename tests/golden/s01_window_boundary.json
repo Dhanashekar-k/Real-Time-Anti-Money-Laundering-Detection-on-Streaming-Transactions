@@ -1,0 +1,98 @@
+{
+  "name": "s01_window_boundary",
+  "description": "A sends to B at minutes 0, 1, 61, 62, 121. The 1h window of a leg at time t holds entries with ts > t - 1h: an entry exactly 1h old is OUT, an entry 1h - 1 min old is IN.",
+  "time_origin": "event_ts_ms = 1662033600000 + minutes * 60000 (2022-09-01T12:00:00Z)",
+  "notes": {
+    "3": "t - 1h = minute 1: the entry at minute 1 is exactly 1h old",
+    "5": "t - 1h = minute 61: the entry at minute 61 is exactly 1h old, minute 62 is not"
+  },
+  "transactions": [
+    {
+      "tx_id": 1,
+      "event_ts_ms": 1662033600000,
+      "sender_key": "001:A",
+      "receiver_key": "002:B",
+      "amount_paid_usd_cents": 10000,
+      "amount_received_usd_cents": 10000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 2,
+      "event_ts_ms": 1662033660000,
+      "sender_key": "001:A",
+      "receiver_key": "002:B",
+      "amount_paid_usd_cents": 10000,
+      "amount_received_usd_cents": 10000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 3,
+      "event_ts_ms": 1662037260000,
+      "sender_key": "001:A",
+      "receiver_key": "002:B",
+      "amount_paid_usd_cents": 10000,
+      "amount_received_usd_cents": 10000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 4,
+      "event_ts_ms": 1662037320000,
+      "sender_key": "001:A",
+      "receiver_key": "002:B",
+      "amount_paid_usd_cents": 10000,
+      "amount_received_usd_cents": 10000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 5,
+      "event_ts_ms": 1662040860000,
+      "sender_key": "001:A",
+      "receiver_key": "002:B",
+      "amount_paid_usd_cents": 10000,
+      "amount_received_usd_cents": 10000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    }
+  ],
+  "expected": {
+    "1": {
+      "s_out_count_1h": "TODO(human)",
+      "s_out_sum_usd_cents_1h": "TODO(human)",
+      "s_out_count_24h": "TODO(human)",
+      "r_in_count_1h": "TODO(human)"
+    },
+    "2": {
+      "s_out_count_1h": "TODO(human)",
+      "s_out_sum_usd_cents_1h": "TODO(human)",
+      "s_out_count_24h": "TODO(human)",
+      "r_in_count_1h": "TODO(human)"
+    },
+    "3": {
+      "s_out_count_1h": "TODO(human)",
+      "s_out_sum_usd_cents_1h": "TODO(human)",
+      "s_out_count_24h": "TODO(human)",
+      "r_in_count_1h": "TODO(human)"
+    },
+    "4": {
+      "s_out_count_1h": "TODO(human)",
+      "s_out_sum_usd_cents_1h": "TODO(human)",
+      "s_out_count_24h": "TODO(human)",
+      "r_in_count_1h": "TODO(human)"
+    },
+    "5": {
+      "s_out_count_1h": "TODO(human)",
+      "s_out_sum_usd_cents_1h": "TODO(human)",
+      "s_out_count_24h": "TODO(human)",
+      "r_in_count_1h": "TODO(human)"
+    }
+  }
+}

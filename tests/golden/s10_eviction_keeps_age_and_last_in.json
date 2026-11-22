@@ -1,0 +1,57 @@
+{
+  "name": "s10_eviction_keeps_age_and_last_in",
+  "description": "A receives at minute 0, then sends at minute 4800 (80h later) and again 10 minutes after. The IN entry is evicted from every window, but first_seen and last_in_ts are kept: account age and hold_minutes still use minute 0.",
+  "time_origin": "event_ts_ms = 1662033600000 + minutes * 60000 (2022-09-01T12:00:00Z)",
+  "notes": {
+    "3": "the OUT entry of tx 2 was appended with hold = (minute 4800 - minute 0) = 4800"
+  },
+  "transactions": [
+    {
+      "tx_id": 1,
+      "event_ts_ms": 1662033600000,
+      "sender_key": "002:X",
+      "receiver_key": "001:A",
+      "amount_paid_usd_cents": 1000,
+      "amount_received_usd_cents": 1000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 2,
+      "event_ts_ms": 1662321600000,
+      "sender_key": "001:A",
+      "receiver_key": "002:B",
+      "amount_paid_usd_cents": 500,
+      "amount_received_usd_cents": 500,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 3,
+      "event_ts_ms": 1662322200000,
+      "sender_key": "001:A",
+      "receiver_key": "001:C",
+      "amount_paid_usd_cents": 300,
+      "amount_received_usd_cents": 300,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    }
+  ],
+  "expected": {
+    "2": {
+      "s_in_count_72h": "TODO(human)",
+      "s_in_sum_usd_cents_72h": "TODO(human)",
+      "s_pass_through_ratio_72h": "TODO(human)",
+      "s_account_age_minutes": "TODO(human)",
+      "s_log_empty": "TODO(human)"
+    },
+    "3": {
+      "s_avg_hold_minutes_72h": "TODO(human)",
+      "s_out_count_72h": "TODO(human)",
+      "s_account_age_minutes": "TODO(human)"
+    }
+  }
+}

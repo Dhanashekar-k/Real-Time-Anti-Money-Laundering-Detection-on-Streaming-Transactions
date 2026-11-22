@@ -1,0 +1,88 @@
+{
+  "name": "s02_same_minute_ties",
+  "description": "Four transactions in the same minute (same event_ts_ms). A leg sees only entries with a smaller tx_id, never a later tx_id of the same minute and never itself.",
+  "time_origin": "event_ts_ms = 1662033600000 + minutes * 60000 (2022-09-01T12:00:00Z)",
+  "notes": {
+    "4": "receiver is C, a first-time counterparty; r_ features are C's, which is empty"
+  },
+  "transactions": [
+    {
+      "tx_id": 1,
+      "event_ts_ms": 1662033600000,
+      "sender_key": "001:A",
+      "receiver_key": "002:B",
+      "amount_paid_usd_cents": 100,
+      "amount_received_usd_cents": 100,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 2,
+      "event_ts_ms": 1662033600000,
+      "sender_key": "001:A",
+      "receiver_key": "002:B",
+      "amount_paid_usd_cents": 200,
+      "amount_received_usd_cents": 200,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 3,
+      "event_ts_ms": 1662033600000,
+      "sender_key": "001:A",
+      "receiver_key": "002:B",
+      "amount_paid_usd_cents": 400,
+      "amount_received_usd_cents": 400,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 4,
+      "event_ts_ms": 1662033600000,
+      "sender_key": "001:A",
+      "receiver_key": "001:C",
+      "amount_paid_usd_cents": 800,
+      "amount_received_usd_cents": 800,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    }
+  ],
+  "expected": {
+    "1": {
+      "s_out_count_1h": "TODO(human)",
+      "s_out_sum_usd_cents_1h": "TODO(human)",
+      "s_distinct_out_cp_1h": "TODO(human)",
+      "s_new_counterparty_72h": "TODO(human)",
+      "r_in_count_1h": "TODO(human)",
+      "r_in_sum_usd_cents_1h": "TODO(human)"
+    },
+    "2": {
+      "s_out_count_1h": "TODO(human)",
+      "s_out_sum_usd_cents_1h": "TODO(human)",
+      "s_distinct_out_cp_1h": "TODO(human)",
+      "s_new_counterparty_72h": "TODO(human)",
+      "r_in_count_1h": "TODO(human)",
+      "r_in_sum_usd_cents_1h": "TODO(human)"
+    },
+    "3": {
+      "s_out_count_1h": "TODO(human)",
+      "s_out_sum_usd_cents_1h": "TODO(human)",
+      "s_distinct_out_cp_1h": "TODO(human)",
+      "s_new_counterparty_72h": "TODO(human)",
+      "r_in_count_1h": "TODO(human)",
+      "r_in_sum_usd_cents_1h": "TODO(human)"
+    },
+    "4": {
+      "s_out_count_1h": "TODO(human)",
+      "s_out_sum_usd_cents_1h": "TODO(human)",
+      "s_distinct_out_cp_1h": "TODO(human)",
+      "s_new_counterparty_72h": "TODO(human)",
+      "r_in_count_1h": "TODO(human)",
+      "r_in_sum_usd_cents_1h": "TODO(human)"
+    }
+  }
+}

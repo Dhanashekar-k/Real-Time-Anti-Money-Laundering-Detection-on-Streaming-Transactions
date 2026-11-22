@@ -1,0 +1,72 @@
+{
+  "name": "s03_self_transfer",
+  "description": "tx 2 is A -> A. Both of its legs (OUT first, then IN) are computed from the same pre-transaction state and appended only afterwards. tx 3 then sees both entries.",
+  "time_origin": "event_ts_ms = 1662033600000 + minutes * 60000 (2022-09-01T12:00:00Z)",
+  "notes": {
+    "2": "the account's own key is the counterparty of both legs (D36 asks how that counts)",
+    "3": "the OUT entry of tx 2 has hold = minutes since the last IN entry BEFORE tx 2"
+  },
+  "transactions": [
+    {
+      "tx_id": 1,
+      "event_ts_ms": 1662033600000,
+      "sender_key": "002:X",
+      "receiver_key": "001:A",
+      "amount_paid_usd_cents": 1000,
+      "amount_received_usd_cents": 1000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 2,
+      "event_ts_ms": 1662034200000,
+      "sender_key": "001:A",
+      "receiver_key": "001:A",
+      "amount_paid_usd_cents": 500,
+      "amount_received_usd_cents": 500,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 3,
+      "event_ts_ms": 1662034800000,
+      "sender_key": "001:A",
+      "receiver_key": "002:B",
+      "amount_paid_usd_cents": 300,
+      "amount_received_usd_cents": 300,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    }
+  ],
+  "expected": {
+    "1": {
+      "r_log_empty": "TODO(human)",
+      "r_in_count_1h": "TODO(human)",
+      "s_log_empty": "TODO(human)"
+    },
+    "2": {
+      "s_out_count_1h": "TODO(human)",
+      "r_out_count_1h": "TODO(human)",
+      "s_in_count_1h": "TODO(human)",
+      "r_in_count_1h": "TODO(human)",
+      "s_in_sum_usd_cents_1h": "TODO(human)",
+      "r_in_sum_usd_cents_1h": "TODO(human)",
+      "s_new_counterparty_72h": "TODO(human)",
+      "r_new_counterparty_72h": "TODO(human)",
+      "s_avg_hold_minutes_1h": "TODO(human)",
+      "self_transfer": "TODO(human)",
+      "same_bank": "TODO(human)"
+    },
+    "3": {
+      "s_out_count_1h": "TODO(human)",
+      "s_in_count_1h": "TODO(human)",
+      "s_distinct_out_cp_1h": "TODO(human)",
+      "s_distinct_in_cp_1h": "TODO(human)",
+      "s_pass_through_ratio_1h": "TODO(human)",
+      "s_avg_hold_minutes_1h": "TODO(human)"
+    }
+  }
+}
