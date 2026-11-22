@@ -1,0 +1,59 @@
+{
+  "ambiguous_lines": 0,
+  "attempts": 2756,
+  "by_type": {
+    "BIPARTITE": {
+      "attempts": 369,
+      "lines": 2135
+    },
+    "CYCLE": {
+      "attempts": 367,
+      "lines": 2235
+    },
+    "FAN-IN": {
+      "attempts": 355,
+      "lines": 2315
+    },
+    "FAN-OUT": {
+      "attempts": 345,
+      "lines": 2128
+    },
+    "GATHER-SCATTER": {
+      "attempts": 322,
+      "lines": 4289
+    },
+    "RANDOM": {
+      "attempts": 331,
+      "lines": 1667
+    },
+    "SCATTER-GATHER": {
+      "attempts": 331,
+      "lines": 3988
+    },
+    "STACK": {
+      "attempts": 336,
+      "lines": 3986
+    }
+  },
+  "config": {
+    "namespace": "aml_hi_medium",
+    "table": "lake.aml_hi_medium.patterns"
+  },
+  "coverage_assigned": 0.6455577632699404,
+  "coverage_upper_bound": 0.6455577632699404,
+  "dataset": "hi_medium",
+  "git_dirty": false,
+  "git_sha": "c8ac3b37075e9e462d5f5be922b88da363a641ec",
+  "laundering_in_pattern_assigned": 22743,
+  "laundering_in_pattern_upper_bound": 22743,
+  "laundering_outside_any_pattern_lower_bound": 12487,
+  "laundering_outside_any_pattern_upper_bound": 12487,
+  "laundering_total": 35230,
+  "lines": 22743,
+  "pattern_lines_not_labelled_laundering": 0,
+  "source": {
+    "path": "/Volumes/Shekar_ssd/project_2/raw/HI-Medium_Patterns.txt"
+  },
+  "timestamp": "2026-11-22T11:53:58+00:00",
+  "unmatched_lines": 0
+}
