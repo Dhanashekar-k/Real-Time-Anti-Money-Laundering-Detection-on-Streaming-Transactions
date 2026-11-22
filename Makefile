@@ -149,7 +149,20 @@ features: ## Spark features: raw_transactions -> aml_<ds>.features_tx + results/
 	$(ssd_check)
 	uv run python -m batch.spark.features --ds $(DS)
 
-rules train eval: ; $(call stub,M2)
+rules: ## rules baseline: tune on train, score val -> results/M02/<ds>/rules.json (prints the definitions first)
+	$(require_ds)
+	$(ssd_check)
+	uv run python -m ml.rules_baseline --ds $(DS)
+
+train: ## XGBoost: 2 variants x 5 seeds, MLflow, champion, thresholds, drift baseline (needs make up)
+	$(require_ds)
+	$(ssd_check)
+	uv run python -m ml.train --ds $(DS)
+
+eval: ## final evaluation; reads the test split, so it needs FINAL=1 (logs the access)
+	$(require_ds)
+	$(ssd_check)
+	uv run python -m eval.model_eval --ds $(DS) $(if $(FINAL),--final,)
 replay connectors onboard-check: ; $(call stub,M3)
 flink-build flink-deploy flink-stop parity restart-test: ; $(call stub,M4)
 apps latency-matrix seed-thresholds: ; $(call stub,M5)

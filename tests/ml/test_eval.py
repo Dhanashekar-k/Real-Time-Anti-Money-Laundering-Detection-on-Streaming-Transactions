@@ -19,7 +19,7 @@ DAY = 86_400_000
 ROOT = Path(__file__).resolve().parents[2]
 
 
-# --- the gate -------------------------------------------------------------------------------------
+# --- the gate --------------------------------------------------------------------------------
 
 
 def test_no_final_flag_no_access_and_no_log(tmp_path: Path) -> None:
@@ -55,12 +55,14 @@ def test_nothing_else_reads_the_test_split() -> None:
     offenders = []
     for folder in ("ml", "batch", "features", "services", "ops"):
         for path in (ROOT / folder).rglob("*.py"):
+            if path == ROOT / "ml" / "data.py":
+                continue  # the refusal itself: `if split == "test" and not allow_test: raise`
             if pattern.search(path.read_text()):
                 offenders.append(str(path.relative_to(ROOT)))
     assert offenders == []
 
 
-# --- the evaluation -------------------------------------------------------------------------------
+# --- the evaluation -----------------------------------------------------------------------------
 
 
 def _frame() -> pd.DataFrame:
@@ -214,3 +216,45 @@ def test_importance_caption_makes_no_artifact_claim_when_it_is_not_true() -> Non
     cap = ev.importance_caption(cross_currency_rows=1_000, cross_currency_laundering=3)
     assert "generator artifact" not in cap and "perfectly" not in cap
     assert "3 of 1,000" in cap
+
+
+# --- the runner's helpers -----------------------------------------------------------------------
+
+
+def test_golden_status_counts_the_todo_values(tmp_path: Path) -> None:
+    (tmp_path / "s01_x.json").write_text(
+        '{"expected": {"1": {"a": "TODO(human)", "b": 3}, "2": {"c": "TODO(human)"}}}'
+    )
+    (tmp_path / "s02_y.json").write_text('{"expected": {"1": {"a": 1.0}}}')
+    status = ev.golden_status(tmp_path)
+    assert (status["scenarios"], status["todo_values"], status["scenarios_with_todo"]) == (2, 2, 1)
+    assert status["provisional"] is True
+    (tmp_path / "s01_x.json").write_text('{"expected": {"1": {"a": 2}}}')
+    assert ev.golden_status(tmp_path)["provisional"] is False
+
+
+def test_the_real_golden_directory_is_read_not_typed() -> None:
+    status = ev.golden_status()
+    assert status["scenarios"] >= 10
+    assert status["todo_values"] == status["todo_values"]  # a measured count, whatever it is today
+
+
+def test_thresholds_yaml_is_read_per_bank(tmp_path: Path) -> None:
+    f = tmp_path / "thresholds.yaml"
+    f.write_text(
+        "meta: {model_version: '4'}\n"
+        "banks:\n  A: {f1_optimal: {threshold: 0.4}, budget: {threshold: 0.7}}\n"
+        "  B: {f1_optimal: {threshold: 0.3}, budget: {threshold: 0.8}}\n"
+    )
+    assert ev.load_thresholds(f, "f1_optimal") == {"A": 0.4, "B": 0.3}
+    assert ev.load_thresholds(f, "budget") == {"A": 0.7, "B": 0.8}
+    with pytest.raises(KeyError):
+        ev.load_thresholds(f, "nope")
+
+
+def test_provisional_headline_is_added_when_golden_is_open() -> None:
+    lines = ev.provisional_headline(
+        {"provisional": True, "todo_values": 150, "scenarios_with_todo": 10}
+    )
+    assert "PROVISIONAL" in lines[0] and "150" in lines[0]
+    assert ev.provisional_headline({"provisional": False, "todo_values": 0}) == []

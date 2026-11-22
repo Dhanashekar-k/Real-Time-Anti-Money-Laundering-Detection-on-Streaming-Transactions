@@ -22,6 +22,7 @@ registered champion is added with the Spark job (M02 step 8); until then `main` 
 """
 
 import argparse
+import os
 import subprocess
 import sys
 import warnings
@@ -75,7 +76,7 @@ def open_test_gate(final: bool, ds: str, results_dir: Path, reason: str) -> None
         fh.write(line)
 
 
-# --- pieces ------------------------------------------------------------------------------------
+# --- pieces --------------------------------------------------------------------------------
 
 
 def model_alert(frame: pd.DataFrame, bank_thresholds: Mapping[str, float]) -> np.ndarray:
@@ -159,7 +160,7 @@ def importance_caption(cross_currency_rows: int, cross_currency_laundering: int)
     return f"Gain importance. {counts} are laundering."
 
 
-# --- the evaluation -------------------------------------------------------------------------------
+# --- the evaluation -----------------------------------------------------------------------------
 
 
 def evaluate(
@@ -251,6 +252,179 @@ def _headline(
     return lines
 
 
+GOLDEN_DIR = ROOT / "tests" / "golden"
+THRESHOLDS_PATH = ROOT / "config" / "thresholds.yaml"
+
+
+def golden_status(directory: Path = GOLDEN_DIR) -> dict[str, Any]:
+    """How many golden expected values are still `TODO(human)`, counted from the files.
+
+    Every result built on features that the golden vectors have not yet checked is provisional.
+    """
+    import json
+
+    files = sorted(directory.glob("s[0-9][0-9]_*.json"))
+    per_file = {
+        f.name: sum(
+            v == "TODO(human)"
+            for feats in json.loads(f.read_text())["expected"].values()
+            for v in feats.values()
+        )
+        for f in files
+    }
+    todo = sum(per_file.values())
+    return {
+        "scenarios": len(files),
+        "scenarios_with_todo": sum(1 for n in per_file.values() if n),
+        "todo_values": todo,
+        "provisional": todo > 0,
+    }
+
+
+def provisional_headline(status: dict[str, Any]) -> list[str]:
+    if not status["provisional"]:
+        return []
+    return [
+        f"PROVISIONAL: {status['todo_values']} golden expected values in "
+        f"{status['scenarios_with_todo']} scenarios are still TODO(human), so `make golden` has "
+        "not yet checked the features these results were computed from."
+    ]
+
+
+def load_thresholds(path: Path, kind: str) -> dict[str, float]:
+    import yaml
+
+    banks = yaml.safe_load(path.read_text())["banks"]
+    return {bank: float(cfg[kind]["threshold"]) for bank, cfg in banks.items()}
+
+
+def run(ds: str, final: bool, results_root: Path | None = None) -> dict[str, Any]:
+    """Inputs that need no test row first; then the gate; then the one read of the test split."""
+    import json
+
+    import mlflow
+    import xgboost as xgb
+
+    from batch.spark import common
+    from ml import data, rules_baseline
+
+    out_dir = (results_root or RESULTS_ROOT) / ds
+    if not final:
+        raise FinalRequired("the test split is read only with --final (see M02 §8)")
+
+    # 1. inputs that do not touch the test split
+    rules = json.loads((out_dir / "rules.json").read_text())
+    fits = rules_baseline.fits_from_json(rules["fits"])
+    f1_thr = load_thresholds(THRESHOLDS_PATH, "f1_optimal")
+    budget_thr = load_thresholds(THRESHOLDS_PATH, "budget")
+    eda = json.loads((common.ROOT / "results" / "M01" / ds / "eda.json").read_text())
+    tail_days = metrics.tail_day_numbers(eda)
+    mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5001"))
+    booster = mlflow.xgboost.load_model("models:/aml-xgb@champion")
+    names = data.feature_names()
+    best = int(booster.best_iteration)
+    version = mlflow.MlflowClient().get_model_version_by_alias("aml-xgb", "champion").version
+
+    # the registered model must be the champion that train.py selected: same validation PR-AUC
+    from sklearn.metrics import average_precision_score
+
+    val = data.read_split(ds, "val")
+    val_scores = booster.predict(
+        xgb.DMatrix(data.feature_matrix(val), feature_names=names), iteration_range=(0, best + 1)
+    )
+    train_doc = json.loads((out_dir / "train.json").read_text())
+    expected_pr = train_doc["selection"]["champion"]["val_pr_auc"]
+    got_pr = float(average_precision_score(val["y"].to_numpy(), val_scores))
+    if abs(got_pr - expected_pr) > 1e-9:
+        raise RuntimeError(f"registered champion val PR-AUC {got_pr} != train.json {expected_pr}")
+    if str(version) != str(train_doc["selection"]["model_version"]):
+        raise RuntimeError(f"champion alias points at version {version}, train.json says otherwise")
+
+    # 2. the gate, immediately before the one read of the test split
+    open_test_gate(final, ds, out_dir, reason=f"final evaluation of aml-xgb v{version}")
+    test = data.read_split(
+        ds, "test", allow_test=True, patterns=True, extra_raw_columns=("amount_paid_usd_cents",)
+    )
+    score = booster.predict(
+        xgb.DMatrix(data.feature_matrix(test), feature_names=names), iteration_range=(0, best + 1)
+    )
+    frame = pd.DataFrame(
+        {
+            "ts": test["event_ts_ms"].to_numpy(),
+            "bank": test["bank"].to_numpy(),
+            "y": test["y"].to_numpy(),
+            "score": score,
+            "is_cross_currency": test["is_cross_currency"].to_numpy(),
+            "pattern_type": test["pattern_type"].to_numpy(),
+        }
+    )
+    baseline_name = rules["baseline"]
+    baseline = rules_baseline.baseline_alert(fits, baseline_name, test)
+
+    kw = dict(
+        baseline_alert=baseline, baseline_name=baseline_name, tail_days=tail_days,
+        k_per_day=200, n_resamples=1000, seed=0,
+    )  # fmt: skip
+    primary = evaluate(frame, f1_thr, **kw)
+    at_budget = evaluate(frame, budget_thr, **kw)
+    golden = golden_status()
+    headline = [*provisional_headline(golden), *primary["headline"]]
+    doc = {
+        "dataset": ds,
+        **common.provenance(),
+        "provisional": golden["provisional"],
+        "golden_status": golden,
+        "headline": headline,
+        "config": {
+            "model": f"aml-xgb v{version} (alias champion)",
+            "best_iteration": best,
+            "baseline": baseline_name,
+            "thresholds_file": str(THRESHOLDS_PATH.relative_to(ROOT)),
+            "primary_operating_point": "per-bank F1-optimal threshold chosen on val",
+            "bootstrap": primary["bootstrap"],
+            "tail_days": sorted(tail_days),
+            "test_rows": int(len(frame)),
+        },
+        "t2": primary["t2"],
+        "at_f1_optimal_threshold": primary["slices"],
+        "at_budget_threshold": at_budget["slices"],
+        "t2_at_budget_threshold": at_budget["t2"],
+        "thresholds": {"f1_optimal": f1_thr, "budget": budget_thr},
+    }
+    common.write_json(out_dir / "metrics.json", doc)
+    _pr_figure(frame, baseline, out_dir / "pr_curve_test.png", tail_days)
+    return doc
+
+
+def _pr_figure(frame: pd.DataFrame, baseline: np.ndarray, path: Path, tail_days: set[int]) -> None:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from sklearn.metrics import precision_recall_curve
+
+    fig, ax = plt.subplots(figsize=(6.5, 5))
+    slices = {
+        "all test rows": np.ones(len(frame), dtype=bool),
+        "without the sparse tail": metrics.without_days(frame["ts"].to_numpy(), tail_days),
+    }
+    for label, keep in slices.items():
+        f = frame[keep]
+        p, r, _ = precision_recall_curve(f["y"], f["score"])
+        ax.plot(r, p, label=label)
+        tp, fp, fn, _ = metrics.confusion(f["y"].to_numpy(), baseline[keep])
+        pr, rc, _ = metrics.prf1(tp, fp, fn)
+        ax.scatter([rc], [pr], marker="x", label=f"baseline rules, {label}")
+    ax.set_xlabel("recall")
+    ax.set_ylabel("precision")
+    ax.set_ylim(0, 1.02)
+    ax.set_title("Test PR curve (model) and the rules baseline")
+    ax.legend(fontsize=7)
+    fig.tight_layout()
+    fig.savefig(path, dpi=110)
+    plt.close(fig)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--ds", required=True, choices=["hi_small", "hi_medium"])
@@ -263,12 +437,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 2
-    print(
-        "eval.model_eval: loading the test rows needs features_tx and a registered champion "
-        "(M02 steps 8 and 13, not built yet); nothing was read.",
-        file=sys.stderr,
-    )
-    return 3
+    doc = run(args.ds, final=True)
+    print("\n".join(doc["headline"]))
+    return 0
 
 
 if __name__ == "__main__":
