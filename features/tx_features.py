@@ -40,14 +40,21 @@ def quantize_log10(x: float, spec: Spec) -> float:
     return float(decimal.Decimal(x).quantize(step, rounding=mode))
 
 
+def log10_feature(amount_paid_usd_cents: int, spec: Spec) -> float:
+    """`log10_amount_paid_usd`: log10(1 + cents / 100.0), rounded as in `quantize_log10` (D42).
+
+    The Spark job calls this same function from a pandas UDF, so the value is never re-derived in
+    Spark SQL.
+    """
+    return quantize_log10(math.log10(1 + amount_paid_usd_cents / 100.0), spec)
+
+
 def compute(tx: Mapping[str, Any], spec: Spec) -> dict[str, float | int]:
     """The tx features of one transaction, in spec order (the first nine names of the vector)."""
     # Integer arithmetic only: the hour and weekday must not depend on a float.
     ts = tx["event_ts_ms"]
     return {
-        "log10_amount_paid_usd": quantize_log10(
-            math.log10(1 + tx["amount_paid_usd_cents"] / 100.0), spec
-        ),
+        "log10_amount_paid_usd": log10_feature(tx["amount_paid_usd_cents"], spec),
         "is_cross_currency": int(tx["payment_currency"] != tx["receiving_currency"]),
         "payment_format_code": _code(tx["payment_format"], spec.payment_formats, "payment_format"),
         "payment_currency_code": _code(tx["payment_currency"], spec.currencies, "currency"),

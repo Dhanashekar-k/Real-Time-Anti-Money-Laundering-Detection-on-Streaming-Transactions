@@ -101,3 +101,13 @@ def test_oracle_refuses_every_forbidden_input_column() -> None:
     for bad in s.forbidden_inputs:
         with pytest.raises(ValueError, match=bad):
             reference.compute_account_legs(legs.assign(**{bad: []}), s)
+
+
+def test_feature_job_reads_and_writes_no_label_column() -> None:
+    """The Spark job's input list and output keys name no label, split or pattern column."""
+    from batch.spark import features
+
+    columns = [*features.RAW_COLUMNS, *features.KEY_COLUMNS]
+    assert [c for c in columns if leaked(c)] == []
+    # the job selects RAW_COLUMNS first, so the list is the whole input surface
+    assert "is_laundering" not in features.RAW_COLUMNS and "split" not in features.RAW_COLUMNS
