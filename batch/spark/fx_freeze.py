@@ -22,6 +22,8 @@ from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[2]
 FX_PATH = ROOT / "features" / "fx_rates.yaml"
 
@@ -158,6 +160,62 @@ def build(doc: dict[str, Any], currencies: list[str]) -> str:
     )
 
 
+BTC_CHECK_SIGMAS = 3
+
+
+def check(doc: dict[str, Any], frozen: dict[str, Any], currencies: list[str]) -> list[str]:
+    """Compare a measured fx_variance document with the frozen table; never writes anything.
+
+    Returns one line per difference (empty list = the measurement agrees with the frozen table).
+    Fiat: the recovered constant must be identical (and recoverable at all). BTC: the measured
+    paid>=100 rate must lie within BTC_CHECK_SIGMAS standard errors of the frozen constant, where
+    the standard error is that of the difference of two independent estimates,
+    sqrt(se_frozen^2 + se_measured^2).
+    """
+    try:
+        measured = yaml.safe_load(build(doc, currencies))
+    except ValueError as exc:  # e.g. no round constant: that is itself a difference
+        return [f"cannot recover the table from the measurement: {exc}"]
+    problems: list[str] = []
+    for ccy in currencies:
+        if ccy == "USD":
+            continue
+        new, old = measured["evidence"][ccy], frozen["evidence"][ccy]
+        if ccy != "BTC":
+            if new["per_usd"] != old["per_usd"]:
+                problems.append(
+                    f"{ccy}: measured constant {new['per_usd']} != frozen {old['per_usd']}"
+                )
+            continue
+        with localcontext() as ctx:
+            ctx.prec = 60
+            rel = (Decimal(new["measured_per_usd"]) - Decimal(old["per_usd"])) / Decimal(
+                old["per_usd"]
+            )
+        se = math.hypot(float(new["rel_stderr"]), float(old["rel_stderr"]))
+        if abs(float(rel)) > BTC_CHECK_SIGMAS * se:
+            problems.append(
+                f"BTC: measured {new['measured_per_usd']} differs from frozen {old['per_usd']} by "
+                f"{float(rel):.1e}, more than {BTC_CHECK_SIGMAS} standard errors ({se:.1e})"
+            )
+    return problems
+
+
+def format_check(doc: dict[str, Any], frozen: dict[str, Any], currencies: list[str]) -> str:
+    """Per currency: measured vs frozen constant, for the person reading the check."""
+    lines = [f"{'ccy':<5}{'measured per_usd':>22}{'frozen per_usd':>20}  rows(measured)"]
+    for p in doc["pairs"]:
+        ccy = p["received_currency"]
+        if p["paid_currency"] != "USD" or ccy not in currencies or ccy == "USD":
+            continue
+        weighted = p["weighted_rate_paid_ge_100"] if ccy == "BTC" else p["weighted_rate"]
+        lines.append(
+            f"{ccy:<5}{plain(round_sig(Decimal(weighted), 12)):>22}"
+            f"{frozen['evidence'][ccy]['per_usd']:>20}  {p['n']}"
+        )
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> None:
     from features import money
 
@@ -165,8 +223,26 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--ds", required=True)
     parser.add_argument("--results-dir", type=Path, default=ROOT / "results" / "M01")
     parser.add_argument("--out", type=Path, default=FX_PATH)
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="compare the measurement with the frozen table at --out and exit 1 on a difference; "
+        "writes nothing",
+    )
     args = parser.parse_args(argv)
     doc = json.loads((args.results_dir / args.ds / "fx_variance.json").read_text())
+    if args.check:
+        frozen = yaml.safe_load(args.out.read_text(encoding="utf-8"))
+        print(format_check(doc, frozen, money.CURRENCIES))
+        problems = check(doc, frozen, money.CURRENCIES)
+        for line in problems:
+            print(f"DIFFERENT: {line}")
+        print(
+            f"{args.ds}: {'DIFFERS from' if problems else 'agrees with'} the frozen table "
+            f"(fx_version {frozen['fx_version']}, from {frozen['source']['dataset']}); "
+            "nothing written"
+        )
+        raise SystemExit(1 if problems else 0)
     text = build(doc, money.CURRENCIES)
     args.out.write_text(text, encoding="utf-8")
     print(f"wrote {args.out}")

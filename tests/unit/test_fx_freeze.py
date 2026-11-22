@@ -134,3 +134,60 @@ def test_built_table_loads_in_money(tmp_path: Path) -> None:
     path.write_text(fx_freeze.build(_doc(), money.CURRENCIES), encoding="utf-8")
     fx = money.load_fx(path)
     assert fx["USD"] == 1 and fx["EUR"] == Decimal("0.5")
+
+
+# --- fx-check: compare a measurement with the frozen table, never write ---------------------------
+
+
+def _measured(**changes: str) -> dict:
+    """The committed HI-Small measurement with some pairs' weighted rates replaced."""
+    doc = json.loads(VARIANCE.read_text())
+    for pair in doc["pairs"]:
+        if pair["paid_currency"] == "USD" and pair["received_currency"] in changes:
+            rate = changes[pair["received_currency"]]
+            pair["weighted_rate"] = rate
+            if pair["received_currency"] == "BTC":
+                pair["weighted_rate_paid_ge_100"] = rate
+    return doc
+
+
+def test_check_agrees_when_the_measurement_is_the_one_the_table_came_from() -> None:
+    assert fx_freeze.check(_measured(), FROZEN, money.CURRENCIES) == []
+
+
+def test_check_reports_a_changed_fiat_constant() -> None:
+    problems = fx_freeze.check(_measured(EUR="0.8535"), FROZEN, money.CURRENCIES)
+    assert len(problems) == 1 and problems[0].startswith("EUR:")
+
+
+def test_check_reports_a_fiat_rate_that_is_not_a_round_constant() -> None:
+    problems = fx_freeze.check(_measured(EUR="0.85341234567"), FROZEN, money.CURRENCIES)
+    assert len(problems) == 1 and "EUR" in problems[0]
+
+
+@pytest.mark.parametrize(("drift", "agrees"), [("1e-5", True), ("-1e-5", True), ("1e-3", False)])
+def test_check_allows_btc_to_move_within_three_standard_errors(drift: str, agrees: bool) -> None:
+    frozen_constant = Decimal(FROZEN["evidence"]["BTC"]["per_usd"])
+    moved = str(frozen_constant * (1 + Decimal(drift)))
+    problems = fx_freeze.check(_measured(BTC=moved), FROZEN, money.CURRENCIES)
+    assert (problems == []) is agrees
+    if not agrees:
+        assert problems[0].startswith("BTC:") and "standard errors" in problems[0]
+
+
+def test_check_cli_writes_nothing_and_sets_the_exit_code(tmp_path: Path) -> None:
+    results = tmp_path / "results"
+    (results / "t").mkdir(parents=True)
+    table = tmp_path / "fx_rates.yaml"
+    table.write_text((ROOT / "features" / "fx_rates.yaml").read_text(encoding="utf-8"))
+    before = table.read_bytes()
+    (results / "t" / "fx_variance.json").write_text(json.dumps(_measured()))
+    argv = ["--ds", "t", "--results-dir", str(results), "--out", str(table), "--check"]
+    with pytest.raises(SystemExit) as same:
+        fx_freeze.main(argv)
+    assert same.value.code == 0
+    (results / "t" / "fx_variance.json").write_text(json.dumps(_measured(JPY="110.5")))
+    with pytest.raises(SystemExit) as different:
+        fx_freeze.main(argv)
+    assert different.value.code == 1
+    assert table.read_bytes() == before  # the frozen table is never touched by --check
