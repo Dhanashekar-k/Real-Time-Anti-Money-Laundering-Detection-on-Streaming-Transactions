@@ -1,0 +1,45 @@
+{
+  "boundary_indexes": {
+    "t1": 19138942,
+    "t2": 25518590
+  },
+  "config": {
+    "fractions": [
+      0.6,
+      0.2,
+      0.2
+    ],
+    "table": "lake.aml_hi_medium.raw_transactions"
+  },
+  "dataset": "hi_medium",
+  "git_dirty": false,
+  "git_sha": "f47d99927e9a75509fa40e38c92c8d10af128e1b",
+  "rows": 31898238,
+  "rows_differing_from_pure_index_split": 1830,
+  "splits": {
+    "test": {
+      "first_ts_ms": 1663134360000,
+      "last_ts_ms": 1664380680000,
+      "laundering": 10642,
+      "rows": 6380182
+    },
+    "train": {
+      "first_ts_ms": 1661990400000,
+      "last_ts_ms": 1662756120000,
+      "laundering": 15536,
+      "rows": 19137646
+    },
+    "val": {
+      "first_ts_ms": 1662756180000,
+      "last_ts_ms": 1663134300000,
+      "laundering": 9052,
+      "rows": 6380410
+    }
+  },
+  "stored_split_mismatches": 0,
+  "t1_ms": 1662756180000,
+  "t1_utc": "2022-09-09T20:43:00+00:00",
+  "t2_ms": 1663134360000,
+  "t2_utc": "2022-09-14T05:46:00+00:00",
+  "timestamp": "2026-11-22T11:54:25+00:00"
+}
