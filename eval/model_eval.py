@@ -72,10 +72,10 @@ def open_test_gate(final: bool, ds: str, results_dir: Path, reason: str) -> None
     """Call immediately before reading test rows. Raises unless `final`; logs every access."""
     if not final:
         raise FinalRequired("the test split is read only with --final (see M02 §8)")
-    if _is_dirty() and os.environ.get("AML_ALLOW_DIRTY_EVAL") != "1":
+    if _is_dirty():
         raise DirtyTree(
             "the working tree has uncommitted code changes: commit first, so the result can be "
-            "reproduced from its git SHA (set AML_ALLOW_DIRTY_EVAL=1 to override; it is logged)"
+            "reproduced from its git SHA (there is no override)"
         )
     warnings.warn(
         f"reading the test split of {ds}: it is touched once per model family",

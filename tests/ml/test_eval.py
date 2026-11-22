@@ -271,18 +271,28 @@ def test_provisional_headline_is_added_when_golden_is_open() -> None:
 
 def test_the_gate_refuses_a_dirty_tree(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(ev, "_is_dirty", lambda: True)
-    monkeypatch.delenv("AML_ALLOW_DIRTY_EVAL", raising=False)
     with pytest.raises(ev.DirtyTree, match="commit"):
         ev.open_test_gate(True, "hi_small", tmp_path, reason="x")
     assert not (tmp_path / "test_access_log.txt").exists()  # refused before anything is logged
 
 
-def test_the_dirty_override_is_explicit_and_is_logged(tmp_path: Path, monkeypatch) -> None:
+@pytest.mark.parametrize("value", ["1", "true", "yes", "0"])
+def test_no_environment_variable_overrides_the_dirty_refusal(
+    tmp_path: Path, monkeypatch, value: str
+) -> None:
+    """The refusal is a hard gate: the former AML_ALLOW_DIRTY_EVAL override no longer exists."""
     monkeypatch.setattr(ev, "_is_dirty", lambda: True)
-    monkeypatch.setenv("AML_ALLOW_DIRTY_EVAL", "1")
-    with pytest.warns(UserWarning):
+    for name in ("AML_ALLOW_DIRTY_EVAL", "AML_ALLOW_DIRTY", "ALLOW_DIRTY_EVAL"):
+        monkeypatch.setenv(name, value)
+    with pytest.raises(ev.DirtyTree):
         ev.open_test_gate(True, "hi_small", tmp_path, reason="x")
-    assert "+dirty" in (tmp_path / "test_access_log.txt").read_text()
+    assert not (tmp_path / "test_access_log.txt").exists()
+
+
+def test_the_source_has_no_override_switch() -> None:
+    import inspect
+
+    assert "ALLOW_DIRTY" not in inspect.getsource(ev)
 
 
 def test_a_clean_tree_is_logged_as_clean(tmp_path: Path, monkeypatch) -> None:
