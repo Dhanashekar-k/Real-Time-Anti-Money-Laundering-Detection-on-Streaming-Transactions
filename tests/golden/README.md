@@ -18,4 +18,4 @@ Compute each value by hand from `features/spec.yaml`, not by running the oracle.
 
 `make golden` (name list check, these scenarios, the oracle contract tests). Skips and xfails are printed.
 
-Scenarios 1-9 are the nine of the manual (M02 §3). `s10` is added: eviction must not erase `first_seen` or `last_in_ts`.
+Scenarios 1-9 are the nine of the manual (M02 §3). `s10` is added: eviction must not erase `first_seen` or `last_in_ts`. `s11` is added for coverage of D40 (single division on fractional holds), D41 (zero average), D42 (log10 rounding), the 72h start edge, a self-transfer IN leg as `last_in_ts`, and a distinct count that drops on eviction.

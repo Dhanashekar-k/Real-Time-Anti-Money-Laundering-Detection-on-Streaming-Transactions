@@ -1,0 +1,182 @@
+{
+  "name": "s11_gap_coverage",
+  "description": "One account A covers six rules s01-s10 leave untested: D41 zero-average null (zero-cent OUT entries), a distinct-counterparty count that drops when entries age out (and does not drop while another entry for the same key remains), the 72h start edge on OUT-reading features, a null-hold OUT entry mixed with hold-bearing ones, a self-transfer IN leg as the last IN for a later OUT's hold, D40 single division on fractional-minute holds, and D42 rounding on a real amount.",
+  "time_origin": "event_ts_ms = 1662033600000 + offset_ms (2022-09-01T12:00:00Z). tx 1-8 are on whole minutes (0, 10, 30, 65, 95, 96, 4400, 4415); tx 9-11 carry fractional minutes so hold_ms is not a multiple of 60000.",
+  "notes": {
+    "4": "D41: A's 72h window holds three OUT entries, all 0 cents, so the average is 0 and s_amount_vs_out_avg_72h is null with s_out_count_72h = 3. 1h: tx 1 (P) has aged out but tx 3 (P) is still in, so P is still a distinct counterparty",
+    "5": "1h: tx 2 (Q) and tx 3 (P) have aged out, only tx 4 (R) is left: distinct drops from 2 to 1. The 72h window still has P, Q, R",
+    "8": "tx 8 is exactly 72h after tx 5: tx 5 (R, 1000) is OUT of the window, tx 6 (S, 700, 72h - 1 min old) and tx 7 (S2, 300) are in. tx 8 is A's first IN entry, so every earlier OUT entry has a null hold",
+    "10": "self-transfer. Its OUT leg's hold is measured from tx 8 (the last IN with a smaller tx_id), not from its own IN leg; its IN leg becomes last_in_ts. Both legs see tx 9 (hold 438200 ms) in the 1h window",
+    "11": "hold_ms = 714583, measured from the IN leg of the self-transfer tx 10, not from tx 8",
+    "12": "24h and 72h windows hold four OUT entries: tx 7 (null hold), tx 9 (438200), tx 10 OUT (3157103), tx 11 (714583). D40: 4309886 / (3 * 60000); the null-hold entry is not in the count. The 1h window holds only tx 11. log10: 123456 cents -> log10(1235.56) = 3.09186384... -> 3.091864 (rounds up; 3.4e-7 from a rounding boundary)"
+  },
+  "transactions": [
+    {
+      "tx_id": 1,
+      "event_ts_ms": 1662033600000,
+      "sender_key": "001:A",
+      "receiver_key": "002:P",
+      "amount_paid_usd_cents": 0,
+      "amount_received_usd_cents": 0,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 2,
+      "event_ts_ms": 1662034200000,
+      "sender_key": "001:A",
+      "receiver_key": "002:Q",
+      "amount_paid_usd_cents": 0,
+      "amount_received_usd_cents": 0,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 3,
+      "event_ts_ms": 1662035400000,
+      "sender_key": "001:A",
+      "receiver_key": "002:P",
+      "amount_paid_usd_cents": 0,
+      "amount_received_usd_cents": 0,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 4,
+      "event_ts_ms": 1662037500000,
+      "sender_key": "001:A",
+      "receiver_key": "002:R",
+      "amount_paid_usd_cents": 2500,
+      "amount_received_usd_cents": 2500,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 5,
+      "event_ts_ms": 1662039300000,
+      "sender_key": "001:A",
+      "receiver_key": "002:R",
+      "amount_paid_usd_cents": 1000,
+      "amount_received_usd_cents": 1000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 6,
+      "event_ts_ms": 1662039360000,
+      "sender_key": "001:A",
+      "receiver_key": "002:S",
+      "amount_paid_usd_cents": 700,
+      "amount_received_usd_cents": 700,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 7,
+      "event_ts_ms": 1662297600000,
+      "sender_key": "001:A",
+      "receiver_key": "002:S2",
+      "amount_paid_usd_cents": 300,
+      "amount_received_usd_cents": 300,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 8,
+      "event_ts_ms": 1662298500000,
+      "sender_key": "002:X",
+      "receiver_key": "001:A",
+      "amount_paid_usd_cents": 100000,
+      "amount_received_usd_cents": 100000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 9,
+      "event_ts_ms": 1662298938200,
+      "sender_key": "001:A",
+      "receiver_key": "002:B1",
+      "amount_paid_usd_cents": 25000,
+      "amount_received_usd_cents": 25000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 10,
+      "event_ts_ms": 1662301657103,
+      "sender_key": "001:A",
+      "receiver_key": "001:A",
+      "amount_paid_usd_cents": 20000,
+      "amount_received_usd_cents": 20000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "REINVESTMENT"
+    },
+    {
+      "tx_id": 11,
+      "event_ts_ms": 1662302371686,
+      "sender_key": "001:A",
+      "receiver_key": "002:B2",
+      "amount_paid_usd_cents": 15000,
+      "amount_received_usd_cents": 15000,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    },
+    {
+      "tx_id": 12,
+      "event_ts_ms": 1662305400000,
+      "sender_key": "001:A",
+      "receiver_key": "002:B3",
+      "amount_paid_usd_cents": 123456,
+      "amount_received_usd_cents": 123456,
+      "payment_currency": "USD",
+      "receiving_currency": "USD",
+      "payment_format": "ACH"
+    }
+  ],
+  "expected": {
+    "1": {
+      "log10_amount_paid_usd": 0.0
+    },
+    "4": {
+      "s_out_count_1h": 2,
+      "s_distinct_out_cp_1h": 2,
+      "s_out_count_72h": 3,
+      "s_out_sum_usd_cents_72h": 0,
+      "s_amount_vs_out_avg_72h": null
+    },
+    "5": {
+      "s_out_count_1h": 1,
+      "s_distinct_out_cp_1h": 1,
+      "s_distinct_out_cp_72h": 3,
+      "s_amount_vs_out_avg_72h": 1.6
+    },
+    "8": {
+      "r_out_count_72h": 2,
+      "r_out_sum_usd_cents_72h": 1000,
+      "r_distinct_out_cp_72h": 2
+    },
+    "10": {
+      "s_avg_hold_minutes_1h": 7.303333333333334,
+      "r_avg_hold_minutes_1h": 7.303333333333334
+    },
+    "12": {
+      "s_out_count_1h": 1,
+      "s_out_count_24h": 4,
+      "s_avg_hold_minutes_1h": 11.909716666666666,
+      "s_avg_hold_minutes_24h": 23.94381111111111,
+      "s_avg_hold_minutes_72h": 23.94381111111111,
+      "log10_amount_paid_usd": 3.091864
+    }
+  }
+}

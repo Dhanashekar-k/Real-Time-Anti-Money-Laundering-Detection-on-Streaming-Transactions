@@ -93,3 +93,47 @@ tx k sees the k−1 earlier OUT entries: out_count = k−1, out_sum = 1000(k−1
 
 ## Counts
 s01 20 · s02 24 · s03 20 · s04 24 · s05 24 · s06 8 · s07 9 · s08 13 · s09 21 · s10 8 = 171.
+
+## s11 gap coverage (added 2026-11-22, written before `make golden`; same sources, oracle not opened)
+A = 001:A throughout. Offsets in ms from the origin (min in brackets). All USD/USD, ACH except tx10.
+| tx | offset ms (min) | leg for A | cp | cents | stored hold_ms |
+|---|---|---|---|---|---|
+| 1 | 0 (0) | OUT | P | 0 | null (no IN yet) |
+| 2 | 600000 (10) | OUT | Q | 0 | null |
+| 3 | 1800000 (30) | OUT | P | 0 | null |
+| 4 | 3900000 (65) | OUT | R | 2500 | null |
+| 5 | 5700000 (95) | OUT | R | 1000 | null |
+| 6 | 5760000 (96) | OUT | S | 700 | null |
+| 7 | 264000000 (4400) | OUT | S2 | 300 | null |
+| 8 | 264900000 (4415) | IN | X | 100000 | — (last_in_ts := 264900000) |
+| 9 | 265338200 | OUT | B1 | 25000 | 265338200 − 264900000 = 438200 |
+| 10 | 268057103 | OUT + IN (self, REINVESTMENT) | none (D43) | 20000 | OUT: 268057103 − 264900000 = 3157103; then last_in_ts := 268057103 |
+| 11 | 268771686 | OUT | B2 | 15000 | 268771686 − 268057103 = 714583 |
+| 12 | 271800000 (4530) | OUT | B3 | 123456 | (not seen by itself) |
+
+- tx1 log10: 1 + 0/100.0 = 1.0 → log10 = 0.0 → Decimal("0").quantize(6) = 0.000000 → 0.0.
+- tx4 (t=3900000). 72h (ts > −255300000): OUT {tx1 0, tx2 0, tx3 0} → s_out_count_72h 3, s_out_sum_72h 0,
+  s_amount_vs_out_avg_72h null (D41: count 3 but sum 0 → zero average). 1h (ts > 300000): tx1 @0 out;
+  tx2 (Q) and tx3 (P) in → s_out_count_1h 2, s_distinct_out_cp_1h = |{Q, P}| = 2 (P's count went 2 → 1, key stays).
+- tx5 (t=5700000). 1h (ts > 2100000): tx2 @600000 and tx3 @1800000 out, tx4 (R) in → s_out_count_1h 1,
+  s_distinct_out_cp_1h = |{R}| = 1 (drop from 2). 72h: all four OUT → distinct |{P, Q, R}| = 3.
+  vs_avg: 2500 / 4 = 625.0, then 1000 / 625.0 = 1.6.
+- tx8 (r_ = A, t=264900000). 72h start = 264900000 − 259200000 = 5700000: tx5 @5700000 is NOT > start → out
+  (exactly 72h old); tx6 @5760000 (72h − 1 min old) and tx7 in. r_out_count_72h 2, r_out_sum_72h 700 + 300 = 1000,
+  r_distinct_out_cp_72h |{S, S2}| = 2. (Start-inclusive reading would give 3 / 2000 / 3.)
+- tx10 (self-transfer, t=268057103; both legs see the same pre-state). 1h start 264457103: tx7 @264000000 out;
+  tx8 IN and tx9 OUT (hold 438200) in → s_avg_hold_minutes_1h = r_avg_hold_minutes_1h = 438200 / (1·60000)
+  = 7.303333333333334.
+- tx12 (t=271800000). 1h start 268200000: tx10 @268057103 out, tx11 in → s_out_count_1h 1,
+  s_avg_hold_minutes_1h = 714583 / 60000 = 11.909716666666666 (from the self-transfer IN; if tx8 were used,
+  hold would be 3871686 → 64.5281).
+  24h start 185400000 and 72h start 12600000: OUT {tx7 null, tx9 438200, tx10 3157103, tx11 714583}
+  (tx6 @5760000 is out of 72h) → s_out_count_24h 4; hold count 3, total_ms 4309886 →
+  s_avg_hold_minutes_24h = _72h = 4309886 / 180000 = 23.94381111111111.
+  Inputs were picked so wrong forms give a different double: (T/3)/60000, (T/60000)/3 and float-minute
+  accumulation all give 23.943811111111113; dividing by the OUT count 4 gives 17.957858333333334.
+  log10: 123456/100.0 = 1234.56, +1 = 1235.56; log10 = 3.0918638400142706 (exact binary expansion
+  3.091863840014270614…); quantize 6, HALF_EVEN → 3.091864 (truncation would give 3.091863). A 60-digit
+  Decimal log10 of the same double agrees to 8e-18; distance to the nearest rounding boundary is 3.4e-7.
+
+s11: 21 values.
