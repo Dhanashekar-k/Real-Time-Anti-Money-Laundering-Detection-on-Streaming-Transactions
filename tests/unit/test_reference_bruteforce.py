@@ -61,6 +61,10 @@ def brute_account(legs: pd.DataFrame, sp: spec.Spec) -> dict[tuple[int, str], di
         {**r, "dir_rank": sp.dir_order[r["direction"]]}
         for r in legs.to_dict("records")  # plain dicts: the list is rescanned for every leg
     ]
+    # D43: a tx_id that has both an OUT and an IN leg in this account's frame is a self-transfer
+    self_tx = {r["tx_id"] for r in rows if sum(x["tx_id"] == r["tx_id"] for x in rows) == 2}
+    for r in rows:
+        r["is_self"] = r["tx_id"] in self_tx
     out: dict[tuple[int, str], dict[str, Any]] = {}
     for leg in rows:
         t, me = leg["event_ts_ms"], leg["tx_id"]
@@ -79,8 +83,12 @@ def brute_account(legs: pd.DataFrame, sp: spec.Spec) -> dict[tuple[int, str], di
             row[f"in_count_{w}"] = len(ins)
             row[f"out_sum_usd_cents_{w}"] = out_sum
             row[f"in_sum_usd_cents_{w}"] = in_sum
-            row[f"distinct_out_cp_{w}"] = len({e["counterparty_key"] for e in outs})
-            row[f"distinct_in_cp_{w}"] = len({e["counterparty_key"] for e in ins})
+            row[f"distinct_out_cp_{w}"] = len(
+                {e["counterparty_key"] for e in outs if not e["is_self"]}
+            )
+            row[f"distinct_in_cp_{w}"] = len(
+                {e["counterparty_key"] for e in ins if not e["is_self"]}
+            )
             row[f"pass_through_ratio_{w}"] = None if in_sum == 0 else out_sum / in_sum
             row[f"avg_hold_minutes_{w}"] = sum(holds) / (len(holds) * 60000) if holds else None
             row[f"cross_currency_share_{w}"] = len(cross) / len(win) if win else None
@@ -96,7 +104,8 @@ def brute_account(legs: pd.DataFrame, sp: spec.Spec) -> dict[tuple[int, str], di
         cp = leg["counterparty_key"]
         if leg["direction"] == "OUT":
             role = "S"
-            row["new_counterparty_72h"] = int(cp not in {e["counterparty_key"] for e in outs72})
+            known = {e["counterparty_key"] for e in outs72 if not e["is_self"]}
+            row["new_counterparty_72h"] = 0 if leg["is_self"] else int(cp not in known)
             n_out = len(outs72)
             total = sum(e["amount_usd_cents"] for e in outs72)
             # D41: null when the window is empty OR the average is 0
@@ -106,11 +115,16 @@ def brute_account(legs: pd.DataFrame, sp: spec.Spec) -> dict[tuple[int, str], di
         else:
             role = "R"
             ins72 = [e for e in win72 if e["direction"] == "IN"]
-            row["new_counterparty_72h"] = int(cp not in {e["counterparty_key"] for e in ins72})
+            known = {e["counterparty_key"] for e in ins72 if not e["is_self"]}
+            row["new_counterparty_72h"] = 0 if leg["is_self"] else int(cp not in known)
             outs24 = [
                 e for e in _window(visible, t, sp.window_ms["24h"]) if e["direction"] == "OUT"
             ]
-            row["returned_funds_24h"] = int(any(e["counterparty_key"] == cp for e in outs24))
+            row["returned_funds_24h"] = (
+                0
+                if leg["is_self"]
+                else int(any(e["counterparty_key"] == cp for e in outs24 if not e["is_self"]))
+            )
         out[(me, role)] = row
     return out
 
@@ -178,7 +192,7 @@ def test_selfcheck_self_transfer_and_empty_history(s: spec.Spec) -> None:
         assert got[(1, role)]["log_empty"] == 1
         assert got[(1, role)]["out_count_72h"] == 0
         assert got[(1, role)]["account_age_minutes"] is None
-        assert got[(1, role)]["new_counterparty_72h"] == 1
+        assert got[(1, role)]["new_counterparty_72h"] == 0  # D43: no counterparty, so not a new one
     assert got[(1, "S")]["amount_vs_out_avg_72h"] is None
     assert got[(1, "R")]["returned_funds_24h"] == 0
 
@@ -212,6 +226,36 @@ def test_selfcheck_vs_avg_null_for_empty_window_and_zero_average(s: spec.Spec) -
     assert got[(1, "S")]["amount_vs_out_avg_72h"] is None  # empty window
     assert got[(2, "S")]["amount_vs_out_avg_72h"] is None  # one entry, average 0
     assert got[(3, "S")]["amount_vs_out_avg_72h"] == 300 / (500 / 2)  # entries 0 and 500
+
+
+def test_selfcheck_self_transfer_is_not_a_counterparty(s: spec.Spec) -> None:
+    # tx 1: A pays itself 700; tx 2: A pays B 300; tx 3: A receives from B 100.
+    legs = _frame(
+        [
+            _leg(1, 0, "OUT", cp="A", cents=700),
+            _leg(1, 0, "IN", cp="A", cents=700),
+            _leg(2, 10, "OUT", cp="B", cents=300),
+            _leg(3, 20, "IN", cp="B", cents=100),
+        ]
+    )
+    got = brute_account(legs, s)
+    # tx 2 sees the self-transfer in the amount and count windows ...
+    assert got[(2, "S")]["out_count_1h"] == 1 and got[(2, "S")]["out_sum_usd_cents_1h"] == 700
+    assert got[(2, "S")]["in_count_1h"] == 1 and got[(2, "S")]["in_sum_usd_cents_1h"] == 700
+    # ... but not as a counterparty: A is not a distinct counterparty, and B is still new
+    assert got[(2, "S")]["distinct_out_cp_1h"] == 0 and got[(2, "S")]["distinct_in_cp_1h"] == 0
+    assert got[(2, "S")]["new_counterparty_72h"] == 1
+    assert (
+        got[(2, "S")]["amount_vs_out_avg_72h"] == 300 / 700
+    )  # the OUT self entry is in the average
+    # tx 3 (B pays A back 20 minutes after A paid B): a genuine 2-cycle, so returned funds = 1;
+    # B was never an IN counterparty, so it is new; the self OUT entry is not a counterparty
+    assert got[(3, "R")]["returned_funds_24h"] == 1
+    assert got[(3, "R")]["new_counterparty_72h"] == 1
+    assert got[(3, "R")]["distinct_out_cp_1h"] == 1  # B only
+    # the IN leg of the self-transfer set last_in_ts at minute 0, so tx 2 (minute 10) held 600,000
+    # ms; the OUT self entry has no earlier IN, so no hold: 600,000 / (1 * 60,000) = 10.0
+    assert got[(3, "R")]["avg_hold_minutes_1h"] == 10.0
 
 
 # --- random accounts ----------------------------------------------------------------------------

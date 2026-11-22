@@ -237,8 +237,8 @@ def compute_account_legs(legs: pd.DataFrame, spec: Spec) -> pd.DataFrame:
 
 # =================================================================================================
 # OWNER: human
-# The window logic. Not written on purpose (CLAUDE.md rule 4). Everything above this line is
-# scaffolding you can rely on; everything you need to return is described here.
+# The window logic. Written by Claude on 2026-11-22 at the owner's explicit request ("implement it",
+# CLAUDE.md rule 4); the owner reviews it and the loop is explained line by line in the handoff.
 # =================================================================================================
 
 
@@ -246,33 +246,267 @@ def _compute_rows(legs: pd.DataFrame, spec: Spec) -> list[dict[str, Any]]:
     """One dict per input leg, in processing order, keyed by the columns `_to_frame` demands.
 
     Each dict has `tx_id`, `role` ('S' for OUT, 'R' for IN) and exactly
-    `role_columns(spec, role)`; use None for a null value. A forgotten column raises KeyError in
-    `_to_frame`, so you cannot leave one out by accident.
-
-    TODO(human): the single pass of manual M02 §2. The pieces, none of them written:
-      1. Order: sort by (event_ts_ms, tx_id, spec.dir_order[direction]).
-      2. Walk the legs one transaction (same tx_id) at a time. Every leg of the transaction is
-         computed from the state BEFORE the transaction; only then are its entries appended
-         (a self-transfer has two legs and both must see the same pre-state).
-      3. For each window W in spec.default_windows (spec.window_ms[W]): a start pointer into the
-         log that advances while log[start].event_ts_ms <= t - W (start exclusive, end inclusive),
-         and running counts and sums for OUT and IN, a counterparty multiset per direction (drop a
-         key when its count reaches 0: distinct = number of keys), the cross-currency count, the
-         hold sum and hold count over OUT entries with a non-null hold. Add on append, subtract on
-         evict.
-      4. The 72 h window also needs the per-format counts of OUT entries (the format shares).
-      5. Outside the window state, kept forever: first_seen (for account_age_minutes and
-         log_empty) and last_in_ts (for hold_ms, which is stored on an OUT entry at append
-         time: entry.event_ts_ms - last_in_ts as an int64, None if there is no earlier IN entry).
-         The window keeps a running int64 sum of hold_ms and a count (add on append, subtract on
-         evict); avg_hold_minutes is `avg_hold_minutes(total_ms, count)`, never a float sum (D40).
-      6. Relational features, from this account's own state: new_counterparty_72h,
-         returned_funds_24h (R legs, 24 h OUT multiset contains the sender), and
-         amount_vs_out_avg_72h (S legs). See spec.yaml for the exact definitions and
-         `ratio_or_none`, `avg_hold_minutes` and `vs_avg_or_none` for the null rules.
-      Decided in the spec (D40, D41): avg_hold_minutes is an exact int64 ms sum and one
-      division; amount_vs_out_avg_72h is null for an empty window and for a zero average.
-      Still yours to decide and write down in the golden vectors: a self-transfer's
-      counterparty is the account itself (D36 asks M2 to decide how that counts).
+    `role_columns(spec, role)`; None is a null. The single pass of manual M02 §2 with the spec
+    decisions D40 to D43. See the comments for the order of operations.
     """
-    raise NotImplementedError("TODO(human): features/reference.py::_compute_rows")
+    n = len(legs)
+    tx_ids = legs["tx_id"].tolist()
+    stamps = legs["event_ts_ms"].tolist()
+    outs = [d == "OUT" for d in legs["direction"].tolist()]
+    cps = legs["counterparty_key"].tolist()
+    amounts = legs["amount_usd_cents"].tolist()
+    crosses = [
+        a != b for a, b in zip(legs["payment_currency"], legs["receiving_currency"], strict=True)
+    ]
+    formats = legs["payment_format"].tolist()
+
+    # 1. Total order (event_ts_ms, tx_id, OUT before IN). The OUT leg of a self-transfer must be
+    #    processed before its IN leg, because the hold of the OUT leg looks at IN entries that
+    #    came BEFORE this transaction.
+    dir_rank = [spec.dir_order["OUT" if o else "IN"] for o in outs]
+    order = sorted(range(n), key=lambda k: (stamps[k], tx_ids[k], dir_rank[k]))
+    sorted_ids = [tx_ids[k] for k in order]
+    if any(b < a for a, b in zip(sorted_ids, sorted_ids[1:], strict=False)):
+        raise ValueError(
+            "tx_id order contradicts (event_ts_ms, tx_id) order: a leg would see a "
+            "transaction with a larger tx_id"
+        )
+
+    log = _Log()
+    fmt_windows = _format_share_windows(spec)
+    windows = {
+        name: _Window(spec.window_ms[name], log, track_formats=name in fmt_windows)
+        for name in spec.default_windows
+    }
+    for needed in (_NEW_CP_WINDOW, _RETURNED_WINDOW, _AVG_WINDOW):
+        if needed not in windows:
+            raise ValueError(f"the relational features need the {needed} window in windows.default")
+    names = {name: _column_names(name) for name in windows}
+    share_names = _format_share_names(spec)
+
+    first_seen: int | None = None  # kept forever: never evicted (account_age, log_empty)
+    last_in_ts: int | None = None  # kept forever: the hold of an OUT entry may reach past 72 h
+    rows: list[dict[str, Any]] = []
+
+    i = 0
+    while i < n:
+        # 2. One transaction = the run of legs with the same tx_id: 1 leg, or 2 for a self-transfer
+        #    (an account has at most one OUT and one IN leg per tx, checked in validate_legs).
+        j = i + 1
+        while j < n and sorted_ids[j] == sorted_ids[i]:
+            j += 1
+        group = order[i:j]
+        is_self = len(group) == 2  # D43: both legs in this account's frame = self-transfer
+
+        # 3. Compute every leg of the transaction from the state BEFORE the transaction.
+        for k in group:
+            t = stamps[k]
+            for w in windows.values():
+                w.evict_until(t)  # drop entries with ts <= t - W: start exclusive
+            row: dict[str, Any] = {"tx_id": tx_ids[k], "role": "S" if outs[k] else "R"}
+            for name, w in windows.items():
+                c = names[name]
+                row[c[0]] = w.n_out
+                row[c[1]] = w.n_in
+                row[c[2]] = w.sum_out
+                row[c[3]] = w.sum_in
+                row[c[4]] = len(w.cp_out)  # distinct = number of keys in the multiset
+                row[c[5]] = len(w.cp_in)
+                row[c[6]] = ratio_or_none(w.sum_out, w.sum_in)
+                row[c[7]] = avg_hold_minutes(w.hold_total_ms, w.hold_n)
+                row[c[8]] = ratio_or_none(w.n_cross, w.n_out + w.n_in)
+            for fmt_window, per_format in share_names.items():
+                w = windows[fmt_window]
+                for fmt, column in per_format:
+                    row[column] = ratio_or_none(w.formats.get(fmt, 0), w.n_out)
+            row["account_age_minutes"] = (
+                None if first_seen is None else (t - first_seen) / MS_PER_MINUTE
+            )
+            row["log_empty"] = int(first_seen is None)
+
+            cp = cps[k]
+            if outs[k]:
+                known = windows[_NEW_CP_WINDOW].cp_out
+                row["new_counterparty_72h"] = 0 if is_self else int(cp not in known)
+                a = windows[_AVG_WINDOW]
+                row["amount_vs_out_avg_72h"] = vs_avg_or_none(amounts[k], a.sum_out, a.n_out)
+            else:
+                known = windows[_NEW_CP_WINDOW].cp_in
+                row["new_counterparty_72h"] = 0 if is_self else int(cp not in known)
+                back = windows[_RETURNED_WINDOW].cp_out
+                row["returned_funds_24h"] = 0 if is_self else int(cp in back)
+            rows.append(row)
+
+        # 4. Only now append the transaction's entries (OUT first). The hold of an OUT entry is
+        #    fixed at append time from last_in_ts as it stands BEFORE this transaction's IN leg.
+        for k in group:
+            t = stamps[k]
+            hold_ms = t - last_in_ts if outs[k] and last_in_ts is not None else None
+            log.append(t, outs[k], cps[k], amounts[k], crosses[k], formats[k], hold_ms, is_self)
+            idx = len(log.ts) - 1
+            for w in windows.values():
+                w.add(idx)
+            if not outs[k]:
+                last_in_ts = t
+            if first_seen is None:
+                first_seen = t
+        i = j
+    return rows
+
+
+# --- window state (part of the same OWNER block) ------------------------------------------------
+
+# The relational features read these windows (the names in their spec definitions).
+_NEW_CP_WINDOW = "72h"
+_RETURNED_WINDOW = "24h"
+_AVG_WINDOW = "72h"
+
+
+class _Log:
+    """The appended entries, in order, as parallel lists (cheaper than one object per entry)."""
+
+    __slots__ = ("amount", "cp", "cross", "fmt", "hold_ms", "is_out", "is_self", "ts")
+
+    def __init__(self) -> None:
+        self.ts: list[int] = []
+        self.is_out: list[bool] = []
+        self.cp: list[str] = []
+        self.amount: list[int] = []
+        self.cross: list[bool] = []
+        self.fmt: list[str] = []
+        self.hold_ms: list[int | None] = []
+        self.is_self: list[bool] = []
+
+    def append(self, ts, is_out, cp, amount, cross, fmt, hold_ms, is_self) -> None:  # noqa: ANN001
+        self.ts.append(ts)
+        self.is_out.append(is_out)
+        self.cp.append(cp)
+        self.amount.append(amount)
+        self.cross.append(cross)
+        self.fmt.append(fmt)
+        self.hold_ms.append(hold_ms)
+        self.is_self.append(is_self)
+
+
+def _increment(counts: dict[str, int], key: str) -> None:
+    counts[key] = counts.get(key, 0) + 1
+
+
+def _decrement(counts: dict[str, int], key: str) -> None:
+    remaining = counts[key] - 1
+    if remaining:
+        counts[key] = remaining
+    else:
+        del counts[key]  # drop at zero, so len(counts) is the number of distinct keys
+
+
+class _Window:
+    """Running aggregates over the entries in (t - width, now]: add on append, subtract on evict."""
+
+    __slots__ = (
+        "cp_in",
+        "cp_out",
+        "formats",
+        "hold_n",
+        "hold_total_ms",
+        "log",
+        "n_cross",
+        "n_in",
+        "n_out",
+        "start",
+        "sum_in",
+        "sum_out",
+        "width",
+    )
+
+    def __init__(self, width_ms: int, log: _Log, track_formats: bool) -> None:
+        self.width = width_ms
+        self.log = log
+        self.start = 0  # index of the oldest entry still inside the window
+        self.n_out = self.n_in = self.sum_out = self.sum_in = self.n_cross = 0
+        self.hold_total_ms = self.hold_n = 0  # D40: exact int64 sum, never a float
+        self.cp_out: dict[str, int] = {}  # counterparty multisets; self-transfers stay out (D43)
+        self.cp_in: dict[str, int] = {}
+        self.formats: dict[str, int] | None = {} if track_formats else None
+
+    def add(self, i: int) -> None:
+        log = self.log
+        if log.is_out[i]:
+            self.n_out += 1
+            self.sum_out += log.amount[i]
+            if not log.is_self[i]:
+                _increment(self.cp_out, log.cp[i])
+            if log.hold_ms[i] is not None:
+                self.hold_total_ms += log.hold_ms[i]
+                self.hold_n += 1
+            if self.formats is not None:
+                _increment(self.formats, log.fmt[i])
+        else:
+            self.n_in += 1
+            self.sum_in += log.amount[i]
+            if not log.is_self[i]:
+                _increment(self.cp_in, log.cp[i])
+        if log.cross[i]:
+            self.n_cross += 1
+
+    def _remove(self, i: int) -> None:
+        log = self.log
+        if log.is_out[i]:
+            self.n_out -= 1
+            self.sum_out -= log.amount[i]
+            if not log.is_self[i]:
+                _decrement(self.cp_out, log.cp[i])
+            if log.hold_ms[i] is not None:
+                self.hold_total_ms -= log.hold_ms[i]
+                self.hold_n -= 1
+            if self.formats is not None:
+                _decrement(self.formats, log.fmt[i])
+        else:
+            self.n_in -= 1
+            self.sum_in -= log.amount[i]
+            if not log.is_self[i]:
+                _decrement(self.cp_in, log.cp[i])
+        if log.cross[i]:
+            self.n_cross -= 1
+
+    def evict_until(self, t: int) -> None:
+        """Remove every entry with ts <= t - width (the window start is exclusive)."""
+        cutoff = t - self.width
+        ts = self.log.ts
+        while self.start < len(ts) and ts[self.start] <= cutoff:
+            self._remove(self.start)
+            self.start += 1
+
+
+def _column_names(window: str) -> tuple[str, ...]:
+    """The nine windowed account columns, in the order the loop fills them."""
+    return tuple(
+        f"{base}_{window}"
+        for base in (
+            "out_count",
+            "in_count",
+            "out_sum_usd_cents",
+            "in_sum_usd_cents",
+            "distinct_out_cp",
+            "distinct_in_cp",
+            "pass_through_ratio",
+            "avg_hold_minutes",
+            "cross_currency_share",
+        )
+    )
+
+
+def _format_share_windows(spec: Spec) -> set[str]:
+    return {w for t in spec.account_features if t.for_each == "payment_formats" for w in t.windows}
+
+
+def _format_share_names(spec: Spec) -> dict[str, list[tuple[str, str]]]:
+    """window -> [(payment format, column name)] for the `{fmt}` templates."""
+    out: dict[str, list[tuple[str, str]]] = {}
+    for t in spec.account_features:
+        if t.for_each != "payment_formats":
+            continue
+        (window,) = t.windows  # the name carries its window literally, so exactly one
+        columns = expand_template(t, spec)
+        out.setdefault(window, []).extend(zip(spec.payment_formats, columns, strict=True))
+    return out

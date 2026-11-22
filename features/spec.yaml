@@ -13,6 +13,7 @@ ordering:
   visibility: "A leg of transaction x sees only log entries with tx_id < x.tx_id. It never sees itself."
   self_transfer: "If sender_key == receiver_key, both legs (OUT first, then IN) are computed from the same pre-transaction state; both entries are appended only after both are computed."
   dir_order: {OUT: 0, IN: 1}
+  self_transfer_counterparty: "D43. In a self-transfer the account itself is NOT a counterparty. Its two legs still enter the amount, count, cross-currency, format and hold windows and still set first_seen and last_in_ts (the IN leg), but their entries are not inserted into the counterparty multisets (so they never count in distinct_out_cp / distinct_in_cp), and for the leg itself new_counterparty_72h = 0 and returned_funds_24h = 0. An account's frame identifies a self-transfer as a tx_id that has both an OUT and an IN leg."
 
 legs:
   description: "Each transaction produces two legs. Each account keeps one log containing both directions."
@@ -62,9 +63,9 @@ account_features:
   - name: in_sum_usd_cents_{w}
     def: "sum of amount_usd_cents over IN entries in window"
   - name: distinct_out_cp_{w}
-    def: "number of distinct counterparty_key among OUT entries in window"
+    def: "number of distinct counterparty_key among OUT entries in window (self-transfer entries are not counted, D43)"
   - name: distinct_in_cp_{w}
-    def: "number of distinct counterparty_key among IN entries in window"
+    def: "number of distinct counterparty_key among IN entries in window (self-transfer entries are not counted, D43)"
   - name: pass_through_ratio_{w}
     def: "out_sum_usd_cents / in_sum_usd_cents; null if in_sum == 0"
   - name: avg_hold_minutes_{w}
@@ -87,13 +88,13 @@ relational_features:
   # Computed by the account that owns the role, from its own state; emitted only for that role.
   - name: s_new_counterparty_72h
     role: OUT
-    def: "1 if receiver_key is NOT among counterparties of OUT entries in the sender's 72h window, else 0"
+    def: "1 if receiver_key is NOT among counterparties of OUT entries in the sender's 72h window, else 0; 0 for a self-transfer leg (D43)"
   - name: r_new_counterparty_72h
     role: IN
-    def: "1 if sender_key is NOT among counterparties of IN entries in the receiver's 72h window, else 0"
+    def: "1 if sender_key is NOT among counterparties of IN entries in the receiver's 72h window, else 0; 0 for a self-transfer leg (D43)"
   - name: r_returned_funds_24h
     role: IN
-    def: "1 if the receiver's 24h window contains an OUT entry whose counterparty_key == sender_key (2-hop cycle: money returns), else 0"
+    def: "1 if the receiver's 24h window contains an OUT entry whose counterparty_key == sender_key (2-hop cycle: money returns), else 0; 0 for a self-transfer leg (D43)"
   - name: s_amount_vs_out_avg_72h
     role: OUT
     def: "amount_paid_usd_cents / (s_out_sum_usd_cents_72h / s_out_count_72h); null if s_out_count_72h == 0 (empty window) OR s_out_sum_usd_cents_72h == 0 (zero average). Both conditions give the same null (D41). Evaluate exactly as written: int sum / int count first (a double), then amount / that double."

@@ -231,6 +231,13 @@ Accepted (user, 2026-11-22). `derived_float_rounding` in `features/spec.yaml`; h
 - **Not verified yet:** how Spark SQL does it. `bround` and a cast to decimal are candidates, and either may go through the shortest string instead of the exact value. The Spark job (M02 step 8) must check the Spark 3.5.9 source or test it against the Python function on the tie values, and use a UDF or exact-decimal path if they differ.
 - **spec_version stays 1.** CLAUDE.md says a semantic change bumps `spec_version`. D40 to D42 change the wording and, for `log10`, the value, but nothing had been computed under the earlier wording: no `features_tx`, no model, no Flink code, and `feature_names_v1.txt` is byte-identical (checked with `python -m features.expand --check`). If any v1 output had existed, this would have been version 2.
 
+## D43 — Self-transfers: the account itself is not a counterparty
+Accepted (user, 2026-11-22); closes the question D36 left for M2. Spec text: `ordering.self_transfer_counterparty` and the affected feature definitions in `features/spec.yaml`. Implemented in `features/reference.py::_compute_rows` and the brute-force cross-check.
+- **Rule:** a self-transfer (a `tx_id` with both an OUT and an IN leg in one account's frame; 11.64% of HI-Small rows are self-transfers, D36) still updates the amount, count, cross-currency, format and hold windows, and still sets `first_seen` and (IN leg) `last_in_ts`. Its entries are **not** inserted into the counterparty multisets, so they never count in `distinct_out_cp_*` / `distinct_in_cp_*`. For the leg itself `new_counterparty_72h = 0` and `returned_funds_24h = 0`: a leg with no counterparty has no new one and cannot be a return.
+- **Why the flags are 0 and not null (Claude's choice, not stated in the instruction):** booleans are never null (`null_policy`), and "not a new counterparty" is the literal reading of "no counterparty".
+- **Effect, not measured:** 481,056 of HI-Small's self-transfers are `REINVESTMENT` (D36). Whether this rule moves any metric is not measured; it follows from the rule that those rows contribute 0 to every counterparty feature.
+- **spec_version stays 1** for the reason in D42: nothing was computed under the earlier wording.
+
 ## D-versions — Pinned versions
 Observed on 2026-11-21 during M0 (arm64 Mac, Docker Desktop engine 29.4.1). Python packages are exact in `uv.lock`; image tags are in `infra/compose/docker-compose.yml`. "TBD" = not installed or not checked yet, with the milestone that will.
 
