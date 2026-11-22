@@ -1,0 +1,748 @@
+{
+  "at_budget_threshold": {
+    "all_test": {
+      "baseline": {
+        "alerts": 257,
+        "alerts_per_day": 23.363636363636363,
+        "f1": 0.03795620437956204,
+        "fn": 1759,
+        "fp": 218,
+        "precision": 0.1517509727626459,
+        "recall": 0.021690767519466074,
+        "tp": 39
+      },
+      "bootstrap": {
+        "diff": {
+          "ci": [
+            0.3928312993728701,
+            0.4325376340560902
+          ],
+          "point": 0.412743034423766
+        },
+        "f1_a": {
+          "ci": [
+            0.43385453731571477,
+            0.4664244304511809
+          ],
+          "point": 0.450699238803328
+        },
+        "f1_b": {
+          "ci": [
+            0.026064393899672474,
+            0.04898474157543012
+          ],
+          "point": 0.03795620437956204
+        },
+        "level": 0.95,
+        "method": "paired multinomial bootstrap over (label, alert_a, alert_b) cells",
+        "n_resamples": 1000,
+        "n_rows": 1015882,
+        "seed": 0
+      },
+      "model": {
+        "alerts": 3851,
+        "alerts_per_day": 350.09090909090907,
+        "f1": 0.450699238803328,
+        "fn": 525,
+        "fp": 2578,
+        "pr_auc": 0.6542161185512425,
+        "precision": 0.3305634900025967,
+        "recall": 0.7080088987764183,
+        "roc_auc": 0.9855646009850876,
+        "tp": 1273
+      },
+      "n_positive": 1798,
+      "n_rows": 1015882,
+      "per_pattern_recall": {
+        "baseline": {
+          "pattern_coverage": 0.7447163515016685,
+          "patterns": {
+            "BIPARTITE": {
+              "caught": 5,
+              "positives": 74,
+              "recall": 0.06756756756756757
+            },
+            "CYCLE": {
+              "caught": 2,
+              "positives": 109,
+              "recall": 0.01834862385321101
+            },
+            "FAN-IN": {
+              "caught": 5,
+              "positives": 137,
+              "recall": 0.0364963503649635
+            },
+            "FAN-OUT": {
+              "caught": 1,
+              "positives": 140,
+              "recall": 0.007142857142857143
+            },
+            "GATHER-SCATTER": {
+              "caught": 7,
+              "positives": 401,
+              "recall": 0.017456359102244388
+            },
+            "RANDOM": {
+              "caught": 2,
+              "positives": 86,
+              "recall": 0.023255813953488372
+            },
+            "SCATTER-GATHER": {
+              "caught": 7,
+              "positives": 252,
+              "recall": 0.027777777777777776
+            },
+            "STACK": {
+              "caught": 6,
+              "positives": 140,
+              "recall": 0.04285714285714286
+            }
+          },
+          "without_pattern_label": {
+            "caught": 4,
+            "positives": 459,
+            "recall": 0.008714596949891068
+          }
+        },
+        "model": {
+          "pattern_coverage": 0.7447163515016685,
+          "patterns": {
+            "BIPARTITE": {
+              "caught": 62,
+              "positives": 74,
+              "recall": 0.8378378378378378
+            },
+            "CYCLE": {
+              "caught": 96,
+              "positives": 109,
+              "recall": 0.8807339449541285
+            },
+            "FAN-IN": {
+              "caught": 126,
+              "positives": 137,
+              "recall": 0.9197080291970803
+            },
+            "FAN-OUT": {
+              "caught": 134,
+              "positives": 140,
+              "recall": 0.9571428571428572
+            },
+            "GATHER-SCATTER": {
+              "caught": 378,
+              "positives": 401,
+              "recall": 0.942643391521197
+            },
+            "RANDOM": {
+              "caught": 76,
+              "positives": 86,
+              "recall": 0.8837209302325582
+            },
+            "SCATTER-GATHER": {
+              "caught": 238,
+              "positives": 252,
+              "recall": 0.9444444444444444
+            },
+            "STACK": {
+              "caught": 122,
+              "positives": 140,
+              "recall": 0.8714285714285714
+            }
+          },
+          "without_pattern_label": {
+            "caught": 41,
+            "positives": 459,
+            "recall": 0.08932461873638345
+          }
+        }
+      },
+      "precision_at_k_per_bank_day": {
+        "alerts": 2294,
+        "cells": 22,
+        "hits": 1240,
+        "k": 200,
+        "precision": 0.5405405405405406
+      }
+    },
+    "without_tail": {
+      "baseline": {
+        "alerts": 249,
+        "alerts_per_day": 83.0,
+        "f1": 0.04454022988505747,
+        "fn": 1112,
+        "fp": 218,
+        "precision": 0.12449799196787148,
+        "recall": 0.02712160979877515,
+        "tp": 31
+      },
+      "bootstrap": {
+        "diff": {
+          "ci": [
+            0.2364013109794629,
+            0.2824528699075603
+          ],
+          "point": 0.26000731260460724
+        },
+        "f1_a": {
+          "ci": [
+            0.2873131734746103,
+            0.3221575018166496
+          ],
+          "point": 0.3045475424896647
+        },
+        "f1_b": {
+          "ci": [
+            0.030455750081784333,
+            0.060433831609064334
+          ],
+          "point": 0.04454022988505747
+        },
+        "level": 0.95,
+        "method": "paired multinomial bootstrap over (label, alert_a, alert_b) cells",
+        "n_resamples": 1000,
+        "n_rows": 1014774,
+        "seed": 0
+      },
+      "model": {
+        "alerts": 3211,
+        "alerts_per_day": 1070.3333333333333,
+        "f1": 0.3045475424896647,
+        "fn": 480,
+        "fp": 2548,
+        "pr_auc": 0.5017304805864102,
+        "precision": 0.20647773279352227,
+        "recall": 0.5800524934383202,
+        "roc_auc": 0.9780730951759643,
+        "tp": 663
+      },
+      "n_positive": 1143,
+      "n_rows": 1014774,
+      "per_pattern_recall": {
+        "baseline": {
+          "pattern_coverage": 0.5984251968503937,
+          "patterns": {
+            "BIPARTITE": {
+              "caught": 4,
+              "positives": 52,
+              "recall": 0.07692307692307693
+            },
+            "CYCLE": {
+              "caught": 2,
+              "positives": 65,
+              "recall": 0.03076923076923077
+            },
+            "FAN-IN": {
+              "caught": 4,
+              "positives": 71,
+              "recall": 0.056338028169014086
+            },
+            "FAN-OUT": {
+              "caught": 1,
+              "positives": 74,
+              "recall": 0.013513513513513514
+            },
+            "GATHER-SCATTER": {
+              "caught": 5,
+              "positives": 147,
+              "recall": 0.034013605442176874
+            },
+            "RANDOM": {
+              "caught": 2,
+              "positives": 45,
+              "recall": 0.044444444444444446
+            },
+            "SCATTER-GATHER": {
+              "caught": 6,
+              "positives": 123,
+              "recall": 0.04878048780487805
+            },
+            "STACK": {
+              "caught": 3,
+              "positives": 107,
+              "recall": 0.028037383177570093
+            }
+          },
+          "without_pattern_label": {
+            "caught": 4,
+            "positives": 459,
+            "recall": 0.008714596949891068
+          }
+        },
+        "model": {
+          "pattern_coverage": 0.5984251968503937,
+          "patterns": {
+            "BIPARTITE": {
+              "caught": 46,
+              "positives": 52,
+              "recall": 0.8846153846153846
+            },
+            "CYCLE": {
+              "caught": 57,
+              "positives": 65,
+              "recall": 0.8769230769230769
+            },
+            "FAN-IN": {
+              "caught": 63,
+              "positives": 71,
+              "recall": 0.8873239436619719
+            },
+            "FAN-OUT": {
+              "caught": 70,
+              "positives": 74,
+              "recall": 0.9459459459459459
+            },
+            "GATHER-SCATTER": {
+              "caught": 134,
+              "positives": 147,
+              "recall": 0.9115646258503401
+            },
+            "RANDOM": {
+              "caught": 41,
+              "positives": 45,
+              "recall": 0.9111111111111111
+            },
+            "SCATTER-GATHER": {
+              "caught": 117,
+              "positives": 123,
+              "recall": 0.9512195121951219
+            },
+            "STACK": {
+              "caught": 94,
+              "positives": 107,
+              "recall": 0.8785046728971962
+            }
+          },
+          "without_pattern_label": {
+            "caught": 41,
+            "positives": 459,
+            "recall": 0.08932461873638345
+          }
+        }
+      },
+      "precision_at_k_per_bank_day": {
+        "alerts": 1200,
+        "cells": 6,
+        "hits": 585,
+        "k": 200,
+        "precision": 0.4875
+      }
+    }
+  },
+  "at_f1_optimal_threshold": {
+    "all_test": {
+      "baseline": {
+        "alerts": 257,
+        "alerts_per_day": 23.363636363636363,
+        "f1": 0.03795620437956204,
+        "fn": 1759,
+        "fp": 218,
+        "precision": 0.1517509727626459,
+        "recall": 0.021690767519466074,
+        "tp": 39
+      },
+      "bootstrap": {
+        "diff": {
+          "ci": [
+            0.5713791154567259,
+            0.6140929073075958
+          ],
+          "point": 0.5929015648722877
+        },
+        "f1_a": {
+          "ci": [
+            0.6126628483547393,
+            0.6499376130016408
+          ],
+          "point": 0.6308577692518498
+        },
+        "f1_b": {
+          "ci": [
+            0.027102030698627436,
+            0.05007679599616098
+          ],
+          "point": 0.03795620437956204
+        },
+        "level": 0.95,
+        "method": "paired multinomial bootstrap over (label, alert_a, alert_b) cells",
+        "n_resamples": 1000,
+        "n_rows": 1015882,
+        "seed": 0
+      },
+      "model": {
+        "alerts": 1851,
+        "alerts_per_day": 168.27272727272728,
+        "f1": 0.6308577692518498,
+        "fn": 647,
+        "fp": 700,
+        "pr_auc": 0.6542161185512425,
+        "precision": 0.62182603997839,
+        "recall": 0.6401557285873193,
+        "roc_auc": 0.9855646009850876,
+        "tp": 1151
+      },
+      "n_positive": 1798,
+      "n_rows": 1015882,
+      "per_pattern_recall": {
+        "baseline": {
+          "pattern_coverage": 0.7447163515016685,
+          "patterns": {
+            "BIPARTITE": {
+              "caught": 5,
+              "positives": 74,
+              "recall": 0.06756756756756757
+            },
+            "CYCLE": {
+              "caught": 2,
+              "positives": 109,
+              "recall": 0.01834862385321101
+            },
+            "FAN-IN": {
+              "caught": 5,
+              "positives": 137,
+              "recall": 0.0364963503649635
+            },
+            "FAN-OUT": {
+              "caught": 1,
+              "positives": 140,
+              "recall": 0.007142857142857143
+            },
+            "GATHER-SCATTER": {
+              "caught": 7,
+              "positives": 401,
+              "recall": 0.017456359102244388
+            },
+            "RANDOM": {
+              "caught": 2,
+              "positives": 86,
+              "recall": 0.023255813953488372
+            },
+            "SCATTER-GATHER": {
+              "caught": 7,
+              "positives": 252,
+              "recall": 0.027777777777777776
+            },
+            "STACK": {
+              "caught": 6,
+              "positives": 140,
+              "recall": 0.04285714285714286
+            }
+          },
+          "without_pattern_label": {
+            "caught": 4,
+            "positives": 459,
+            "recall": 0.008714596949891068
+          }
+        },
+        "model": {
+          "pattern_coverage": 0.7447163515016685,
+          "patterns": {
+            "BIPARTITE": {
+              "caught": 53,
+              "positives": 74,
+              "recall": 0.7162162162162162
+            },
+            "CYCLE": {
+              "caught": 83,
+              "positives": 109,
+              "recall": 0.7614678899082569
+            },
+            "FAN-IN": {
+              "caught": 117,
+              "positives": 137,
+              "recall": 0.8540145985401459
+            },
+            "FAN-OUT": {
+              "caught": 129,
+              "positives": 140,
+              "recall": 0.9214285714285714
+            },
+            "GATHER-SCATTER": {
+              "caught": 352,
+              "positives": 401,
+              "recall": 0.8778054862842892
+            },
+            "RANDOM": {
+              "caught": 67,
+              "positives": 86,
+              "recall": 0.7790697674418605
+            },
+            "SCATTER-GATHER": {
+              "caught": 230,
+              "positives": 252,
+              "recall": 0.9126984126984127
+            },
+            "STACK": {
+              "caught": 114,
+              "positives": 140,
+              "recall": 0.8142857142857143
+            }
+          },
+          "without_pattern_label": {
+            "caught": 6,
+            "positives": 459,
+            "recall": 0.013071895424836602
+          }
+        }
+      },
+      "precision_at_k_per_bank_day": {
+        "alerts": 2294,
+        "cells": 22,
+        "hits": 1240,
+        "k": 200,
+        "precision": 0.5405405405405406
+      }
+    },
+    "without_tail": {
+      "baseline": {
+        "alerts": 249,
+        "alerts_per_day": 83.0,
+        "f1": 0.04454022988505747,
+        "fn": 1112,
+        "fp": 218,
+        "precision": 0.12449799196787148,
+        "recall": 0.02712160979877515,
+        "tp": 31
+      },
+      "bootstrap": {
+        "diff": {
+          "ci": [
+            0.41269925984209405,
+            0.4704603854832643
+          ],
+          "point": 0.4431834488498572
+        },
+        "f1_a": {
+          "ci": [
+            0.46305374094110446,
+            0.5125022847278635
+          ],
+          "point": 0.4877236787349147
+        },
+        "f1_b": {
+          "ci": [
+            0.02978715482961297,
+            0.06016720490161326
+          ],
+          "point": 0.04454022988505747
+        },
+        "level": 0.95,
+        "method": "paired multinomial bootstrap over (label, alert_a, alert_b) cells",
+        "n_resamples": 1000,
+        "n_rows": 1014774,
+        "seed": 0
+      },
+      "model": {
+        "alerts": 1260,
+        "alerts_per_day": 420.0,
+        "f1": 0.4877236787349147,
+        "fn": 557,
+        "fp": 674,
+        "pr_auc": 0.5017304805864102,
+        "precision": 0.4650793650793651,
+        "recall": 0.5126859142607174,
+        "roc_auc": 0.9780730951759643,
+        "tp": 586
+      },
+      "n_positive": 1143,
+      "n_rows": 1014774,
+      "per_pattern_recall": {
+        "baseline": {
+          "pattern_coverage": 0.5984251968503937,
+          "patterns": {
+            "BIPARTITE": {
+              "caught": 4,
+              "positives": 52,
+              "recall": 0.07692307692307693
+            },
+            "CYCLE": {
+              "caught": 2,
+              "positives": 65,
+              "recall": 0.03076923076923077
+            },
+            "FAN-IN": {
+              "caught": 4,
+              "positives": 71,
+              "recall": 0.056338028169014086
+            },
+            "FAN-OUT": {
+              "caught": 1,
+              "positives": 74,
+              "recall": 0.013513513513513514
+            },
+            "GATHER-SCATTER": {
+              "caught": 5,
+              "positives": 147,
+              "recall": 0.034013605442176874
+            },
+            "RANDOM": {
+              "caught": 2,
+              "positives": 45,
+              "recall": 0.044444444444444446
+            },
+            "SCATTER-GATHER": {
+              "caught": 6,
+              "positives": 123,
+              "recall": 0.04878048780487805
+            },
+            "STACK": {
+              "caught": 3,
+              "positives": 107,
+              "recall": 0.028037383177570093
+            }
+          },
+          "without_pattern_label": {
+            "caught": 4,
+            "positives": 459,
+            "recall": 0.008714596949891068
+          }
+        },
+        "model": {
+          "pattern_coverage": 0.5984251968503937,
+          "patterns": {
+            "BIPARTITE": {
+              "caught": 40,
+              "positives": 52,
+              "recall": 0.7692307692307693
+            },
+            "CYCLE": {
+              "caught": 50,
+              "positives": 65,
+              "recall": 0.7692307692307693
+            },
+            "FAN-IN": {
+              "caught": 58,
+              "positives": 71,
+              "recall": 0.8169014084507042
+            },
+            "FAN-OUT": {
+              "caught": 68,
+              "positives": 74,
+              "recall": 0.918918918918919
+            },
+            "GATHER-SCATTER": {
+              "caught": 126,
+              "positives": 147,
+              "recall": 0.8571428571428571
+            },
+            "RANDOM": {
+              "caught": 36,
+              "positives": 45,
+              "recall": 0.8
+            },
+            "SCATTER-GATHER": {
+              "caught": 112,
+              "positives": 123,
+              "recall": 0.9105691056910569
+            },
+            "STACK": {
+              "caught": 90,
+              "positives": 107,
+              "recall": 0.8411214953271028
+            }
+          },
+          "without_pattern_label": {
+            "caught": 6,
+            "positives": 459,
+            "recall": 0.013071895424836602
+          }
+        }
+      },
+      "precision_at_k_per_bank_day": {
+        "alerts": 1200,
+        "cells": 6,
+        "hits": 585,
+        "k": 200,
+        "precision": 0.4875
+      }
+    }
+  },
+  "config": {
+    "baseline": "R5",
+    "best_iteration": 169,
+    "bootstrap": {
+      "n_resamples": 1000,
+      "seed": 0
+    },
+    "model": "aml-xgb v1 (alias champion)",
+    "primary_operating_point": "per-bank F1-optimal threshold chosen on val",
+    "tail_days": [
+      19246,
+      19247,
+      19248,
+      19249,
+      19250,
+      19251,
+      19252,
+      19253
+    ],
+    "test_rows": 1015882,
+    "thresholds_file": "config/thresholds.yaml"
+  },
+  "dataset": "hi_small",
+  "git_dirty": false,
+  "git_sha": "b28a52e1176abd0215426739f8655c85113c2123",
+  "golden_status": {
+    "provisional": true,
+    "scenarios": 10,
+    "scenarios_with_todo": 10,
+    "todo_values": 171
+  },
+  "headline": [
+    "PROVISIONAL: 171 golden expected values in 10 scenarios are still TODO(human), so `make golden` has not yet checked the features these results were computed from.",
+    "T2 vs R5, all test rows: F1(model) - F1(baseline) = +0.5929, paired 95% CI [+0.5714, +0.6141]; meets the 20-point trigger.",
+    "T2 vs R5, test without the tail: F1(model) - F1(baseline) = +0.4432, paired 95% CI [+0.4127, +0.4705]; meets the 20-point trigger.",
+    "Generator artifact: 0 of 16,160 cross-currency rows in this test split are laundering. Every laundering row is same-currency (D36), so any feature built on the cross-currency flag (is_cross_currency and the s_/r_ cross_currency_share_* features) can separate the classes here for a reason that is a property of the generator. It says nothing about real laundering, and a high importance for those features must not be read as a finding.",
+    "Sparse tail: 1,108 rows (655 laundering) of 1,015,882 test rows, a generator artifact, not a temporal trend (D36). Every metric is given with and without it."
+  ],
+  "provisional": true,
+  "t2": {
+    "all_test": {
+      "ci": [
+        0.5713791154567259,
+        0.6140929073075958
+      ],
+      "delta_f1": 0.5929015648722877,
+      "meets_20_points": true
+    },
+    "baseline": "R5",
+    "definition": "F1(model) - F1(baseline) >= 0.2 (20 points), paired bootstrap",
+    "without_tail": {
+      "ci": [
+        0.41269925984209405,
+        0.4704603854832643
+      ],
+      "delta_f1": 0.4431834488498572,
+      "meets_20_points": true
+    }
+  },
+  "t2_at_budget_threshold": {
+    "all_test": {
+      "ci": [
+        0.3928312993728701,
+        0.4325376340560902
+      ],
+      "delta_f1": 0.412743034423766,
+      "meets_20_points": true
+    },
+    "baseline": "R5",
+    "definition": "F1(model) - F1(baseline) >= 0.2 (20 points), paired bootstrap",
+    "without_tail": {
+      "ci": [
+        0.2364013109794629,
+        0.2824528699075603
+      ],
+      "delta_f1": 0.26000731260460724,
+      "meets_20_points": true
+    }
+  },
+  "thresholds": {
+    "budget": {
+      "A": 0.09848427027463913,
+      "B": 0.09479870647192001
+    },
+    "f1_optimal": {
+      "A": 0.2519081234931946,
+      "B": 0.2724377512931824
+    }
+  },
+  "timestamp": "2026-11-22T21:45:25+00:00"
+}
