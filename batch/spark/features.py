@@ -277,11 +277,30 @@ def run(ds: str, results_dir: Path) -> dict[str, Any]:
         spark.stop()
 
 
+def smoke(n: int = 200) -> int:
+    """The job's code path on a small synthetic table, with no lake and no catalog."""
+    from features import synthetic
+
+    spark = get_session("features-smoke")
+    try:
+        spec = load_spec()
+        rows = synthetic.random_transactions(n, seed=1, n_accounts=8)
+        return compute_features(raw_frame_from_rows(spark, rows), spec).count()
+    finally:
+        spark.stop()
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--ds", required=True, choices=["hi_small", "hi_medium"])
+    parser.add_argument("--ds", choices=["hi_small", "hi_medium"])
+    parser.add_argument("--smoke", action="store_true", help="tiny synthetic run, no lake")
     parser.add_argument("--results-dir", type=Path, default=common.ROOT / "results" / "M02")
     args = parser.parse_args(argv)
+    if args.smoke:
+        print(f"SMOKE_ROWS {smoke()}")
+        return
+    if not args.ds:
+        parser.error("--ds is required unless --smoke")
     doc = run(args.ds, args.results_dir)
     print(
         f"{args.ds}: {doc['checks']['rows']:,} rows, {doc['config']['n_features']} features, "
@@ -290,4 +309,8 @@ def main(argv: list[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    # Run through the importable module, not `__main__`: the functions shipped to the Python
+    # workers are pickled by reference, and in a worker `__main__` is Spark's daemon, not this file.
+    from batch.spark import features as _job
+
+    _job.main()

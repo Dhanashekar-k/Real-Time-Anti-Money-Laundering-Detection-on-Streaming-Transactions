@@ -186,3 +186,22 @@ def test_one_row_per_transaction(sp, s: spec.Spec) -> None:
     rows = synthetic.random_transactions(400, seed=6, n_accounts=6, self_rate=0.2)
     df = features.compute_features(_raw_frame(sp, rows), s)
     assert df.count() == len(rows) == df.select("tx_id").distinct().count()
+
+
+def test_the_command_line_entry_point_works_in_the_python_workers() -> None:
+    """`python -m batch.spark.features --smoke` runs the module as __main__ and uses real workers.
+
+    The first real run failed with "Can't get attribute '_worker_spec' on pyspark.daemon": the
+    entry point ran the job from __main__, and the functions shipped to the workers are pickled by
+    reference. The in-process tests above cannot see that, so this one starts the real command.
+    """
+    import subprocess
+    import sys
+
+    out = subprocess.run(
+        [sys.executable, "-m", "batch.spark.features", "--smoke"],
+        capture_output=True,
+        text=True,
+        cwd=common.ROOT,
+    )
+    assert "SMOKE_ROWS 200" in out.stdout, out.stdout[-500:] + out.stderr[-1500:]
