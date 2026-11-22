@@ -63,10 +63,13 @@ def get_spark(
     )
     if max_partition_bytes is not None:
         builder = builder.config("spark.sql.files.maxPartitionBytes", str(max_partition_bytes))
+    # The jars are loaded when the JVM launches and cannot be added to a JVM that a stopped
+    # session left running (pytest runs several sessions in one process), so they are always on
+    # the classpath, even for `catalog=False`.
+    builder = builder.config("spark.jars.packages", f"{ICEBERG_PKG},{POSTGRES_JDBC_PKG}")
     if catalog:
         builder = (
-            builder.config("spark.jars.packages", f"{ICEBERG_PKG},{POSTGRES_JDBC_PKG}")
-            .config(
+            builder.config(
                 "spark.sql.extensions",
                 "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
             )

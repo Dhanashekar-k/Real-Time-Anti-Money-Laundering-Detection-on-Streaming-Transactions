@@ -201,3 +201,14 @@ def test_ingest_json_records_provenance(result: dict) -> None:
     assert doc["dataset"] == "mini"
     assert doc["fx_version"] == 1 or doc["fx_version"] is None
     assert doc["source"]["path"].endswith("mini_trans.csv")
+
+
+def test_split_boundaries_and_counts_on_the_fixture(result: dict) -> None:
+    # N = 16: indexes floor(0.6*16) = 9 and floor(0.8*16) = 12 in tx_id order. tx 9 is the row at
+    # 2022-09-01 12:30 and tx 12 the row at 2022-09-02 09:00 (worked out by hand from the file).
+    bounds = result["summary"]["split_boundaries_ms"]
+    assert bounds["t1"] == _ts_ms("2022/09/01 12:30")
+    assert bounds["t2"] == _ts_ms("2022/09/02 09:00")
+    assert result["summary"]["split_counts"] == {"train": 9, "val": 3, "test": 4}
+    by_tx = {r["tx_id"]: r["split"] for r in result["rows"]}
+    assert [by_tx[i] for i in range(16)] == ["train"] * 9 + ["val"] * 3 + ["test"] * 4
