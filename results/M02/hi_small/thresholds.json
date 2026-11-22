@@ -1,0 +1,52 @@
+{
+  "banks": {
+    "A": {
+      "budget": {
+        "alerts": 600,
+        "alerts_per_day": 200.0,
+        "n_days": 3,
+        "note": "",
+        "target_alerts": 600,
+        "threshold": 0.09848427027463913
+      },
+      "f1_optimal": {
+        "alerts": 351,
+        "f1": 0.6141248720573184,
+        "precision": 0.8547008547008547,
+        "recall": 0.4792332268370607,
+        "threshold": 0.2519081234931946,
+        "val_alerts_per_day": 117.0
+      }
+    },
+    "B": {
+      "budget": {
+        "alerts": 600,
+        "alerts_per_day": 200.0,
+        "n_days": 3,
+        "note": "",
+        "target_alerts": 600,
+        "threshold": 0.09479870647192001
+      },
+      "f1_optimal": {
+        "alerts": 331,
+        "f1": 0.7166454891994918,
+        "precision": 0.851963746223565,
+        "recall": 0.618421052631579,
+        "threshold": 0.2724377512931824,
+        "val_alerts_per_day": 110.33333333333333
+      }
+    }
+  },
+  "dataset": "hi_small",
+  "git_dirty": true,
+  "git_sha": "5843f9de6546f4f479aa408b6e176fd560889a7a",
+  "meta": {
+    "dataset": "hi_small",
+    "k_alerts_per_day": 200,
+    "model": "aml-xgb",
+    "model_version": "1",
+    "rule": "alert when score >= threshold",
+    "tuned_on": "val"
+  },
+  "timestamp": "2026-11-22T21:33:47+00:00"
+}

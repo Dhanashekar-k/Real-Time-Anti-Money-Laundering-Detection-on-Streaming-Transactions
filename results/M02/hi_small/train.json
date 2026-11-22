@@ -1,0 +1,172 @@
+{
+  "config": {
+    "burn_in_end_ms": 1662076800000,
+    "colsample_bytree": 0.8,
+    "dataset": "hi_small",
+    "early_stopping_rounds": 50,
+    "eta": 0.1,
+    "eval_metric": "aucpr",
+    "features_tx_snapshot_id": 624341850559880368,
+    "fx_version": 1,
+    "k_alerts_per_day": 200,
+    "max_depth": 6,
+    "max_rounds": 1000,
+    "min_child_weight": 1,
+    "objective": "binary:logistic",
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "spec_version": 1,
+    "subsample": 0.8,
+    "train_positives": 1975,
+    "train_rows": 1931940,
+    "tree_method": "hist",
+    "val_positives": 1082,
+    "val_rows": 1015602,
+    "variants": [
+      "weighted",
+      "unweighted"
+    ]
+  },
+  "data": {
+    "cross_currency_laundering_train": 0,
+    "cross_currency_rows_train": 30177,
+    "features_tx_snapshot_id": 624341850559880368,
+    "scale_pos_weight": 977.1974683544304,
+    "train_positives": 1975,
+    "train_rows": 1931940,
+    "val_positives": 1082,
+    "val_rows": 1015602
+  },
+  "dataset": "hi_small",
+  "git_dirty": true,
+  "git_sha": "5843f9de6546f4f479aa408b6e176fd560889a7a",
+  "importance_caption": "Gain importance. is_cross_currency is a generator artifact: 0 of 30,177 cross-currency rows are laundering, so it separates the classes perfectly in this data (D36). It is not evidence about real laundering.",
+  "seconds_total": 298.0,
+  "selection": {
+    "champion": {
+      "best_iteration": 169,
+      "fit_seconds": 36.0,
+      "seed": 0,
+      "val_pr_auc": 0.6046409300258362,
+      "val_roc_auc": 0.9853950969264542,
+      "variant": "unweighted"
+    },
+    "mlflow_run_id": "01a41e1fb16e47af945caa6ea7339727",
+    "model_version": "1",
+    "rule": "higher mean val PR-AUC; champion = median seed by val PR-AUC",
+    "test_rows_read": 0,
+    "variant": "unweighted"
+  },
+  "timestamp": "2026-11-22T21:33:47+00:00",
+  "variants": {
+    "unweighted": {
+      "seeds": [
+        {
+          "best_iteration": 169,
+          "fit_seconds": 36.0,
+          "seed": 0,
+          "val_pr_auc": 0.6046409300258362,
+          "val_roc_auc": 0.9853950969264542,
+          "variant": "unweighted"
+        },
+        {
+          "best_iteration": 187,
+          "fit_seconds": 39.5,
+          "seed": 1,
+          "val_pr_auc": 0.6137004400317873,
+          "val_roc_auc": 0.9817752126370936,
+          "variant": "unweighted"
+        },
+        {
+          "best_iteration": 202,
+          "fit_seconds": 43.2,
+          "seed": 2,
+          "val_pr_auc": 0.6222671134078644,
+          "val_roc_auc": 0.9844940944546187,
+          "variant": "unweighted"
+        },
+        {
+          "best_iteration": 184,
+          "fit_seconds": 38.9,
+          "seed": 3,
+          "val_pr_auc": 0.5973278051895465,
+          "val_roc_auc": 0.9795936135774361,
+          "variant": "unweighted"
+        },
+        {
+          "best_iteration": 185,
+          "fit_seconds": 38.4,
+          "seed": 4,
+          "val_pr_auc": 0.5928665941276671,
+          "val_roc_auc": 0.9799123669786056,
+          "variant": "unweighted"
+        }
+      ],
+      "val_pr_auc_mean_std": [
+        0.6061605765565403,
+        0.011972126116395138
+      ],
+      "val_roc_auc_mean_std": [
+        0.9822340769148417,
+        0.002630240810434852
+      ]
+    },
+    "weighted": {
+      "seeds": [
+        {
+          "best_iteration": 72,
+          "fit_seconds": 17.7,
+          "seed": 0,
+          "val_pr_auc": 0.5550699068763111,
+          "val_roc_auc": 0.9857966362610824,
+          "variant": "weighted"
+        },
+        {
+          "best_iteration": 64,
+          "fit_seconds": 16.8,
+          "seed": 1,
+          "val_pr_auc": 0.5586010501174989,
+          "val_roc_auc": 0.9854967033935281,
+          "variant": "weighted"
+        },
+        {
+          "best_iteration": 44,
+          "fit_seconds": 13.7,
+          "seed": 2,
+          "val_pr_auc": 0.5688412043931519,
+          "val_roc_auc": 0.9857333326932132,
+          "variant": "weighted"
+        },
+        {
+          "best_iteration": 57,
+          "fit_seconds": 16.2,
+          "seed": 3,
+          "val_pr_auc": 0.5445097308605027,
+          "val_roc_auc": 0.9859922251459637,
+          "variant": "weighted"
+        },
+        {
+          "best_iteration": 66,
+          "fit_seconds": 18.3,
+          "seed": 4,
+          "val_pr_auc": 0.5473388489027226,
+          "val_roc_auc": 0.9852275568723649,
+          "variant": "weighted"
+        }
+      ],
+      "val_pr_auc_mean_std": [
+        0.5548721482300374,
+        0.009659304327332457
+      ],
+      "val_roc_auc_mean_std": [
+        0.9856492908732305,
+        0.0002947541826210303
+      ]
+    }
+  }
+}

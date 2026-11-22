@@ -153,9 +153,10 @@ def importance_caption(cross_currency_rows: int, cross_currency_laundering: int)
     counts = f"{cross_currency_laundering:,} of {cross_currency_rows:,} cross-currency rows"
     if cross_currency_laundering == 0:
         return (
-            "Gain importance. is_cross_currency is a generator artifact: "
-            f"{counts} are laundering, so it separates the classes perfectly in this data (D36). "
-            "It is not evidence about real laundering."
+            f"Gain importance. {counts} are laundering, so any feature built on the cross-currency "
+            "flag (is_cross_currency and the s_/r_ cross_currency_share_* features) can separate "
+            "the classes in this data for a reason that is a generator artifact (D36). It is not "
+            "evidence about real laundering."
         )
     return f"Gain importance. {counts} are laundering."
 
@@ -235,9 +236,11 @@ def _headline(
     if pos_cross == 0:
         lines.append(
             f"Generator artifact: 0 of {n_cross:,} cross-currency rows in this test split are "
-            "laundering. Every laundering row is same-currency, so is_cross_currency is a perfect "
-            "negative signal here (D36); it says nothing about real laundering, and a high "
-            "importance for it must not be read as a finding."
+            "laundering. Every laundering row is same-currency (D36), so any feature built on the "
+            "cross-currency flag (is_cross_currency and the s_/r_ cross_currency_share_* "
+            "features) can separate the classes here for a reason that is a property of the "
+            "generator. It says nothing about real laundering, and a high importance for those "
+            "features must not be read as a finding."
         )
     else:
         lines.append(
@@ -339,6 +342,15 @@ def run(ds: str, final: bool, results_root: Path | None = None) -> dict[str, Any
         raise RuntimeError(f"registered champion val PR-AUC {got_pr} != train.json {expected_pr}")
     if str(version) != str(train_doc["selection"]["model_version"]):
         raise RuntimeError(f"champion alias points at version {version}, train.json says otherwise")
+
+    # the importance figure carries the cross-currency caption, with the TRAINING counts
+    from ml import train as ml_train
+
+    d = train_doc["data"]
+    caption = importance_caption(
+        d["cross_currency_rows_train"], d["cross_currency_laundering_train"]
+    )
+    ml_train.importance_figure(booster, caption, out_dir / "importance_gain.png")
 
     # 2. the gate, immediately before the one read of the test split
     open_test_gate(final, ds, out_dir, reason=f"final evaluation of aml-xgb v{version}")

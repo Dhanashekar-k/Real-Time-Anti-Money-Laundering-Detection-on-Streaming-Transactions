@@ -187,6 +187,8 @@ def test_headline_reports_the_cross_currency_artifact_with_counts_from_the_frame
     assert f"0 of {n_cross} cross-currency rows" in text
     assert "generator artifact" in text
     assert "same-currency" in text
+    # the artifact is not only the flag: the windowed shares are built on it
+    assert "is_cross_currency" in text and "cross_currency_share" in text
 
 
 def test_headline_does_not_claim_the_artifact_if_a_cross_currency_row_is_laundering() -> None:
@@ -209,6 +211,7 @@ def test_headline_reports_the_tail_with_its_counts() -> None:
 def test_importance_caption_carries_the_artifact() -> None:
     cap = ev.importance_caption(cross_currency_rows=485_144, cross_currency_laundering=0)
     assert "is_cross_currency" in cap and "generator artifact" in cap
+    assert "cross_currency_share" in cap  # the windowed shares derive from the same flag
     assert "0 of 485,144" in cap
 
 
