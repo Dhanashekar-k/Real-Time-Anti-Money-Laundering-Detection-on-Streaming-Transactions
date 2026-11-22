@@ -166,8 +166,12 @@ def ingest(
     fx: Mapping[str, Decimal | str],
     results_dir: Path,
     fx_version: int | None = None,
+    fx_rates_sha256: str | None = None,
 ) -> dict[str, Any]:
-    """Write `lake.<namespace>.raw_transactions` and `<results_dir>/<ds>/ingest.json`."""
+    """Write `lake.<namespace>.raw_transactions` and `<results_dir>/<ds>/ingest.json`.
+
+    `fx_version` and `fx_rates_sha256` (of features/fx_rates.yaml) are recorded as given: the
+    version alone would not notice a table regenerated with other digits."""
     source = _file_facts(trans_path)
     raw = read_transactions(spark, trans_path)
     typed = build_typed(raw, fx)
@@ -214,6 +218,7 @@ def ingest(
         "source": source,
         "source_partitions": spark.read.text(str(trans_path)).rdd.getNumPartitions(),
         "fx_version": fx_version,
+        "fx_rates_sha256": fx_rates_sha256,
         "rows": rows,
         "source_lines_minus_header": source["lines_minus_header"],
         "laundering": written.filter("is_laundering = 1").count(),
@@ -243,6 +248,7 @@ def main(argv: list[str] | None = None) -> None:
             fx=fx,
             results_dir=args.results_dir,
             fx_version=money.FX_VERSION_REQUIRED,
+            fx_rates_sha256=hashlib.sha256(money.FX_PATH.read_bytes()).hexdigest(),
         )
     finally:
         spark.stop()

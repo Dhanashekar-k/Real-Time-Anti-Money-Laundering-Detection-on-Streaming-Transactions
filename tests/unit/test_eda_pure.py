@@ -5,7 +5,7 @@ import random
 
 import pytest
 
-from batch.spark.eda import find_sparse_days, nearest_rank, nearest_rank_hist
+from batch.spark.eda import _stat_order, find_sparse_days, nearest_rank, nearest_rank_hist
 
 
 @pytest.mark.parametrize(
@@ -99,3 +99,10 @@ def test_nearest_rank_hist_equals_nearest_rank_on_the_expanded_values(seed: int)
 def test_nearest_rank_hist_rejects_empty() -> None:
     with pytest.raises(ValueError):
         nearest_rank_hist([], 0.5)
+
+
+def test_stat_order_is_the_same_for_memory_and_sorted_json_order() -> None:
+    in_memory = {"p50": 4, "p90": 50, "p99": 115, "p99.9": 180, "max": 9}
+    as_stored = dict(sorted(in_memory.items()))  # eda.json is written with sorted keys
+    assert list(as_stored) != list(in_memory)
+    assert _stat_order(as_stored) == _stat_order(in_memory) == list(in_memory)

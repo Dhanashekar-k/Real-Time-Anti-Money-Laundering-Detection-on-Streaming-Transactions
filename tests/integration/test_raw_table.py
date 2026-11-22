@@ -200,6 +200,7 @@ def test_ingest_json_records_provenance(result: dict) -> None:
         assert key in doc, key
     assert doc["dataset"] == "mini"
     assert doc["fx_version"] == 1 or doc["fx_version"] is None
+    assert "fx_rates_sha256" in doc  # None when the caller passes none (tests); the CLI passes it
     assert doc["source"]["path"].endswith("mini_trans.csv")
 
 

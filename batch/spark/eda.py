@@ -568,7 +568,10 @@ def render_markdown(doc: dict[str, Any]) -> str:
                     if k.startswith("p") and k != "percentile_method"
                 ],
                 ["transactions per account, max", f"{tpa['max']:,} ({tpa['max_account']})"],
-                *[[f"legs per account, {k}", f"{v:,}"] for k, v in acc["legs_per_account"].items()],
+                *[
+                    [f"legs per account, {k}", f"{acc['legs_per_account'][k]:,}"]
+                    for k in _stat_order(acc["legs_per_account"])
+                ],
                 [
                     f"max entries in one account's {win['window_ms'] // 3_600_000} h window",
                     f"{win['max']:,} ({win['account']})",
@@ -695,6 +698,14 @@ def render_markdown(doc: dict[str, Any]) -> str:
             ),
         ]
     return "\n\n".join(parts) + "\n"
+
+
+def _stat_order(stats: dict[str, int]) -> list[str]:
+    """Percentile keys in ascending order, then `max`: the same rows whether the dict is in memory
+    or was read back from eda.json (which is written with sorted keys, so `max` comes first)."""
+    return sorted((k for k in stats if k != "max"), key=lambda k: float(k[1:])) + [
+        k for k in stats if k == "max"
+    ]
 
 
 def json_inline(mapping: dict[str, int]) -> str:

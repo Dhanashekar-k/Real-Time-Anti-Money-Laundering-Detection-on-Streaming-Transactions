@@ -104,8 +104,10 @@ def write_split_json(
 
 
 def main(argv: list[str] | None = None) -> None:
+    from batch.spark.csv_to_iceberg import DATASET_FILES  # here: csv_to_iceberg imports this module
+
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--ds", required=True)
+    parser.add_argument("--ds", required=True, choices=sorted(DATASET_FILES))
     parser.add_argument("--results-dir", type=Path, default=common.ROOT / "results" / "M01")
     args = parser.parse_args(argv)
     spark = common.get_spark(f"split-{args.ds}")

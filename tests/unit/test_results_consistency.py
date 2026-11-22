@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from batch.spark import eda
 from features import money
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -60,6 +61,23 @@ def test_money_parity_has_no_mismatch_and_used_the_committed_fx_table(ds: str) -
         == hashlib.sha256(money.FX_PATH.read_bytes()).hexdigest()
     )
     assert _result(ds, "ingest")["fx_version"] == money.FX_VERSION_REQUIRED
+
+
+@pytest.mark.parametrize("ds", sorted(DATASETS))
+def test_ingest_fx_table_hash_agrees_when_recorded(ds: str) -> None:
+    """The committed ingest.json files predate `fx_rates_sha256` (money_parity.json pins the table
+    for them); an ingest run from now on records it, and then it must be the table's hash."""
+    recorded = _result(ds, "ingest").get("fx_rates_sha256")
+    if recorded is not None:
+        assert recorded == _result(ds, "money_parity")["config"]["fx_rates_sha256"]
+        assert recorded == hashlib.sha256(money.FX_PATH.read_bytes()).hexdigest()
+
+
+@pytest.mark.parametrize("ds", sorted(DATASETS))
+def test_eda_markdown_is_regenerated_exactly_from_the_committed_json(ds: str) -> None:
+    """docs/eda_<ds>.md says every number comes from eda.json: rendering that file gives it back."""
+    expected = (ROOT / "docs" / f"eda_{ds}.md").read_text(encoding="utf-8")
+    assert eda.render_markdown(_result(ds, "eda")) == expected
 
 
 @pytest.mark.parametrize("ds", sorted(DATASETS))
