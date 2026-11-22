@@ -38,3 +38,10 @@ def test_fit_needs_two_distinct_points() -> None:
         lm.fit_line([(1, 1.0)])
     with pytest.raises(ValueError):
         lm.fit_line([(5, 1.0), (5, 2.0)])
+
+
+def test_both_workers_exist_and_the_cli_selects_one() -> None:
+    import inspect
+
+    assert callable(lm.worker) and callable(lm.worker_iterator)
+    assert "mode" in inspect.getsource(lm.main) and "worker_iterator" in inspect.getsource(lm.main)

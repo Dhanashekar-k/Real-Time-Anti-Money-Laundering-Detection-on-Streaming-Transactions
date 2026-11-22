@@ -62,23 +62,23 @@
   ],
   "expected": {
     "1": {
-      "r_cross_currency_share_72h": "TODO(human)",
-      "is_cross_currency": "TODO(human)",
-      "payment_currency_code": "TODO(human)"
+      "r_cross_currency_share_72h": null,
+      "is_cross_currency": 1,
+      "payment_currency_code": 0
     },
     "3": {
-      "is_cross_currency": "TODO(human)",
-      "payment_format_code": "TODO(human)",
-      "payment_currency_code": "TODO(human)",
-      "receiving_currency_code": "TODO(human)"
+      "is_cross_currency": 1,
+      "payment_format_code": 6,
+      "payment_currency_code": 1,
+      "receiving_currency_code": 0
     },
     "5": {
-      "s_cross_currency_share_1h": "TODO(human)",
-      "s_cross_currency_share_72h": "TODO(human)",
-      "s_format_share_ACH_72h": "TODO(human)",
-      "s_format_share_WIRE_72h": "TODO(human)",
-      "s_format_share_CASH_72h": "TODO(human)",
-      "s_format_share_CREDIT_CARD_72h": "TODO(human)"
+      "s_cross_currency_share_1h": 0.5,
+      "s_cross_currency_share_72h": 0.5,
+      "s_format_share_ACH_72h": 0.3333333333333333,
+      "s_format_share_WIRE_72h": 0.6666666666666666,
+      "s_format_share_CASH_72h": 0.0,
+      "s_format_share_CREDIT_CARD_72h": 0.0
     }
   }
 }

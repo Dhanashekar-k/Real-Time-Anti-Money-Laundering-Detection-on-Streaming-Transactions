@@ -42,16 +42,16 @@
   ],
   "expected": {
     "2": {
-      "s_in_count_72h": "TODO(human)",
-      "s_in_sum_usd_cents_72h": "TODO(human)",
-      "s_pass_through_ratio_72h": "TODO(human)",
-      "s_account_age_minutes": "TODO(human)",
-      "s_log_empty": "TODO(human)"
+      "s_in_count_72h": 0,
+      "s_in_sum_usd_cents_72h": 0,
+      "s_pass_through_ratio_72h": null,
+      "s_account_age_minutes": 4800.0,
+      "s_log_empty": 0
     },
     "3": {
-      "s_avg_hold_minutes_72h": "TODO(human)",
-      "s_out_count_72h": "TODO(human)",
-      "s_account_age_minutes": "TODO(human)"
+      "s_avg_hold_minutes_72h": 4800.0,
+      "s_out_count_72h": 1,
+      "s_account_age_minutes": 4810.0
     }
   }
 }

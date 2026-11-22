@@ -53,18 +53,18 @@
   ],
   "expected": {
     "2": {
-      "r_returned_funds_24h": "TODO(human)",
-      "r_new_counterparty_72h": "TODO(human)",
-      "s_new_counterparty_72h": "TODO(human)"
+      "r_returned_funds_24h": 1,
+      "r_new_counterparty_72h": 1,
+      "s_new_counterparty_72h": 1
     },
     "3": {
-      "r_returned_funds_24h": "TODO(human)",
-      "r_new_counterparty_72h": "TODO(human)"
+      "r_returned_funds_24h": 0,
+      "r_new_counterparty_72h": 1
     },
     "4": {
-      "r_returned_funds_24h": "TODO(human)",
-      "r_new_counterparty_72h": "TODO(human)",
-      "s_new_counterparty_72h": "TODO(human)"
+      "r_returned_funds_24h": 0,
+      "r_new_counterparty_72h": 0,
+      "s_new_counterparty_72h": 0
     }
   }
 }

@@ -53,36 +53,36 @@
   ],
   "expected": {
     "1": {
-      "s_out_count_1h": "TODO(human)",
-      "s_out_sum_usd_cents_1h": "TODO(human)",
-      "s_distinct_out_cp_1h": "TODO(human)",
-      "s_new_counterparty_72h": "TODO(human)",
-      "r_in_count_1h": "TODO(human)",
-      "r_in_sum_usd_cents_1h": "TODO(human)"
+      "s_out_count_1h": 0,
+      "s_out_sum_usd_cents_1h": 0,
+      "s_distinct_out_cp_1h": 0,
+      "s_new_counterparty_72h": 1,
+      "r_in_count_1h": 0,
+      "r_in_sum_usd_cents_1h": 0
     },
     "2": {
-      "s_out_count_1h": "TODO(human)",
-      "s_out_sum_usd_cents_1h": "TODO(human)",
-      "s_distinct_out_cp_1h": "TODO(human)",
-      "s_new_counterparty_72h": "TODO(human)",
-      "r_in_count_1h": "TODO(human)",
-      "r_in_sum_usd_cents_1h": "TODO(human)"
+      "s_out_count_1h": 1,
+      "s_out_sum_usd_cents_1h": 100,
+      "s_distinct_out_cp_1h": 1,
+      "s_new_counterparty_72h": 0,
+      "r_in_count_1h": 1,
+      "r_in_sum_usd_cents_1h": 100
     },
     "3": {
-      "s_out_count_1h": "TODO(human)",
-      "s_out_sum_usd_cents_1h": "TODO(human)",
-      "s_distinct_out_cp_1h": "TODO(human)",
-      "s_new_counterparty_72h": "TODO(human)",
-      "r_in_count_1h": "TODO(human)",
-      "r_in_sum_usd_cents_1h": "TODO(human)"
+      "s_out_count_1h": 2,
+      "s_out_sum_usd_cents_1h": 300,
+      "s_distinct_out_cp_1h": 1,
+      "s_new_counterparty_72h": 0,
+      "r_in_count_1h": 2,
+      "r_in_sum_usd_cents_1h": 300
     },
     "4": {
-      "s_out_count_1h": "TODO(human)",
-      "s_out_sum_usd_cents_1h": "TODO(human)",
-      "s_distinct_out_cp_1h": "TODO(human)",
-      "s_new_counterparty_72h": "TODO(human)",
-      "r_in_count_1h": "TODO(human)",
-      "r_in_sum_usd_cents_1h": "TODO(human)"
+      "s_out_count_1h": 3,
+      "s_out_sum_usd_cents_1h": 700,
+      "s_distinct_out_cp_1h": 1,
+      "s_new_counterparty_72h": 1,
+      "r_in_count_1h": 0,
+      "r_in_sum_usd_cents_1h": 0
     }
   }
 }
