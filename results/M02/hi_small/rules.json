@@ -63,7 +63,7 @@
     ]
   },
   "git_dirty": false,
-  "git_sha": "897c666617e8b36f9e840a8c3face0328dc7d1ba",
+  "git_sha": "3b3347d8de91e7db0029d655bb1f24454c82dd1d",
   "protocol": [
     "  - thresholds: grid search on TRAIN rows (after the 24 h burn-in), one rule at a time,",
     "  - rule set = OR of R1..R5; R1_original is reported but is NOT in the rule set",
@@ -71,7 +71,7 @@
     "  - test is read once, in eval/model_eval.py --final, and reported both ways:",
     "  - labels score a threshold; no rule reads them"
   ],
-  "timestamp": "2026-11-22T21:28:41+00:00",
+  "timestamp": "2026-11-22T22:41:24+00:00",
   "train": {
     "R1": {
       "alerts": 1770,
