@@ -63,3 +63,9 @@ def test_changed_or_new_code_makes_it_dirty(repo: Path) -> None:
 def test_other_config_files_are_not_excluded(repo: Path) -> None:
     (repo / "config" / "other.yaml").write_text("b: 1\n")
     assert common.git_dirty(repo) is True  # only thresholds.yaml is a script output
+
+
+def test_per_dataset_threshold_files_are_outputs_too(repo: Path) -> None:
+    (repo / "config" / "thresholds_hi_medium.yaml").write_text("a: 1\n")
+    (repo / "config" / "thresholds_hi_small.yaml").write_text("a: 1\n")
+    assert common.git_dirty(repo) is False

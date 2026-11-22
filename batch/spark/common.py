@@ -260,7 +260,7 @@ def add_row_index(df: DataFrame, name: str) -> DataFrame:
 OUTPUT_PATHSPECS = (
     ":(exclude)results",
     ":(exclude)docs/eda_*.md",
-    ":(exclude)config/thresholds.yaml",
+    ":(exclude)config/thresholds*.yaml",
 )
 
 

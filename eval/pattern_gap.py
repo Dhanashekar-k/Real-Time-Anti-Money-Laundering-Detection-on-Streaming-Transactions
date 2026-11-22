@@ -194,12 +194,12 @@ def _model_val_recall(ds: str, warehouse: Path) -> dict[str, Any]:
     import numpy as np
     import xgboost as xgb
 
-    from eval.model_eval import THRESHOLDS_PATH, load_thresholds
+    from eval.model_eval import load_thresholds, thresholds_path
     from ml import data
 
     mlflow.set_tracking_uri("http://localhost:5001")
     booster = mlflow.xgboost.load_model("models:/aml-xgb@champion")
-    thr = load_thresholds(THRESHOLDS_PATH, "f1_optimal")
+    thr = load_thresholds(thresholds_path(ds), "f1_optimal", dataset=ds)
     val = data.read_matrix(ds, "val", patterns=True, warehouse=warehouse)
     best = int(booster.best_iteration)
     score = booster.predict(

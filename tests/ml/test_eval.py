@@ -311,3 +311,24 @@ def test_the_runner_does_not_write_tracked_files_before_the_gate() -> None:
     before_gate = src.split("open_test_gate(")[0]
     assert "importance_figure" not in before_gate and "write_json" not in before_gate
     assert "savefig" not in before_gate and "write_text" not in before_gate
+
+
+# --- thresholds are per dataset ----------------------------------------------------------------
+
+
+def test_thresholds_path_is_per_dataset() -> None:
+    assert ev.thresholds_path("hi_small").name == "thresholds_hi_small.yaml"
+    assert ev.thresholds_path("hi_medium").name == "thresholds_hi_medium.yaml"
+    assert ev.thresholds_path("hi_small").parent.name == "config"
+
+
+def test_thresholds_of_another_dataset_are_refused(tmp_path: Path) -> None:
+    f = tmp_path / "thresholds_hi_small.yaml"
+    f.write_text(
+        "meta: {dataset: hi_medium, model_version: '2'}\n"
+        "banks:\n  A: {f1_optimal: {threshold: 0.4}, budget: {threshold: 0.7}}\n"
+    )
+    with pytest.raises(ValueError, match="hi_medium"):
+        ev.load_thresholds(f, "f1_optimal", dataset="hi_small")
+    assert ev.load_thresholds(f, "f1_optimal", dataset="hi_medium") == {"A": 0.4}
+    assert ev.load_thresholds(f, "f1_optimal") == {"A": 0.4}  # no dataset given: no check (old use)

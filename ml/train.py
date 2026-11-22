@@ -397,9 +397,12 @@ def run(ds: str, results_dir: Path | None = None, config_dir: Path | None = None
     baseline["model_version"] = version
     common.write_json(results_dir / "baseline_dist.json", baseline)
     thr_doc = thresholds.to_yaml_doc(per_bank, ds, MODEL_NAME, version, K_ALERTS_PER_DAY)
-    cfg = (config_dir or common.ROOT / "config") / "thresholds.yaml"
-    cfg.parent.mkdir(parents=True, exist_ok=True)
-    cfg.write_text(yaml.safe_dump(thr_doc, sort_keys=True))
+    cfg_dir = config_dir or common.ROOT / "config"
+    cfg_dir.mkdir(parents=True, exist_ok=True)
+    text = yaml.safe_dump(thr_doc, sort_keys=True)
+    (cfg_dir / f"thresholds_{ds}.yaml").write_text(text)  # the file the evaluation reads
+    if ds == "hi_small":  # the local development dataset: the file the scorer (M5) reads
+        (cfg_dir / "thresholds.yaml").write_text(text)
     common.write_json(
         results_dir / "thresholds.json", {"dataset": ds, **common.provenance(), **thr_doc}
     )

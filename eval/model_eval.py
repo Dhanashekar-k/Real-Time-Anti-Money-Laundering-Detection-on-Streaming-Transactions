@@ -269,7 +269,11 @@ def _headline(
 
 
 GOLDEN_DIR = ROOT / "tests" / "golden"
-THRESHOLDS_PATH = ROOT / "config" / "thresholds.yaml"
+
+
+def thresholds_path(ds: str) -> Path:
+    """Each dataset has its own tuned thresholds; a model is evaluated with its own."""
+    return ROOT / "config" / f"thresholds_{ds}.yaml"
 
 
 def golden_status(directory: Path = GOLDEN_DIR) -> dict[str, Any]:
@@ -307,10 +311,15 @@ def provisional_headline(status: dict[str, Any]) -> list[str]:
     ]
 
 
-def load_thresholds(path: Path, kind: str) -> dict[str, float]:
+def load_thresholds(path: Path, kind: str, dataset: str | None = None) -> dict[str, float]:
     import yaml
 
-    banks = yaml.safe_load(path.read_text())["banks"]
+    doc = yaml.safe_load(path.read_text())
+    if dataset is not None and doc["meta"]["dataset"] != dataset:
+        raise ValueError(
+            f"{path} holds thresholds tuned for {doc['meta']['dataset']}, not for {dataset}"
+        )
+    banks = doc["banks"]
     return {bank: float(cfg[kind]["threshold"]) for bank, cfg in banks.items()}
 
 
@@ -331,8 +340,9 @@ def run(ds: str, final: bool, results_root: Path | None = None) -> dict[str, Any
     # 1. inputs that do not touch the test split
     rules = json.loads((out_dir / "rules.json").read_text())
     fits = rules_baseline.fits_from_json(rules["fits"])
-    f1_thr = load_thresholds(THRESHOLDS_PATH, "f1_optimal")
-    budget_thr = load_thresholds(THRESHOLDS_PATH, "budget")
+    thr_file = thresholds_path(ds)
+    f1_thr = load_thresholds(thr_file, "f1_optimal", dataset=ds)
+    budget_thr = load_thresholds(thr_file, "budget", dataset=ds)
     eda = json.loads((common.ROOT / "results" / "M01" / ds / "eda.json").read_text())
     tail_days = metrics.tail_day_numbers(eda)
     mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5001"))
@@ -399,7 +409,7 @@ def run(ds: str, final: bool, results_root: Path | None = None) -> dict[str, Any
             "model": f"aml-xgb v{version} (alias champion)",
             "best_iteration": best,
             "baseline": baseline_name,
-            "thresholds_file": str(THRESHOLDS_PATH.relative_to(ROOT)),
+            "thresholds_file": str(thr_file.relative_to(ROOT)),
             "primary_operating_point": "per-bank F1-optimal threshold chosen on val",
             "bootstrap": primary["bootstrap"],
             "tail_days": sorted(tail_days),
