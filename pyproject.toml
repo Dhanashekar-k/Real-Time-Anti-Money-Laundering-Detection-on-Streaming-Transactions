@@ -29,6 +29,7 @@ dev = ["pytest", "pytest-xdist", "ruff", "mypy", "hypothesis", "jsonschema"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]  # `features`, `batch` and `stream` are plain directories at the repo root
 addopts = "-ra --import-mode=importlib"
 markers = [
   "unit: fast, no external services (default)",
