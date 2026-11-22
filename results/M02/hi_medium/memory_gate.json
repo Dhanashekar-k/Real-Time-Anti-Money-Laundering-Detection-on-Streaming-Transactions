@@ -1,0 +1,442 @@
+{
+  "config": {
+    "background": "every 20th transaction of the dataset",
+    "driver_memory": "see AML_SPARK_DRIVER_MEMORY (the settings of make features)",
+    "hot_accounts": [
+      {
+        "account": "070:100428660",
+        "legs": 1083821
+      },
+      {
+        "account": "070:1004286A8",
+        "legs": 683233
+      },
+      {
+        "account": "070:1004286F0",
+        "legs": 210234
+      }
+    ],
+    "shuffle_partitions": 12,
+    "stage": "legs -> groupBy(account_key).applyInPandas(oracle) -> noop sink",
+    "subset_transactions": 3473786
+  },
+  "dataset": "hi_medium",
+  "git_dirty": false,
+  "git_sha": "21e7a9de19f35374af9f08d95dc06278dbb006f3",
+  "machine": {
+    "cores_used": 12,
+    "python": "3.11.15",
+    "ram_gb": 24.0
+  },
+  "not_measured": [
+    "the JVM while shuffling and joining all 64M legs (heap capped by the driver setting)",
+    "the tx-feature, join, UDF and Iceberg-write stages"
+  ],
+  "peak_process_tree_mb": {
+    "jvm_mb": 3543.3125,
+    "python_worker_max_mb": 2197.0,
+    "python_workers_mb": 4198.078125,
+    "total_mb": 5869.375
+  },
+  "stage_seconds": 435.4,
+  "system": {
+    "swap_used_mb_before": 4630.81,
+    "swap_used_mb_peak": 4630.81,
+    "used_mb_before": 15364.0,
+    "used_mb_peak": 18690.1,
+    "used_mb_peak_minus_before": 3326.1
+  },
+  "timeline": [
+    {
+      "jvm_mb": 405.2,
+      "python_workers_mb": 1.7,
+      "t": 0.1,
+      "total_mb": 2156.6
+    },
+    {
+      "jvm_mb": 2521.5,
+      "python_workers_mb": 1617.4,
+      "t": 6.8,
+      "total_mb": 5849.0
+    },
+    {
+      "jvm_mb": 2498.9,
+      "python_workers_mb": 1454.8,
+      "t": 14.1,
+      "total_mb": 5477.3
+    },
+    {
+      "jvm_mb": 3078.1,
+      "python_workers_mb": 1444.3,
+      "t": 21.1,
+      "total_mb": 5497.8
+    },
+    {
+      "jvm_mb": 3098.2,
+      "python_workers_mb": 1405.4,
+      "t": 27.9,
+      "total_mb": 4954.3
+    },
+    {
+      "jvm_mb": 3149.8,
+      "python_workers_mb": 1403.8,
+      "t": 34.7,
+      "total_mb": 5004.3
+    },
+    {
+      "jvm_mb": 3066.1,
+      "python_workers_mb": 1401.5,
+      "t": 41.6,
+      "total_mb": 4918.3
+    },
+    {
+      "jvm_mb": 3079.7,
+      "python_workers_mb": 1401.6,
+      "t": 48.3,
+      "total_mb": 4933.2
+    },
+    {
+      "jvm_mb": 3076.1,
+      "python_workers_mb": 1401.6,
+      "t": 55.0,
+      "total_mb": 4929.7
+    },
+    {
+      "jvm_mb": 3130.5,
+      "python_workers_mb": 1401.8,
+      "t": 61.9,
+      "total_mb": 4984.2
+    },
+    {
+      "jvm_mb": 3140.5,
+      "python_workers_mb": 1401.9,
+      "t": 68.6,
+      "total_mb": 4994.5
+    },
+    {
+      "jvm_mb": 3142.5,
+      "python_workers_mb": 1402.1,
+      "t": 75.3,
+      "total_mb": 4937.0
+    },
+    {
+      "jvm_mb": 3144.5,
+      "python_workers_mb": 1402.2,
+      "t": 82.0,
+      "total_mb": 4939.1
+    },
+    {
+      "jvm_mb": 3203.1,
+      "python_workers_mb": 1402.3,
+      "t": 88.6,
+      "total_mb": 4945.2
+    },
+    {
+      "jvm_mb": 3207.5,
+      "python_workers_mb": 1402.5,
+      "t": 95.1,
+      "total_mb": 4902.9
+    },
+    {
+      "jvm_mb": 3208.5,
+      "python_workers_mb": 1402.6,
+      "t": 101.7,
+      "total_mb": 4904.1
+    },
+    {
+      "jvm_mb": 3209.2,
+      "python_workers_mb": 1402.7,
+      "t": 108.3,
+      "total_mb": 4904.9
+    },
+    {
+      "jvm_mb": 3220.4,
+      "python_workers_mb": 1402.8,
+      "t": 115.2,
+      "total_mb": 4916.1
+    },
+    {
+      "jvm_mb": 2924.5,
+      "python_workers_mb": 1402.5,
+      "t": 121.9,
+      "total_mb": 4389.9
+    },
+    {
+      "jvm_mb": 2927.8,
+      "python_workers_mb": 1402.5,
+      "t": 128.6,
+      "total_mb": 4393.2
+    },
+    {
+      "jvm_mb": 3050.1,
+      "python_workers_mb": 1402.6,
+      "t": 135.4,
+      "total_mb": 4515.6
+    },
+    {
+      "jvm_mb": 3206.6,
+      "python_workers_mb": 1402.7,
+      "t": 142.2,
+      "total_mb": 4672.2
+    },
+    {
+      "jvm_mb": 3179.8,
+      "python_workers_mb": 1402.7,
+      "t": 148.9,
+      "total_mb": 4645.5
+    },
+    {
+      "jvm_mb": 3202.4,
+      "python_workers_mb": 1402.7,
+      "t": 155.8,
+      "total_mb": 4668.0
+    },
+    {
+      "jvm_mb": 3204.0,
+      "python_workers_mb": 1402.7,
+      "t": 162.8,
+      "total_mb": 4669.7
+    },
+    {
+      "jvm_mb": 3127.0,
+      "python_workers_mb": 1352.1,
+      "t": 169.8,
+      "total_mb": 4542.1
+    },
+    {
+      "jvm_mb": 3140.0,
+      "python_workers_mb": 1352.2,
+      "t": 176.8,
+      "total_mb": 4555.3
+    },
+    {
+      "jvm_mb": 3145.2,
+      "python_workers_mb": 1273.1,
+      "t": 183.5,
+      "total_mb": 4481.4
+    },
+    {
+      "jvm_mb": 3141.0,
+      "python_workers_mb": 1200.7,
+      "t": 190.2,
+      "total_mb": 4404.8
+    },
+    {
+      "jvm_mb": 3147.6,
+      "python_workers_mb": 1190.0,
+      "t": 197.2,
+      "total_mb": 4400.7
+    },
+    {
+      "jvm_mb": 3154.7,
+      "python_workers_mb": 1190.1,
+      "t": 203.9,
+      "total_mb": 4407.8
+    },
+    {
+      "jvm_mb": 3161.1,
+      "python_workers_mb": 1190.2,
+      "t": 210.7,
+      "total_mb": 4414.4
+    },
+    {
+      "jvm_mb": 3167.7,
+      "python_workers_mb": 1190.2,
+      "t": 217.5,
+      "total_mb": 4421.0
+    },
+    {
+      "jvm_mb": 3172.0,
+      "python_workers_mb": 1190.2,
+      "t": 224.4,
+      "total_mb": 4425.4
+    },
+    {
+      "jvm_mb": 3171.2,
+      "python_workers_mb": 1171.3,
+      "t": 231.1,
+      "total_mb": 4405.7
+    },
+    {
+      "jvm_mb": 3173.3,
+      "python_workers_mb": 1137.3,
+      "t": 237.8,
+      "total_mb": 4373.6
+    },
+    {
+      "jvm_mb": 3175.8,
+      "python_workers_mb": 1137.3,
+      "t": 244.6,
+      "total_mb": 4376.1
+    },
+    {
+      "jvm_mb": 3179.3,
+      "python_workers_mb": 1137.2,
+      "t": 251.2,
+      "total_mb": 4379.5
+    },
+    {
+      "jvm_mb": 3181.4,
+      "python_workers_mb": 1137.2,
+      "t": 258.0,
+      "total_mb": 4381.6
+    },
+    {
+      "jvm_mb": 3184.5,
+      "python_workers_mb": 1137.3,
+      "t": 264.9,
+      "total_mb": 4384.9
+    },
+    {
+      "jvm_mb": 3187.5,
+      "python_workers_mb": 1137.3,
+      "t": 271.8,
+      "total_mb": 4387.9
+    },
+    {
+      "jvm_mb": 3189.9,
+      "python_workers_mb": 1137.4,
+      "t": 278.6,
+      "total_mb": 4390.4
+    },
+    {
+      "jvm_mb": 3192.4,
+      "python_workers_mb": 1137.4,
+      "t": 285.5,
+      "total_mb": 4392.9
+    },
+    {
+      "jvm_mb": 3194.3,
+      "python_workers_mb": 1137.4,
+      "t": 292.3,
+      "total_mb": 4394.9
+    },
+    {
+      "jvm_mb": 3196.4,
+      "python_workers_mb": 1137.5,
+      "t": 299.2,
+      "total_mb": 4397.0
+    },
+    {
+      "jvm_mb": 3198.1,
+      "python_workers_mb": 1137.5,
+      "t": 305.8,
+      "total_mb": 4398.8
+    },
+    {
+      "jvm_mb": 3200.2,
+      "python_workers_mb": 1137.5,
+      "t": 312.5,
+      "total_mb": 4400.9
+    },
+    {
+      "jvm_mb": 3200.1,
+      "python_workers_mb": 1137.4,
+      "t": 318.9,
+      "total_mb": 4399.9
+    },
+    {
+      "jvm_mb": 3164.0,
+      "python_workers_mb": 1137.5,
+      "t": 325.6,
+      "total_mb": 4363.8
+    },
+    {
+      "jvm_mb": 3164.5,
+      "python_workers_mb": 1137.4,
+      "t": 332.1,
+      "total_mb": 4364.3
+    },
+    {
+      "jvm_mb": 3166.3,
+      "python_workers_mb": 1137.5,
+      "t": 338.8,
+      "total_mb": 4366.1
+    },
+    {
+      "jvm_mb": 3168.2,
+      "python_workers_mb": 1137.6,
+      "t": 345.8,
+      "total_mb": 4368.2
+    },
+    {
+      "jvm_mb": 3170.1,
+      "python_workers_mb": 1137.7,
+      "t": 352.7,
+      "total_mb": 4370.2
+    },
+    {
+      "jvm_mb": 3172.3,
+      "python_workers_mb": 1137.7,
+      "t": 359.5,
+      "total_mb": 4372.4
+    },
+    {
+      "jvm_mb": 3174.0,
+      "python_workers_mb": 1137.8,
+      "t": 366.2,
+      "total_mb": 4374.2
+    },
+    {
+      "jvm_mb": 3175.5,
+      "python_workers_mb": 1137.8,
+      "t": 373.2,
+      "total_mb": 4375.7
+    },
+    {
+      "jvm_mb": 3177.2,
+      "python_workers_mb": 1137.9,
+      "t": 380.0,
+      "total_mb": 4377.5
+    },
+    {
+      "jvm_mb": 3178.8,
+      "python_workers_mb": 1137.9,
+      "t": 386.9,
+      "total_mb": 4379.2
+    },
+    {
+      "jvm_mb": 3180.2,
+      "python_workers_mb": 1137.9,
+      "t": 393.8,
+      "total_mb": 4380.6
+    },
+    {
+      "jvm_mb": 3180.9,
+      "python_workers_mb": 1137.9,
+      "t": 400.4,
+      "total_mb": 4381.2
+    },
+    {
+      "jvm_mb": 3181.6,
+      "python_workers_mb": 1137.9,
+      "t": 407.3,
+      "total_mb": 4382.0
+    },
+    {
+      "jvm_mb": 3227.2,
+      "python_workers_mb": 1137.9,
+      "t": 414.0,
+      "total_mb": 4427.6
+    },
+    {
+      "jvm_mb": 3526.5,
+      "python_workers_mb": 1137.7,
+      "t": 420.5,
+      "total_mb": 4726.3
+    },
+    {
+      "jvm_mb": 2906.1,
+      "python_workers_mb": 1745.7,
+      "t": 426.8,
+      "total_mb": 4716.1
+    },
+    {
+      "jvm_mb": 566.6,
+      "python_workers_mb": 3514.5,
+      "t": 432.7,
+      "total_mb": 4142.8
+    }
+  ],
+  "timestamp": "2026-11-22T21:53:07+00:00"
+}
