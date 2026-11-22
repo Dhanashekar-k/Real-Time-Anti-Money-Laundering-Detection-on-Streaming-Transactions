@@ -24,13 +24,33 @@ from pyspark.sql import functions as F
 from features import money
 
 ROOT = Path(__file__).resolve().parents[2]
-WAREHOUSE = ROOT / "var" / "warehouse"  # the compose stack mounts this at the same path
+
+# All big data lives under one root, on the external SSD (D37): raw files, the Iceberg warehouse and
+# Spark's spill space. The Makefile exports the same default, so `make` and a bare `pytest` agree.
+DEFAULT_DATA_ROOT = "/Volumes/Shekar_ssd/project_2"
+DATA_ROOT = Path(os.environ.get("AML_DATA_ROOT") or DEFAULT_DATA_ROOT)
+RAW_DIR = DATA_ROOT / "raw"
+WAREHOUSE = DATA_ROOT / "warehouse"
+SPILL_DIR = DATA_ROOT / "spill"
 PG = "localhost:5432/iceberg_catalog"
 PG_PASSWORD = os.environ.get("AML_PG_PASSWORD", "postgres")
 
 # Pinned in docs/decisions.md (D-versions). iceberg-spark-runtime-3.5_2.12 = Spark 3.5 / Scala 2.12.
 ICEBERG_PKG = "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.12.0"
 POSTGRES_JDBC_PKG = "org.postgresql:postgresql:42.7.14"
+
+
+class DataRootMissing(RuntimeError):
+    """The big-data root (the external SSD) is not there."""
+
+
+def require_data_root() -> Path:
+    """Fail fast, with a clear message, if the SSD is not mounted. Nothing is created on the way."""
+    if not DATA_ROOT.is_dir():
+        raise DataRootMissing(
+            f"SSD not mounted at {DATA_ROOT} (set AML_DATA_ROOT to use another location)"
+        )
+    return DATA_ROOT
 
 
 def pyiceberg_uri() -> str:
@@ -43,10 +63,12 @@ def get_spark(
     """Local Spark, UTC, with the Iceberg JDBC catalog `lake` (compose Postgres) unless disabled.
 
     `AML_SPARK_DRIVER_MEMORY` (default 4g) must be set before the first session: HI-Medium wants
-    8g to 12g. Scratch space goes to var/spark-tmp (gitignored), not /tmp.
+    8g to 12g. Spill space goes to $AML_DATA_ROOT/spill (the SSD), not /tmp. Raises
+    `DataRootMissing` if the SSD is not mounted.
     """
     os.environ["PYSPARK_PYTHON"] = sys.executable
-    scratch = ROOT / "var" / "spark-tmp"
+    require_data_root()
+    scratch = SPILL_DIR
     scratch.mkdir(parents=True, exist_ok=True)
     builder = (
         SparkSession.builder.appName(app_name)

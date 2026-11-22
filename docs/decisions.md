@@ -142,6 +142,14 @@ Accepted (M0, the user's choice on 2026-11-21; the `stream-aml` CLI profile was 
 - **Not verified yet:** availability of those types in the chosen availability zones, and that Glue 5.1 and EKS are available in us-east-2. Check before M9. IAM and Budgets are global, so the bootstrap is unaffected.
 - **Consequence:** the state bucket will be created in us-east-2. Any later move of region means a new bucket and a state migration.
 
+## D37 — Big data lives on the external SSD (`AML_DATA_ROOT`)
+Accepted (M1, the user's choice on 2026-11-22): the Mac is 95% full, so raw data, the Iceberg warehouse and Spark's spill space go to an external SSD.
+- **Paths:** `AML_DATA_ROOT=/Volumes/Shekar_ssd/project_2`; raw files in `$AML_DATA_ROOT/raw`, the Iceberg warehouse in `$AML_DATA_ROOT/warehouse` (replaces `var/warehouse`), `spark.local.dir` in `$AML_DATA_ROOT/spill` (replaces `var/spark-tmp`). The Makefile exports the default (`?=`, so an environment value wins); `batch/spark/common.py` has the same default for a bare `pytest`. `data/checksums.txt` stays in the repo.
+- **Fail fast:** `make fx | iceberg | split` (and `eda` once it exists) stop with `SSD not mounted at <path>` before starting anything; so does `common.get_spark()` and the batch CLIs. `make up` does not check the SSD: the compose stack starts without it.
+- **Not changed (yet):** the compose Flink mount still points at `var/warehouse`. It only matters when Flink reads Iceberg (M3/M4); then the warehouse must be mounted at the same absolute path (Iceberg stores absolute paths), which means adding `/Volumes` to Docker's file sharing. `tests/integration/test_lake_smoke.py` keeps its own `var/warehouse`, so it runs without the SSD. Every other batch test writes to the SSD warehouse and fails with the message above if it is missing.
+- **Consequences / risks:** the volume is exFAT. The JDBC catalog keeps its metadata pointer in Postgres, so Iceberg needs no atomic rename on the file system (a Hadoop catalog would). exFAT has no symlinks or hard links, which neither Spark's local mode nor Iceberg uses. Files written from macOS may get `._*` AppleDouble companions. The warehouse is only on this SSD: unplugging it while a job runs fails the job; the catalog rows in Postgres would then point at files that are not there until it is back.
+- **Data on disk (2026-11-22):** the Kaggle download was one `archive.zip` holding all 18 files (HI/LI x Small/Medium/Large), not separate HI-Small zips. Only `HI-Small_Trans.csv` and `HI-Small_Patterns.txt` are extracted; the zip is kept because it also holds HI-Medium (step 10). SHA-256 and line counts are in `data/checksums.txt`.
+
 ## D-versions — Pinned versions
 Observed on 2026-11-21 during M0 (arm64 Mac, Docker Desktop engine 29.4.1). Python packages are exact in `uv.lock`; image tags are in `infra/compose/docker-compose.yml`. "TBD" = not installed or not checked yet, with the milestone that will.
 

@@ -230,7 +230,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--trans", type=Path, help="override the transactions CSV path")
     parser.add_argument("--results-dir", type=Path, default=ROOT / "results" / "M01")
     args = parser.parse_args(argv)
-    trans = args.trans or ROOT / "data" / "raw" / DATASET_FILES[args.ds][0]
+    common.require_data_root()
+    trans = args.trans or common.RAW_DIR / DATASET_FILES[args.ds][0]
     fx = money.load_fx()  # fails until features/fx_rates.yaml is frozen (M01 step 6)
     spark = common.get_spark(f"csv-to-iceberg-{args.ds}")
     try:

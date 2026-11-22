@@ -199,7 +199,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--patterns", type=Path, help="override the patterns file path")
     parser.add_argument("--results-dir", type=Path, default=ROOT / "results" / "M01")
     args = parser.parse_args(argv)
-    path = args.patterns or ROOT / "data" / "raw" / csv_to_iceberg.DATASET_FILES[args.ds][1]
+    common.require_data_root()
+    path = args.patterns or common.RAW_DIR / csv_to_iceberg.DATASET_FILES[args.ds][1]
     spark = common.get_spark(f"patterns-{args.ds}")
     try:
         summary = build_patterns(

@@ -177,7 +177,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--trans", type=Path)
     parser.add_argument("--results-dir", type=Path, default=ROOT / "results" / "M01")
     args = parser.parse_args(argv)
-    trans = args.trans or ROOT / "data" / "raw" / csv_to_iceberg.DATASET_FILES[args.ds][0]
+    common.require_data_root()
+    trans = args.trans or common.RAW_DIR / csv_to_iceberg.DATASET_FILES[args.ds][0]
     spark = common.get_spark(f"fx-{args.ds}", catalog=False)
     try:
         doc = analyze(spark, ds=args.ds, trans_path=trans, results_dir=args.results_dir)

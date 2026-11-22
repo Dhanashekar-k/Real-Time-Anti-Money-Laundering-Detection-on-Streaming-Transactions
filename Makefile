@@ -4,6 +4,12 @@
 AML_ROOT := $(CURDIR)
 export AML_ROOT
 
+# Big data (raw files, Iceberg warehouse, Spark spill) lives on the external SSD (D37). Targets that
+# touch it call $(ssd_check); `make up` does not, so the compose stack starts without the SSD.
+AML_DATA_ROOT ?= /Volumes/Shekar_ssd/project_2
+export AML_DATA_ROOT
+ssd_check = @test -d "$(AML_DATA_ROOT)" || { echo "SSD not mounted at $(AML_DATA_ROOT)" >&2; exit 2; }
+
 COMPOSE      := docker compose -f infra/compose/docker-compose.yml
 PROFILES_UP  := --profile core --profile stream --profile ml
 PROFILES_ALL := $(PROFILES_UP) --profile orchestration --profile obs
@@ -95,21 +101,24 @@ topics: ## create Kafka topics (idempotent; fails on drift; needs `make up`)
 	@bash infra/compose/topics.sh
 
 # ------------------------------------------------------------------ data in Iceberg (M01)
-# DS is hi_small | hi_medium. Needs the raw files in data/raw/ and `make up` (the Iceberg catalog is
+# DS is hi_small | hi_medium. Needs the raw files in $(AML_DATA_ROOT)/raw and `make up` (the Iceberg catalog is
 # in the compose Postgres). HI-Medium wants a bigger driver: AML_SPARK_DRIVER_MEMORY=10g make iceberg ...
 require_ds = $(if $(DS),,$(error DS is required, e.g. make $@ DS=hi_small))
 
 fx: ## measure implied FX rates per currency pair (writes results/M01/<ds>/fx_variance.json only)
 	$(require_ds)
+	$(ssd_check)
 	uv run python -m batch.spark.fx --ds $(DS)
 
 iceberg: ## CSV + patterns -> Iceberg tables aml_<ds>.raw_transactions / .patterns (needs the frozen FX table)
 	$(require_ds)
+	$(ssd_check)
 	uv run python -m batch.spark.csv_to_iceberg --ds $(DS)
 	uv run python -m batch.spark.patterns --ds $(DS)
 
 split: ## recompute the 60/20/20 temporal split from the table and write split.json
 	$(require_ds)
+	$(ssd_check)
 	uv run python -m batch.spark.split --ds $(DS)
 
 # --------------------------------------------------------------------- later milestones

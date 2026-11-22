@@ -1,0 +1,7 @@
+# SHA-256 and line counts of the raw IBM files (Kaggle archive.zip, extracted 2026-11-22). The files live on the SSD at $AML_DATA_ROOT/raw (D37).
+b19d39f515523373f991b689c07e11e7b0b95c17a2c27a87d91584ae16c5b040  HI-Small_Trans.csv
+2c546b5ce6009e73851f0139af053cf845f08bf92f3bc82fe1eb937dec2ef39b  HI-Small_Patterns.txt
+# wc -l (newline count; the CSV has 1 header line)
+ 5078346 HI-Small_Trans.csv
+    4319 HI-Small_Patterns.txt
+ 5082665 total
