@@ -41,6 +41,7 @@ Pipeline: replayer → two simulated banks (different formats) → config-driven
 ## Data and naming conventions
 - Datasets: `hi_small`, `hi_medium`, `hi_large`. Iceberg namespace `aml_<ds>`; catalog name `lake`.
 - `tx_id` = `seq` from M1 (stable sort by timestamp, then source row). Total order is `(event_ts_ms, tx_id)`.
+- Big data (raw CSVs, Iceberg warehouse, Spark spill) lives under `$AML_DATA_ROOT` (the external SSD, D37); targets that touch it fail fast if it is not mounted. `data/checksums.txt` stays in the repo.
 - Accounts: `<bank_id>:<account_id>`. Time: `event_ts_ms` (epoch millis, UTC). Money: int64 minor units + int64 USD cents, via `features/money.py` (Decimal, ROUND_HALF_EVEN). No floats for money.
 - Topics: `bank_a.raw`, `bank_b.raw`, `bank_c.raw`, `tx.canonical`, `tx.dlq`, `tx.late`, `tx.features`, `tx.scores`.
 - Results: `results/Mxx/<ds>/*.json`. Every script that measures something writes JSON there, including the git SHA, dataset, config and timestamp.
@@ -51,7 +52,7 @@ make up | up-all | down | ps | logs S=<svc> | rebuild   # local stack (compose p
 make fmt | lint | tf-check | test | itest | test-rls    # quality; itest and test-rls need `make up`; tf-check = terraform fmt + validate
 make topics                                          # create Kafka topics (idempotent; exits 1 on drift); needs `make up`
 make help                                            # list the implemented targets. Targets for later milestones are stubs that exit 1
-make iceberg DS=hi_small | eda DS= | split DS=       # M1
+make fx DS= | fx-freeze DS= | iceberg DS=hi_small | eda DS= | split DS=   # M1 (fx = measure FX variance, fx-freeze = write fx_rates.yaml after review)
 make golden | features DS= | rules DS= | train DS= | eval DS= FINAL=1   # M2
 make replay DS= SPEEDUP= | connectors | onboard-check BANK= SAMPLE=      # M3
 make flink-build | flink-deploy MODE=eos|alo CKPT=5s | flink-stop | parity DS= | restart-test   # M4
