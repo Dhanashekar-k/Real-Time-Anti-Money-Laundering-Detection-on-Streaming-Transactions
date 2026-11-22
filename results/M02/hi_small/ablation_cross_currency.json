@@ -1,0 +1,98 @@
+{
+  "dataset": "hi_small",
+  "git_dirty": false,
+  "git_sha": "eaf2fc2bb8081e56b19929dcb98ede4a0c110bb1",
+  "groups": {
+    "all_features": {
+      "delta_val_pr_auc_vs_all_features": 0.0,
+      "features_dropped": [],
+      "features_used": 85,
+      "seconds": 192.7,
+      "val_pr_auc_by_seed": [
+        0.6046409300258362,
+        0.6137004400317873,
+        0.6222671134078644,
+        0.5973278051895465,
+        0.5928665941276671
+      ],
+      "val_pr_auc_mean_std": [
+        0.6061605765565403,
+        0.011972126116395138
+      ],
+      "val_roc_auc_mean_std": [
+        0.9822340769148417,
+        0.002630240810434852
+      ]
+    },
+    "without_cross_currency_flag_family": {
+      "delta_val_pr_auc_vs_all_features": 0.007299289628736605,
+      "features_dropped": [
+        "is_cross_currency",
+        "s_cross_currency_share_1h",
+        "s_cross_currency_share_24h",
+        "s_cross_currency_share_72h",
+        "r_cross_currency_share_1h",
+        "r_cross_currency_share_24h",
+        "r_cross_currency_share_72h"
+      ],
+      "features_used": 78,
+      "seconds": 210.1,
+      "val_pr_auc_by_seed": [
+        0.6082808992368989,
+        0.6155413162541112,
+        0.6183131941409021,
+        0.6122333984182479,
+        0.6129305228762245
+      ],
+      "val_pr_auc_mean_std": [
+        0.6134598661852769,
+        0.0037581030057961284
+      ],
+      "val_roc_auc_mean_std": [
+        0.9839861052089283,
+        0.0003690348979151956
+      ]
+    },
+    "without_flag_family_and_currency_codes": {
+      "delta_val_pr_auc_vs_all_features": -0.004396139013449818,
+      "features_dropped": [
+        "is_cross_currency",
+        "payment_currency_code",
+        "receiving_currency_code",
+        "s_cross_currency_share_1h",
+        "s_cross_currency_share_24h",
+        "s_cross_currency_share_72h",
+        "r_cross_currency_share_1h",
+        "r_cross_currency_share_24h",
+        "r_cross_currency_share_72h"
+      ],
+      "features_used": 76,
+      "seconds": 194.9,
+      "val_pr_auc_by_seed": [
+        0.6108099931090688,
+        0.6064007966210667,
+        0.5763583481891293,
+        0.6090718878341922,
+        0.6061811619619956
+      ],
+      "val_pr_auc_mean_std": [
+        0.6017644375430905,
+        0.01433259887117534
+      ],
+      "val_roc_auc_mean_std": [
+        0.983262353547015,
+        0.003099390176828956
+      ]
+    }
+  },
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "status": "exploratory; validation only; selects nothing; no test row read",
+  "timestamp": "2026-11-22T21:45:01+00:00",
+  "variant": "unweighted"
+}
