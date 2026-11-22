@@ -38,7 +38,7 @@ def _ratio(numerator: Decimal, denominator: Decimal) -> str | None:
 def analyze(spark: SparkSession, *, ds: str, trans_path: Path, results_dir: Path) -> dict[str, Any]:
     raw = csv_to_iceberg.read_transactions(spark, trans_path)
     currency_names, _ = csv_to_iceberg.value_maps()
-    lookup = csv_to_iceberg._lookup  # noqa: SLF001 - same mapping code as the ingest
+    lookup = csv_to_iceberg.lookup  # same mapping code as the ingest
     rows = raw.select(
         lookup(F.col("raw_payment_currency"), currency_names).alias("paid_ccy"),
         lookup(F.col("raw_receiving_currency"), currency_names).alias("recv_ccy"),

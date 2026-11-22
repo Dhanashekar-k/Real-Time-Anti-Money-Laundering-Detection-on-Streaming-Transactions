@@ -56,7 +56,7 @@ def value_maps() -> tuple[dict[str, str], dict[str, str]]:
     return doc["value_maps"]["currency_names"], doc["value_maps"]["format_names"]
 
 
-def _lookup(column: Column, mapping: Mapping[str, str]) -> Column:
+def lookup(column: Column, mapping: Mapping[str, str]) -> Column:
     pairs = [F.lit(x) for kv in mapping.items() for x in kv]
     return F.create_map(*pairs)[column]
 
@@ -93,8 +93,8 @@ def build_typed(raw: DataFrame, fx: Mapping[str, Decimal | str]) -> DataFrame:
     event_ts_s = F.unix_timestamp(F.col("raw_ts_raw"), _TS_FORMAT)
     paid = F.col("raw_amount_paid").cast("decimal(38,18)")
     received = F.col("raw_amount_received").cast("decimal(38,18)")
-    paid_ccy = _lookup(F.col("raw_payment_currency"), currency_names)
-    recv_ccy = _lookup(F.col("raw_receiving_currency"), currency_names)
+    paid_ccy = lookup(F.col("raw_payment_currency"), currency_names)
+    recv_ccy = lookup(F.col("raw_receiving_currency"), currency_names)
     paid_minor = common.to_minor_col(paid, paid_ccy)
     recv_minor = common.to_minor_col(received, recv_ccy)
     return raw.select(
@@ -113,7 +113,7 @@ def build_typed(raw: DataFrame, fx: Mapping[str, Decimal | str]) -> DataFrame:
         recv_ccy.alias("receiving_currency"),
         common.usd_cents_col(paid_minor, paid_ccy, fx).alias("amount_paid_usd_cents"),
         common.usd_cents_col(recv_minor, recv_ccy, fx).alias("amount_received_usd_cents"),
-        _lookup(F.col("raw_payment_format"), format_names).alias("payment_format"),
+        lookup(F.col("raw_payment_format"), format_names).alias("payment_format"),
         common.owner_bank_id_col(F.col("raw_from_bank")).alias("owner_bank_id"),
         F.col("raw_is_laundering").cast("int").alias("is_laundering"),
     )

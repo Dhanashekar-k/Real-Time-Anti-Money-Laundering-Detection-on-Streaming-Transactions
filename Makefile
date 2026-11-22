@@ -120,13 +120,17 @@ iceberg: ## CSV + patterns -> Iceberg tables aml_<ds>.raw_transactions / .patter
 	uv run python -m batch.spark.csv_to_iceberg --ds $(DS)
 	uv run python -m batch.spark.patterns --ds $(DS)
 
+eda: ## EDA -> results/M01/<ds>/eda.json and docs/eda_<ds>.md (needs make up and the SSD)
+	$(require_ds)
+	$(ssd_check)
+	uv run python -m batch.spark.eda --ds $(DS)
+
 split: ## recompute the 60/20/20 temporal split from the table and write split.json
 	$(require_ds)
 	$(ssd_check)
 	uv run python -m batch.spark.split --ds $(DS)
 
 # --------------------------------------------------------------------- later milestones
-eda: ; $(call stub,M1)
 golden features rules train eval: ; $(call stub,M2)
 replay connectors onboard-check: ; $(call stub,M3)
 flink-build flink-deploy flink-stop parity restart-test: ; $(call stub,M4)
