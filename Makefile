@@ -14,7 +14,7 @@ stub = @echo "make $@: not implemented yet (added in $(1))" >&2; exit 1
 .DEFAULT_GOAL := help
 
 .PHONY: help up up-all rebuild down ps logs nuke-local dirs bootstrap fmt lint tf-check test itest test-rls topics \
-	iceberg eda split golden features rules train eval replay connectors onboard-check \
+	iceberg fx eda split golden features rules train eval replay connectors onboard-check \
 	flink-build flink-deploy flink-stop parity restart-test apps latency-matrix seed-thresholds \
 	agent agent-eval api ui retrain airflow chaos reconcile drift-experiment results demo \
 	teardown-check cloud-bootstrap cloud-up cloud-images cloud-deploy cloud-glue-run cloud-replay \
@@ -94,8 +94,26 @@ test-rls: ## tenant-isolation tests on a throwaway database (need `make up`)
 topics: ## create Kafka topics (idempotent; fails on drift; needs `make up`)
 	@bash infra/compose/topics.sh
 
+# ------------------------------------------------------------------ data in Iceberg (M01)
+# DS is hi_small | hi_medium. Needs the raw files in data/raw/ and `make up` (the Iceberg catalog is
+# in the compose Postgres). HI-Medium wants a bigger driver: AML_SPARK_DRIVER_MEMORY=10g make iceberg ...
+require_ds = $(if $(DS),,$(error DS is required, e.g. make $@ DS=hi_small))
+
+fx: ## measure implied FX rates per currency pair (writes results/M01/<ds>/fx_variance.json only)
+	$(require_ds)
+	uv run python -m batch.spark.fx --ds $(DS)
+
+iceberg: ## CSV + patterns -> Iceberg tables aml_<ds>.raw_transactions / .patterns (needs the frozen FX table)
+	$(require_ds)
+	uv run python -m batch.spark.csv_to_iceberg --ds $(DS)
+	uv run python -m batch.spark.patterns --ds $(DS)
+
+split: ## recompute the 60/20/20 temporal split from the table and write split.json
+	$(require_ds)
+	uv run python -m batch.spark.split --ds $(DS)
+
 # --------------------------------------------------------------------- later milestones
-iceberg eda split: ; $(call stub,M1)
+eda: ; $(call stub,M1)
 golden features rules train eval: ; $(call stub,M2)
 replay connectors onboard-check: ; $(call stub,M3)
 flink-build flink-deploy flink-stop parity restart-test: ; $(call stub,M4)

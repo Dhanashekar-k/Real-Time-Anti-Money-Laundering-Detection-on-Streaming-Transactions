@@ -96,6 +96,12 @@ def minor_to_usd_cents(
 
 def load_fx(path: Path = FX_PATH) -> dict[str, Decimal]:
     """Read the frozen FX table. Rates must be quoted decimal strings (YAML floats lose digits)."""
+    if not Path(path).exists():
+        raise FileNotFoundError(
+            f"{path} does not exist. The FX table is frozen in M01 after a person reviews the "
+            "variance table: run `make fx DS=hi_small`, review results/M01/hi_small/"
+            "fx_variance.json, then freeze it."
+        )
     doc = yaml.safe_load(Path(path).read_text())
     if doc.get("fx_version") != FX_VERSION_REQUIRED:
         raise ValueError(

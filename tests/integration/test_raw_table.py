@@ -212,3 +212,26 @@ def test_split_boundaries_and_counts_on_the_fixture(result: dict) -> None:
     assert result["summary"]["split_counts"] == {"train": 9, "val": 3, "test": 4}
     by_tx = {r["tx_id"]: r["split"] for r in result["rows"]}
     assert [by_tx[i] for i in range(16)] == ["train"] * 9 + ["val"] * 3 + ["test"] * 4
+
+
+def test_split_json_is_recomputed_from_the_table_and_agrees(result: dict) -> None:
+    from batch.spark import split as split_module
+
+    doc = split_module.write_split_json(
+        result["spark"], ds="mini", namespace=NAMESPACE, results_dir=result["results_dir"]
+    )
+    assert doc["rows"] == 16
+    assert doc["boundary_indexes"] == {"t1": 9, "t2": 12}
+    assert doc["t1_ms"] == _ts_ms("2022/09/01 12:30")
+    assert doc["t2_utc"] == "2022-09-02T09:00:00+00:00"
+    assert doc["stored_split_mismatches"] == 0
+    assert doc["rows_differing_from_pure_index_split"] == 0
+    assert {k: v["rows"] for k, v in doc["splits"].items()} == {"train": 9, "val": 3, "test": 4}
+    # laundering rows by split, worked out by hand: tx 1, 3, 6, 7 in train; tx 11 in val
+    assert {k: v["laundering"] for k, v in doc["splits"].items()} == {
+        "train": 4,
+        "val": 1,
+        "test": 0,
+    }
+    on_disk = json.loads((result["results_dir"] / "mini" / "split.json").read_text())
+    assert on_disk["git_sha"] and on_disk["dataset"] == "mini"

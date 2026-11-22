@@ -172,6 +172,11 @@ def test_load_fx_accepts_a_complete_table(tmp_path: Path) -> None:
     assert all(isinstance(v, Decimal) for v in fx.values())
 
 
+def test_load_fx_explains_a_missing_file(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError, match="make fx"):
+        money.load_fx(tmp_path / "nope.yaml")
+
+
 def test_load_fx_rejects_a_wrong_version(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="fx_version"):
         money.load_fx(_write_fx(tmp_path, _full_table(version=2)))
