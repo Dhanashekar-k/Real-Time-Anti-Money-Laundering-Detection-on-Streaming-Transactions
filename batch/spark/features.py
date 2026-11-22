@@ -165,6 +165,26 @@ def _tx_names(spec: Spec) -> list[str]:
     return [n for t in spec.tx_features for n in expand.expand_template(t, spec)]
 
 
+def raw_frame_from_rows(spark: SparkSession, rows: list[dict[str, Any]]) -> DataFrame:
+    """A frame with the `RAW_COLUMNS` of the raw table from plain dicts (tests and slices)."""
+    fields = [
+        ("tx_id", "long"),
+        ("event_ts_ms", "long"),
+        ("sender_bank", "string"),
+        ("sender_key", "string"),
+        ("receiver_bank", "string"),
+        ("receiver_key", "string"),
+        ("amount_paid_usd_cents", "long"),
+        ("amount_received_usd_cents", "long"),
+        ("payment_currency", "string"),
+        ("receiving_currency", "string"),
+        ("payment_format", "string"),
+    ]
+    schema = ", ".join(f"{n} {t}" for n, t in fields)
+    df = spark.createDataFrame([tuple(r[n] for n, _ in fields) for r in rows], schema)
+    return df.withColumn("owner_bank_id", common.owner_bank_id_col(F.col("sender_bank")))
+
+
 # --- the job --------------------------------------------------------------------------------
 
 

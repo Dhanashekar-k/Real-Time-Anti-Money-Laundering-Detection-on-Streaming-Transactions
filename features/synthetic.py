@@ -17,8 +17,16 @@ MIN_MS = 60_000
 T0 = 1662033600000  # 2022-09-01T12:00:00Z
 
 
+GAPS_MINUTES = [0, 0, 0, 1, 2, 5, 30, 60, 90, 600, 1500, 4000, 6000]
+DENSE_GAPS_MINUTES = [0, 0, 0, 1, 2, 3, 5, 8]  # many transactions inside every window
+
+
 def random_transactions(
-    n: int, seed: int = 0, n_accounts: int = 30, self_rate: float = 0.05
+    n: int,
+    seed: int = 0,
+    n_accounts: int = 30,
+    self_rate: float = 0.05,
+    gaps_minutes: list[int] | None = None,
 ) -> list[dict[str, Any]]:
     rnd = random.Random(seed)
     banks = ["001", "002", "010"]
@@ -27,7 +35,7 @@ def random_transactions(
     ts = T0
     out = []
     for tx_id in range(1, n + 1):
-        ts += rnd.choice([0, 0, 0, 1, 2, 5, 30, 60, 90, 600, 1500, 4000, 6000]) * MIN_MS
+        ts += rnd.choice(gaps_minutes or GAPS_MINUTES) * MIN_MS
         sender = rnd.choice(hot) if rnd.random() < 0.4 else rnd.choice(accounts)
         receiver = sender if rnd.random() < self_rate else rnd.choice(accounts)
         pay = rnd.choice(CURRENCIES)

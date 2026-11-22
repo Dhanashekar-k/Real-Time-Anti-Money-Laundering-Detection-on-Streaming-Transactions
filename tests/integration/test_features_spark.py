@@ -34,6 +34,10 @@ def sp():
 
 
 def _raw_frame(spark, rows: list[dict]):
+    return features.raw_frame_from_rows(spark, rows)
+
+
+def _raw_frame_old(spark, rows: list[dict]):
     cols = [
         ("tx_id", "long"),
         ("event_ts_ms", "long"),
