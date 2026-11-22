@@ -662,7 +662,7 @@
       "n_resamples": 1000,
       "seed": 0
     },
-    "model": "aml-xgb v1 (alias champion)",
+    "model": "aml-xgb v3 (alias champion)",
     "primary_operating_point": "per-bank F1-optimal threshold chosen on val",
     "tail_days": [
       19246,
@@ -675,25 +675,24 @@
       19253
     ],
     "test_rows": 1015882,
-    "thresholds_file": "config/thresholds.yaml"
+    "thresholds_file": "config/thresholds_hi_small.yaml"
   },
   "dataset": "hi_small",
   "git_dirty": false,
-  "git_sha": "b28a52e1176abd0215426739f8655c85113c2123",
+  "git_sha": "e4f43d552aa41fefae77d69b2742d0117bd26f72",
   "golden_status": {
-    "provisional": true,
-    "scenarios": 10,
-    "scenarios_with_todo": 10,
-    "todo_values": 171
+    "provisional": false,
+    "scenarios": 11,
+    "scenarios_with_todo": 0,
+    "todo_values": 0
   },
   "headline": [
-    "PROVISIONAL: 171 golden expected values in 10 scenarios are still TODO(human), so `make golden` has not yet checked the features these results were computed from.",
     "T2 vs R5, all test rows: F1(model) - F1(baseline) = +0.5929, paired 95% CI [+0.5714, +0.6141]; meets the 20-point trigger.",
     "T2 vs R5, test without the tail: F1(model) - F1(baseline) = +0.4432, paired 95% CI [+0.4127, +0.4705]; meets the 20-point trigger.",
     "Generator artifact: 0 of 16,160 cross-currency rows in this test split are laundering. Every laundering row is same-currency (D36), so any feature built on the cross-currency flag (is_cross_currency and the s_/r_ cross_currency_share_* features) can separate the classes here for a reason that is a property of the generator. It says nothing about real laundering, and a high importance for those features must not be read as a finding.",
     "Sparse tail: 1,108 rows (655 laundering) of 1,015,882 test rows, a generator artifact, not a temporal trend (D36). Every metric is given with and without it."
   ],
-  "provisional": true,
+  "provisional": false,
   "t2": {
     "all_test": {
       "ci": [
@@ -744,5 +743,5 @@
       "B": 0.2724377512931824
     }
   },
-  "timestamp": "2026-11-22T21:45:25+00:00"
+  "timestamp": "2026-11-22T23:12:26+00:00"
 }
