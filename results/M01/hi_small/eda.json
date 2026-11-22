@@ -1,0 +1,679 @@
+{
+  "accounts": {
+    "distinct": 515088,
+    "distinct_receivers": 420640,
+    "distinct_senders": 496999,
+    "legs_per_account": {
+      "max": 169756,
+      "p50": 6,
+      "p90": 51,
+      "p99": 119,
+      "p99.9": 191
+    },
+    "max_entries_in_retention_window": {
+      "account": "070:100428660",
+      "max": 60403,
+      "window_ms": 259200000
+    },
+    "tx_per_account": {
+      "max": 169756,
+      "max_account": "070:100428660",
+      "p50": 4,
+      "p90": 50,
+      "p99": 115,
+      "p99.9": 180,
+      "percentile_method": "nearest rank",
+      "top": [
+        {
+          "account": "070:100428660",
+          "legs": 169756,
+          "tx": 169756
+        },
+        {
+          "account": "070:1004286A8",
+          "legs": 103671,
+          "tx": 103671
+        },
+        {
+          "account": "070:100428978",
+          "legs": 20647,
+          "tx": 20647
+        },
+        {
+          "account": "070:1004286F0",
+          "legs": 18771,
+          "tx": 18771
+        },
+        {
+          "account": "070:100428780",
+          "legs": 17381,
+          "tx": 17381
+        }
+      ]
+    }
+  },
+  "amounts": {
+    "max_paid_usd_cents": 2655861297075,
+    "max_received_usd_cents": 2655861297075,
+    "zero_paid_minor_by_currency": {
+      "JPY": 1064
+    },
+    "zero_received_minor_by_currency": {
+      "JPY": 1065
+    }
+  },
+  "by_payment_currency": [
+    {
+      "key": "USD",
+      "laundering": 1912,
+      "laundering_rate": 0.0010088794051410638,
+      "rows": 1895172
+    },
+    {
+      "key": "EUR",
+      "laundering": 1372,
+      "laundering_rate": 0.0011743589172958588,
+      "rows": 1168297
+    },
+    {
+      "key": "CHF",
+      "laundering": 193,
+      "laundering_rate": 0.0008217661585625479,
+      "rows": 234860
+    },
+    {
+      "key": "CNY",
+      "laundering": 184,
+      "laundering_rate": 0.0008608106590815524,
+      "rows": 213752
+    },
+    {
+      "key": "ILS",
+      "laundering": 95,
+      "laundering_rate": 0.0004943179453024186,
+      "rows": 192184
+    },
+    {
+      "key": "INR",
+      "laundering": 167,
+      "laundering_rate": 0.0008780139010105047,
+      "rows": 190202
+    },
+    {
+      "key": "GBP",
+      "laundering": 132,
+      "laundering_rate": 0.0007303389436643096,
+      "rows": 180738
+    },
+    {
+      "key": "JPY",
+      "laundering": 155,
+      "laundering_rate": 0.0009986534286027227,
+      "rows": 155209
+    },
+    {
+      "key": "RUB",
+      "laundering": 133,
+      "laundering_rate": 0.0008570802562218871,
+      "rows": 155178
+    },
+    {
+      "key": "BTC",
+      "laundering": 56,
+      "laundering_rate": 0.000383388331302288,
+      "rows": 146066
+    },
+    {
+      "key": "CAD",
+      "laundering": 128,
+      "laundering_rate": 0.0009140115108324646,
+      "rows": 140042
+    },
+    {
+      "key": "AUD",
+      "laundering": 127,
+      "laundering_rate": 0.0009285729953425119,
+      "rows": 136769
+    },
+    {
+      "key": "MXN",
+      "laundering": 92,
+      "laundering_rate": 0.0008351564556686245,
+      "rows": 110159
+    },
+    {
+      "key": "SAR",
+      "laundering": 374,
+      "laundering_rate": 0.004201586267328735,
+      "rows": 89014
+    },
+    {
+      "key": "BRL",
+      "laundering": 57,
+      "laundering_rate": 0.0008061892706108652,
+      "rows": 70703
+    }
+  ],
+  "by_payment_format": [
+    {
+      "key": "CHEQUE",
+      "laundering": 324,
+      "laundering_rate": 0.00017378888190991835,
+      "rows": 1864331
+    },
+    {
+      "key": "CREDIT_CARD",
+      "laundering": 206,
+      "laundering_rate": 0.0001556686042118181,
+      "rows": 1323324
+    },
+    {
+      "key": "ACH",
+      "laundering": 4483,
+      "laundering_rate": 0.007461754968816422,
+      "rows": 600797
+    },
+    {
+      "key": "CASH",
+      "laundering": 108,
+      "laundering_rate": 0.0002200081077061914,
+      "rows": 490891
+    },
+    {
+      "key": "REINVESTMENT",
+      "laundering": 0,
+      "laundering_rate": 0.0,
+      "rows": 481056
+    },
+    {
+      "key": "WIRE",
+      "laundering": 0,
+      "laundering_rate": 0.0,
+      "rows": 171855
+    },
+    {
+      "key": "BITCOIN",
+      "laundering": 56,
+      "laundering_rate": 0.0003833227235079505,
+      "rows": 146091
+    }
+  ],
+  "by_receiving_currency": [
+    {
+      "key": "USD",
+      "laundering": 1912,
+      "laundering_rate": 0.0010173779000192088,
+      "rows": 1879341
+    },
+    {
+      "key": "EUR",
+      "laundering": 1372,
+      "laundering_rate": 0.0011706314840143103,
+      "rows": 1172017
+    },
+    {
+      "key": "CHF",
+      "laundering": 193,
+      "laundering_rate": 0.0008113198029291587,
+      "rows": 237884
+    },
+    {
+      "key": "CNY",
+      "laundering": 184,
+      "laundering_rate": 0.0008908211531292513,
+      "rows": 206551
+    },
+    {
+      "key": "ILS",
+      "laundering": 95,
+      "laundering_rate": 0.00048720946930067493,
+      "rows": 194988
+    },
+    {
+      "key": "INR",
+      "laundering": 167,
+      "laundering_rate": 0.0008694973055996668,
+      "rows": 192065
+    },
+    {
+      "key": "GBP",
+      "laundering": 132,
+      "laundering_rate": 0.0007282557722545585,
+      "rows": 181255
+    },
+    {
+      "key": "RUB",
+      "laundering": 133,
+      "laundering_rate": 0.0008451903584750987,
+      "rows": 157361
+    },
+    {
+      "key": "JPY",
+      "laundering": 155,
+      "laundering_rate": 0.0009915621261650854,
+      "rows": 156319
+    },
+    {
+      "key": "BTC",
+      "laundering": 56,
+      "laundering_rate": 0.0003779927236400699,
+      "rows": 148151
+    },
+    {
+      "key": "CAD",
+      "laundering": 128,
+      "laundering_rate": 0.0009055087473559852,
+      "rows": 141357
+    },
+    {
+      "key": "AUD",
+      "laundering": 127,
+      "laundering_rate": 0.0009168946870645653,
+      "rows": 138511
+    },
+    {
+      "key": "MXN",
+      "laundering": 92,
+      "laundering_rate": 0.0008286048815635414,
+      "rows": 111030
+    },
+    {
+      "key": "SAR",
+      "laundering": 374,
+      "laundering_rate": 0.004156894999499839,
+      "rows": 89971
+    },
+    {
+      "key": "BRL",
+      "laundering": 57,
+      "laundering_rate": 0.0007967125125796713,
+      "rows": 71544
+    }
+  ],
+  "config": {
+    "sparse_fraction": 0.1,
+    "table": "lake.aml_hi_small.raw_transactions",
+    "timezone": "UTC"
+  },
+  "cross_currency": {
+    "false": {
+      "key": false,
+      "laundering": 5177,
+      "laundering_rate": 0.0010341228582700366,
+      "rows": 5006175
+    },
+    "true": {
+      "key": true,
+      "laundering": 0,
+      "laundering_rate": 0.0,
+      "rows": 72170
+    }
+  },
+  "dataset": "hi_small",
+  "git_dirty": true,
+  "git_sha": "83c6680193480f43efe523f6d44ec6837b6ea819",
+  "owner_bank": [
+    {
+      "key": "A",
+      "laundering": 2881,
+      "laundering_rate": 0.001052050768661668,
+      "rows": 2738461,
+      "share": 0.5392428044963468
+    },
+    {
+      "key": "B",
+      "laundering": 2296,
+      "laundering_rate": 0.0009812452241222214,
+      "rows": 2339884,
+      "share": 0.46075719550365324
+    }
+  ],
+  "patterns": {
+    "attempts": 370,
+    "by_type": [
+      {
+        "ambiguous_lines": 0,
+        "attempts": 51,
+        "distinct_laundering_tx": 716,
+        "distinct_tx": 716,
+        "lines": 716,
+        "lines_assigned": 716,
+        "pattern_type": "GATHER-SCATTER"
+      },
+      {
+        "ambiguous_lines": 0,
+        "attempts": 44,
+        "distinct_laundering_tx": 626,
+        "distinct_tx": 626,
+        "lines": 626,
+        "lines_assigned": 626,
+        "pattern_type": "SCATTER-GATHER"
+      },
+      {
+        "ambiguous_lines": 0,
+        "attempts": 43,
+        "distinct_laundering_tx": 466,
+        "distinct_tx": 466,
+        "lines": 466,
+        "lines_assigned": 466,
+        "pattern_type": "STACK"
+      },
+      {
+        "ambiguous_lines": 0,
+        "attempts": 48,
+        "distinct_laundering_tx": 342,
+        "distinct_tx": 342,
+        "lines": 342,
+        "lines_assigned": 342,
+        "pattern_type": "FAN-OUT"
+      },
+      {
+        "ambiguous_lines": 0,
+        "attempts": 40,
+        "distinct_laundering_tx": 318,
+        "distinct_tx": 318,
+        "lines": 318,
+        "lines_assigned": 318,
+        "pattern_type": "FAN-IN"
+      },
+      {
+        "ambiguous_lines": 0,
+        "attempts": 54,
+        "distinct_laundering_tx": 287,
+        "distinct_tx": 287,
+        "lines": 287,
+        "lines_assigned": 287,
+        "pattern_type": "CYCLE"
+      },
+      {
+        "ambiguous_lines": 0,
+        "attempts": 49,
+        "distinct_laundering_tx": 263,
+        "distinct_tx": 263,
+        "lines": 263,
+        "lines_assigned": 263,
+        "pattern_type": "BIPARTITE"
+      },
+      {
+        "ambiguous_lines": 0,
+        "attempts": 41,
+        "distinct_laundering_tx": 191,
+        "distinct_tx": 191,
+        "lines": 191,
+        "lines_assigned": 191,
+        "pattern_type": "RANDOM"
+      }
+    ],
+    "coverage": 0.6198570600734016,
+    "laundering_tx_in_no_pattern": 1968,
+    "laundering_tx_in_some_pattern": 3209,
+    "laundering_tx_total": 5177,
+    "lines": 3209
+  },
+  "per_day": [
+    {
+      "day": "2022-09-01",
+      "first_ts_ms": 1661990400000,
+      "last_ts_ms": 1662076740000,
+      "laundering": 322,
+      "rows": 1114921
+    },
+    {
+      "day": "2022-09-02",
+      "first_ts_ms": 1662076800000,
+      "last_ts_ms": 1662163140000,
+      "laundering": 408,
+      "rows": 754449
+    },
+    {
+      "day": "2022-09-03",
+      "first_ts_ms": 1662163200000,
+      "last_ts_ms": 1662249540000,
+      "laundering": 391,
+      "rows": 207382
+    },
+    {
+      "day": "2022-09-04",
+      "first_ts_ms": 1662249600000,
+      "last_ts_ms": 1662335940000,
+      "laundering": 407,
+      "rows": 207430
+    },
+    {
+      "day": "2022-09-05",
+      "first_ts_ms": 1662336000000,
+      "last_ts_ms": 1662422340000,
+      "laundering": 471,
+      "rows": 482650
+    },
+    {
+      "day": "2022-09-06",
+      "first_ts_ms": 1662422400000,
+      "last_ts_ms": 1662508740000,
+      "laundering": 531,
+      "rows": 482089
+    },
+    {
+      "day": "2022-09-07",
+      "first_ts_ms": 1662508800000,
+      "last_ts_ms": 1662595140000,
+      "laundering": 497,
+      "rows": 482751
+    },
+    {
+      "day": "2022-09-08",
+      "first_ts_ms": 1662595200000,
+      "last_ts_ms": 1662681540000,
+      "laundering": 539,
+      "rows": 482773
+    },
+    {
+      "day": "2022-09-09",
+      "first_ts_ms": 1662681600000,
+      "last_ts_ms": 1662767940000,
+      "laundering": 514,
+      "rows": 654467
+    },
+    {
+      "day": "2022-09-10",
+      "first_ts_ms": 1662768000000,
+      "last_ts_ms": 1662854340000,
+      "laundering": 442,
+      "rows": 208325
+    },
+    {
+      "day": "2022-09-11",
+      "first_ts_ms": 1662854700000,
+      "last_ts_ms": 1662940620000,
+      "laundering": 232,
+      "rows": 396
+    },
+    {
+      "day": "2022-09-12",
+      "first_ts_ms": 1662940860000,
+      "last_ts_ms": 1663026660000,
+      "laundering": 170,
+      "rows": 281
+    },
+    {
+      "day": "2022-09-13",
+      "first_ts_ms": 1663031280000,
+      "last_ts_ms": 1663113540000,
+      "laundering": 106,
+      "rows": 184
+    },
+    {
+      "day": "2022-09-14",
+      "first_ts_ms": 1663115340000,
+      "last_ts_ms": 1663188060000,
+      "laundering": 70,
+      "rows": 121
+    },
+    {
+      "day": "2022-09-15",
+      "first_ts_ms": 1663206240000,
+      "last_ts_ms": 1663285080000,
+      "laundering": 28,
+      "rows": 46
+    },
+    {
+      "day": "2022-09-16",
+      "first_ts_ms": 1663286460000,
+      "last_ts_ms": 1663370040000,
+      "laundering": 26,
+      "rows": 46
+    },
+    {
+      "day": "2022-09-17",
+      "first_ts_ms": 1663372980000,
+      "last_ts_ms": 1663443600000,
+      "laundering": 15,
+      "rows": 23
+    },
+    {
+      "day": "2022-09-18",
+      "first_ts_ms": 1663463880000,
+      "last_ts_ms": 1663517880000,
+      "laundering": 8,
+      "rows": 11
+    }
+  ],
+  "self_transfers": {
+    "by_payment_format": [
+      {
+        "key": "REINVESTMENT",
+        "laundering": 0,
+        "laundering_rate": 0.0,
+        "rows": 481056
+      },
+      {
+        "key": "ACH",
+        "laundering": 11,
+        "laundering_rate": 0.00015417606907087894,
+        "rows": 71347
+      },
+      {
+        "key": "BITCOIN",
+        "laundering": 0,
+        "laundering_rate": 0.0,
+        "rows": 26317
+      },
+      {
+        "key": "CHEQUE",
+        "laundering": 0,
+        "laundering_rate": 0.0,
+        "rows": 6066
+      },
+      {
+        "key": "CREDIT_CARD",
+        "laundering": 0,
+        "laundering_rate": 0.0,
+        "rows": 4176
+      },
+      {
+        "key": "CASH",
+        "laundering": 0,
+        "laundering_rate": 0.0,
+        "rows": 1455
+      },
+      {
+        "key": "WIRE",
+        "laundering": 0,
+        "laundering_rate": 0.0,
+        "rows": 795
+      }
+    ],
+    "laundering": 11,
+    "rows": 591212,
+    "share": 0.11641824255736859
+  },
+  "source_precision": {
+    "paid_over_precision_by_currency": {
+      "JPY": 153129
+    },
+    "received_over_precision_by_currency": {
+      "JPY": 154178
+    }
+  },
+  "sparse_days": {
+    "by_split": [
+      {
+        "key": "test",
+        "laundering": 655,
+        "laundering_rate": 0.5911552346570397,
+        "rows": 1108
+      }
+    ],
+    "fraction": 0.1,
+    "leading": [],
+    "median_rows_per_day": 207406.0,
+    "threshold_rows": 20740.600000000002,
+    "totals": {
+      "leading": {
+        "days": 0,
+        "laundering": 0,
+        "laundering_rate": 0.0,
+        "rows": 0
+      },
+      "trailing": {
+        "days": 8,
+        "laundering": 655,
+        "laundering_rate": 0.5911552346570397,
+        "rows": 1108
+      }
+    },
+    "trailing": [
+      "2022-09-11",
+      "2022-09-12",
+      "2022-09-13",
+      "2022-09-14",
+      "2022-09-15",
+      "2022-09-16",
+      "2022-09-17",
+      "2022-09-18"
+    ]
+  },
+  "timestamp": "2026-11-22T06:53:24+00:00",
+  "totals": {
+    "first_ts_ms": 1661990400000,
+    "last_ts_ms": 1663517880000,
+    "laundering": 5177,
+    "laundering_rate": 0.0010194266045335635,
+    "one_laundering_in": 980.9435966776125,
+    "receiver_banks": 15850,
+    "rows": 5078345,
+    "sender_banks": 30528
+  },
+  "vocabularies": {
+    "currencies_in_spec_not_seen": [],
+    "currencies_not_in_spec": [],
+    "currencies_seen": [
+      "AUD",
+      "BRL",
+      "BTC",
+      "CAD",
+      "CHF",
+      "CNY",
+      "EUR",
+      "GBP",
+      "ILS",
+      "INR",
+      "JPY",
+      "MXN",
+      "RUB",
+      "SAR",
+      "USD"
+    ],
+    "formats_in_spec_not_seen": [],
+    "formats_not_in_spec": [],
+    "formats_seen": [
+      "ACH",
+      "BITCOIN",
+      "CASH",
+      "CHEQUE",
+      "CREDIT_CARD",
+      "REINVESTMENT",
+      "WIRE"
+    ]
+  }
+}
