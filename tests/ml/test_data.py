@@ -300,3 +300,70 @@ def test_read_split_can_ask_for_only_some_features(warehouse: Path) -> None:
     assert list(df.columns) == ["tx_id", "event_ts_ms", "bank", "y", *cols]
     with pytest.raises(ValueError, match="not features"):
         read(warehouse, "val", feature_columns=("nope",))
+
+
+# --- spilling to a file read back in slices (training sets that do not fit in memory) -----------
+
+
+@pytest.mark.parametrize("which", ["warehouse", "shuffled_warehouse"])
+def test_spilled_matrix_is_identical_to_the_in_memory_one(
+    which: str, request, tmp_path: Path
+) -> None:
+    wh = request.getfixturevalue(which)
+    mem = matrix(wh, "train", burn_in=True)
+    spilled = matrix(wh, "train", burn_in=True, spill_to=tmp_path / "x.npy")
+    assert isinstance(
+        spilled.x, data.RowFile
+    )  # not an array: nothing resident but the slice asked for
+    assert (len(spilled.x), spilled.x.shape) == (3, (3, 85))
+    np.testing.assert_array_equal(spilled.x.rows(0, 3), mem.x)
+    assert spilled.meta.equals(mem.meta)
+    for j in (0, 17, 84):
+        np.testing.assert_array_equal(spilled.x[:, j], mem.x[:, j])
+        assert spilled.column(NAMES[j]).tolist() == mem.column(NAMES[j]).tolist()
+
+
+def test_rowfile_slices_blocks_and_bounds(warehouse: Path, tmp_path: Path) -> None:
+    mem = matrix(warehouse, "test", allow_test=True)
+    sp = matrix(warehouse, "test", allow_test=True, spill_to=tmp_path / "t.npy")
+    np.testing.assert_array_equal(sp.x.rows(1, 3), mem.x[1:3])
+    np.testing.assert_array_equal(sp.x.rows(2, 99), mem.x[2:])  # a stop past the end is clipped
+    assert sp.x.rows(3, 3).shape == (0, 85)
+    block = sp.x.take_columns([5, 2, 80])
+    np.testing.assert_array_equal(block, mem.x[:, [5, 2, 80]])
+    with pytest.raises(IndexError):
+        sp.x.rows(-1, 2)
+
+
+def test_spill_works_across_batch_boundaries_and_out_of_order_files(
+    shuffled_warehouse: Path, tmp_path: Path
+) -> None:
+    for batch_rows in (1, 2, 1000):
+        sp = matrix(
+            shuffled_warehouse, "test", allow_test=True, spill_to=tmp_path / f"b{batch_rows}.npy",
+            batch_rows=batch_rows,
+        )  # fmt: skip
+        mem = matrix(shuffled_warehouse, "test", allow_test=True, batch_rows=batch_rows)
+        np.testing.assert_array_equal(sp.x.rows(0, 4), mem.x)
+
+
+def test_spill_file_is_a_valid_npy_that_numpy_can_open(warehouse: Path, tmp_path: Path) -> None:
+    sp = matrix(warehouse, "val", spill_to=tmp_path / "v.npy")
+    np.testing.assert_array_equal(np.load(tmp_path / "v.npy"), sp.x.rows(0, 3))
+
+
+def test_rowfile_closes_its_descriptor(warehouse: Path, tmp_path: Path) -> None:
+    sp = matrix(warehouse, "val", spill_to=tmp_path / "c.npy")
+    sp.x.close()
+    with pytest.raises(ValueError, match="closed"):
+        sp.x.rows(0, 1)
+
+
+def test_rowfile_refuses_files_it_would_misread(tmp_path: Path) -> None:
+    fortran = np.asfortranarray(np.arange(12, dtype="float32").reshape(4, 3))
+    np.save(tmp_path / "f.npy", fortran)  # column-major data: row reads would be garbage
+    with pytest.raises(ValueError, match="C-ordered"):
+        data.RowFile(tmp_path / "f.npy")
+    np.save(tmp_path / "d.npy", np.zeros((4, 3), dtype="float64"))
+    with pytest.raises(ValueError, match="float32"):
+        data.RowFile(tmp_path / "d.npy")

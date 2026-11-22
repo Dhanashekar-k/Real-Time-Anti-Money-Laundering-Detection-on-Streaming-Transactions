@@ -95,3 +95,55 @@ def test_unweighted_variant_sets_no_class_weight() -> None:
     assert train.params_for("weighted", seed=0, scale_pos_weight=99.0)["scale_pos_weight"] == 99.0
     p = train.params_for("weighted", seed=7, scale_pos_weight=1.0)
     assert (p["seed"], p["tree_method"], p["eval_metric"]) == (7, "hist", "aucpr")
+
+
+# --- the iterator path must give the same model as the in-memory path -----------------------------
+
+
+def test_chunk_iterator_yields_every_row_once_in_order_and_resets() -> None:
+    x = np.arange(70, dtype="float32").reshape(10, 7)
+    y = np.arange(10)
+    it = train.ChunkIter(x, y, [f"f{i}" for i in range(7)], batch_rows=4)
+    seen: list[np.ndarray] = []
+
+    def sink(**kw):
+        seen.append(np.array(kw["data"]))
+        assert len(kw["label"]) == len(kw["data"]) and kw["feature_names"][0] == "f0"
+
+    for _ in range(2):  # two passes, as XGBoost makes
+        seen.clear()
+        while it.next(sink):
+            pass
+        assert [len(s) for s in seen] == [4, 4, 2]
+        np.testing.assert_array_equal(np.concatenate(seen), x)
+        it.reset()
+
+
+@pytest.mark.parametrize("batch_rows", [500, 3000, 100_000])
+def test_iterator_fed_fit_matches_the_in_memory_fit(batch_rows: int) -> None:
+    names = [f"f{i}" for i in range(5)]
+    xt, yt = _toy(4000, 0)
+    xv, yv = _toy(2000, 1)
+    spw = float((yt == 0).sum() / (yt == 1).sum())
+    mem = train.fit_one(
+        *train.make_matrices(xt, yt, xv, yv, names)[:2], yv, "weighted", 3, spw, 200
+    )
+    dt, dv = train.make_matrices_from_iterators(xt, yt, xv, yv, names, batch_rows=batch_rows)
+    it = train.fit_one(dt, dv, yv, "weighted", 3, spw, 200)
+    # identical model, or the test says exactly how far apart they are
+    assert it.result.best_iteration == mem.result.best_iteration
+    np.testing.assert_allclose(it.val_scores, mem.val_scores, rtol=0, atol=1e-6)
+
+
+def test_iterator_reads_a_rowfile_in_slices(tmp_path) -> None:
+    from ml import data
+
+    x = np.arange(70, dtype="float32").reshape(10, 7)
+    np.save(tmp_path / "x.npy", x)
+    rf = data.RowFile(tmp_path / "x.npy")
+    it = train.ChunkIter(rf, np.arange(10), [f"f{i}" for i in range(7)], batch_rows=4)
+    got = []
+    while it.next(lambda **kw: got.append(np.array(kw["data"]))):
+        pass
+    np.testing.assert_array_equal(np.concatenate(got), x)
+    rf.close()

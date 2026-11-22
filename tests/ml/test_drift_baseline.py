@@ -174,3 +174,19 @@ def test_float32_input_is_binned_on_its_own_values() -> None:
     # the edges are values of the float32 array, so its own rows reproduce the shares
     counts = np.bincount(db.bin_index(got["edges"], x[:, 0]), minlength=len(got["props"]))
     assert (counts / 4).tolist() == pytest.approx(got["props"], abs=1e-12)
+
+
+def test_a_column_block_reader_gives_the_same_distributions(tmp_path) -> None:
+    """feature_distributions reads blocks of columns from a file-backed matrix (RowFile)."""
+    from ml import data
+
+    x = np.ascontiguousarray(
+        _train(n=2000, seed=5).to_numpy("float32")
+    )  # C order, as RowFile needs
+    np.save(tmp_path / "m.npy", x)
+    rf = data.RowFile(tmp_path / "m.npy")
+    names = list(_train().columns)
+    assert db.feature_distributions(rf, names, block_columns=2) == db.feature_distributions(
+        x, names
+    )
+    rf.close()

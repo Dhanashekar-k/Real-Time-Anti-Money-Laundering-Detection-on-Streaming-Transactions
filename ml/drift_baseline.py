@@ -44,23 +44,34 @@ def _proportions(edges: list[float], values: np.ndarray, n_total: int) -> list[f
     return [float(c) / n_total for c in counts]
 
 
-def feature_distributions(x: np.ndarray, names: Sequence[str]) -> dict[str, Any]:
+def _distribution(values_all: np.ndarray) -> dict[str, Any]:
+    null = np.isnan(values_all)
+    values = values_all[~null]
+    edges = _edges(values)
+    return {
+        "edges": edges,
+        "props": _proportions(edges, values, len(values_all)),
+        "null_prop": float(null.sum()) / len(values_all),
+    }
+
+
+def feature_distributions(x: Any, names: Sequence[str], block_columns: int = 16) -> dict[str, Any]:
     """Per-feature edges, bin shares and null share of a matrix (rows x features, NaN = null).
 
-    Works on one column at a time, so a float32 matrix is never copied whole. Use it before the
-    matrix is freed; `assemble` adds the score part once the champion's scores exist.
+    `x` is an array, or a file-backed matrix with `take_columns` (`ml.data.RowFile`): then a block
+    of `block_columns` columns is read per pass over the file, so the whole matrix is never in
+    memory. Either way one column at a time is binned, with identical results.
     """
     features: dict[str, Any] = {}
+    if hasattr(x, "take_columns"):
+        for start in range(0, len(names), block_columns):
+            idx = list(range(start, min(start + block_columns, len(names))))
+            block = x.take_columns(idx)
+            for i, j in enumerate(idx):
+                features[names[j]] = _distribution(np.asarray(block[:, i], dtype=float))
+        return {n: features[n] for n in names}
     for j, col in enumerate(names):
-        values_all = np.asarray(x[:, j], dtype=float)
-        null = np.isnan(values_all)
-        values = values_all[~null]
-        edges = _edges(values)
-        features[col] = {
-            "edges": edges,
-            "props": _proportions(edges, values, len(values_all)),
-            "null_prop": float(null.sum()) / len(values_all),
-        }
+        features[col] = _distribution(np.asarray(x[:, j], dtype=float))
     return features
 
 

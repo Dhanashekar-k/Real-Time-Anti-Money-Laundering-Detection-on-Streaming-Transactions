@@ -22,6 +22,7 @@ import argparse
 import gc
 import json
 import os
+import shutil
 import statistics
 import time
 from collections.abc import Sequence
@@ -43,6 +44,7 @@ SEEDS = (0, 1, 2, 3, 4)
 MAX_ROUNDS = 1000
 EARLY_STOPPING_ROUNDS = 50
 K_ALERTS_PER_DAY = 200
+ITER_BATCH_ROWS = 500_000
 MODEL_NAME = "aml-xgb"
 BASE_PARAMS: dict[str, Any] = {
     "objective": "binary:logistic",
@@ -104,6 +106,50 @@ def make_matrices(
     """Quantized matrices (memory: the training set is binned once and reused by every fit)."""
     dtrain = xgb.QuantileDMatrix(x_train, y_train, feature_names=names)
     dval = xgb.QuantileDMatrix(x_val, y_val, feature_names=names, ref=dtrain)
+    return dtrain, dval
+
+
+class ChunkIter(xgb.DataIter):
+    """Feeds rows to XGBoost in fixed slices, in the order they are stored.
+
+    `x` may be a `ml.data.RowFile`, so only one slice is in memory at a time. XGBoost makes two
+    passes over an iterator (sketch, then build), so `reset` must start over at the same row and
+    the order must not change: that is why the rows come from a file written in tx_id order, not
+    straight from the query (whose batch order varies from run to run).
+    """
+
+    def __init__(self, x: np.ndarray, y: np.ndarray, names: list[str], batch_rows: int) -> None:
+        super().__init__()
+        self._x, self._y, self._names, self._rows = x, y, names, batch_rows
+        self._at = 0
+
+    def next(self, input_data: Any) -> bool:
+        if self._at >= len(self._x):
+            return False
+        stop = min(len(self._x), self._at + self._rows)
+        input_data(
+            data=np.array(self._x[self._at : stop]),  # a RowFile reads just this slice from disk
+            label=self._y[self._at : stop],
+            feature_names=self._names,
+        )
+        self._at = stop
+        return True
+
+    def reset(self) -> None:
+        self._at = 0
+
+
+def make_matrices_from_iterators(
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    x_val: np.ndarray,
+    y_val: np.ndarray,
+    names: list[str],
+    batch_rows: int = 500_000,
+) -> tuple[xgb.QuantileDMatrix, xgb.QuantileDMatrix]:
+    """Quantized matrices built from iterators: the full float32 array is never resident."""
+    dtrain = xgb.QuantileDMatrix(ChunkIter(x_train, y_train, names, batch_rows))
+    dval = xgb.QuantileDMatrix(ChunkIter(x_val, y_val, names, batch_rows), ref=dtrain)
     return dtrain, dval
 
 
@@ -212,25 +258,31 @@ def run(ds: str, results_dir: Path | None = None, config_dir: Path | None = None
     names = data.feature_names()
     started = time.perf_counter()
 
-    # Memory (HI-Medium's training set does not fit twice in 24 GB): the float32 arrays are read in
-    # chunks, everything that needs the training array is done while it exists, then it is freed
-    # before the validation array is read.
-    tr = data.read_matrix(ds, "train", burn_in=True)
-    train = tr.meta
-    y_train = train["y"].to_numpy()
-    n_pos, n_neg = int(y_train.sum()), int((y_train == 0).sum())
-    spw = n_neg / n_pos
-    is_cross = tr.column("is_cross_currency") == 1
-    cross_rows, cross_laundering = int(is_cross.sum()), int(y_train[is_cross].sum())
-    feature_part = drift_baseline.feature_distributions(tr.x, names)  # training-window deciles
-    dtrain = xgb.QuantileDMatrix(tr.x, y_train, feature_names=names)
-    del tr, is_cross
-    gc.collect()
-    va = data.read_matrix(ds, "val")
-    val = va.meta
-    y_val = val["y"].to_numpy()
-    dval = xgb.QuantileDMatrix(va.x, y_val, feature_names=names, ref=dtrain)
-    del va
+    # Memory: HI-Medium's training set does not fit in RAM next to everything else. Both splits are
+    # streamed into float32 files on the data disk (rows in tx_id order) and XGBoost is fed from
+    # them in slices through an iterator, so the full matrix is never resident. On HI-Small this
+    # gives the same models bit for bit as the in-memory path (tests/ml and D46).
+    spill = common.DATA_ROOT / "tmp" / f"train_{ds}"
+    shutil.rmtree(spill, ignore_errors=True)
+    try:
+        tr = data.read_matrix(ds, "train", burn_in=True, spill_to=spill / "train.npy")
+        train = tr.meta
+        y_train = train["y"].to_numpy()
+        n_pos, n_neg = int(y_train.sum()), int((y_train == 0).sum())
+        spw = n_neg / n_pos
+        is_cross = tr.column("is_cross_currency") == 1
+        cross_rows, cross_laundering = int(is_cross.sum()), int(y_train[is_cross].sum())
+        feature_part = drift_baseline.feature_distributions(tr.x, names)  # training-window deciles
+        dtrain = xgb.QuantileDMatrix(ChunkIter(tr.x, y_train, names, ITER_BATCH_ROWS))
+        tr.close()
+        va = data.read_matrix(ds, "val", spill_to=spill / "val.npy")
+        val = va.meta
+        y_val = val["y"].to_numpy()
+        dval = xgb.QuantileDMatrix(ChunkIter(va.x, y_val, names, ITER_BATCH_ROWS), ref=dtrain)
+        va.close()
+    finally:
+        shutil.rmtree(spill, ignore_errors=True)  # the files are only needed to build the matrices
+    del tr, va, is_cross
     gc.collect()
 
     fits: dict[str, list[Fit]] = {v: [] for v in VARIANTS}
