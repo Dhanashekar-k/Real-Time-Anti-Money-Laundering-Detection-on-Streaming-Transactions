@@ -1,0 +1,29 @@
+{
+  "command": [
+    "/Users/shekar/code/stream-aml/.venv/bin/python",
+    "-m",
+    "batch.spark.features",
+    "--ds",
+    "hi_medium"
+  ],
+  "git_dirty": false,
+  "git_sha": "e4f43d552aa41fefae77d69b2742d0117bd26f72",
+  "label": "features",
+  "note": "RSS summed over the process tree; shared pages are counted once per process",
+  "peak_process_tree_mb": {
+    "jvm_mb": 9077.8,
+    "python_worker_max_mb": 1904.5,
+    "python_workers_mb": 3890.2,
+    "total_mb": 9097.5
+  },
+  "returncode": 0,
+  "samples": 1853,
+  "seconds": 2038.6,
+  "system": {
+    "swap_used_mb_before": 4246.0,
+    "swap_used_mb_peak": 5927.94,
+    "used_mb_before": 15820.5,
+    "used_mb_peak": 19566.1
+  },
+  "timestamp": "2026-11-22T23:46:43+00:00"
+}
