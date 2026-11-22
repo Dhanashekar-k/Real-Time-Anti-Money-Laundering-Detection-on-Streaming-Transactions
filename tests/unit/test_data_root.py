@@ -54,3 +54,25 @@ def test_make_up_does_not_need_the_ssd() -> None:
     )  # fmt: skip
     assert result.returncode == 0
     assert "SSD not mounted" not in result.stderr + result.stdout
+
+
+def test_duckdb_connection_is_capped_and_spills_to_the_given_directory(tmp_path: Path) -> None:
+    from batch.spark import common
+
+    spill = tmp_path / "duck"
+    con = common.duckdb_connection(spill_dir=spill, memory_limit="1GB")
+    assert spill.is_dir()
+    assert con.execute("SELECT current_setting('temp_directory')").fetchone()[0] == str(spill)
+    # DuckDB reports the limit in its own units; 1GB is 953.6 MiB
+    assert "MiB" in con.execute("SELECT current_setting('memory_limit')").fetchone()[0]
+    assert con.execute("SELECT current_setting('TimeZone')").fetchone()[0] == "UTC"
+
+
+def test_duckdb_connection_needs_the_ssd_unless_given_a_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from batch.spark import common
+
+    monkeypatch.setattr(common, "DATA_ROOT", tmp_path / "not-mounted")
+    with pytest.raises(common.DataRootMissing, match="SSD not mounted"):
+        common.duckdb_connection()

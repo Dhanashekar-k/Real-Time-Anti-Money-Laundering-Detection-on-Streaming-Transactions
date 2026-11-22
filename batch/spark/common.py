@@ -53,6 +53,29 @@ def require_data_root() -> Path:
     return DATA_ROOT
 
 
+DUCKDB_MEMORY_LIMIT = os.environ.get("AML_DUCKDB_MEMORY") or "6GB"
+
+
+def duckdb_connection(spill_dir: Path | None = None, memory_limit: str | None = None) -> Any:
+    """A DuckDB connection with UTC time, a memory cap and its spill files on the SSD.
+
+    DuckDB's default spill directory is the current directory (the Mac disk); sorting or joining
+    tens of millions of rows can write gigabytes there. The default here is
+    `$AML_DATA_ROOT/spill/duckdb`, and the SSD must be mounted. Pass `spill_dir` in tests.
+    """
+    import duckdb
+
+    if spill_dir is None:
+        require_data_root()
+        spill_dir = SPILL_DIR / "duckdb"
+    spill_dir.mkdir(parents=True, exist_ok=True)
+    con = duckdb.connect()
+    con.execute("SET TimeZone='UTC'")
+    con.execute(f"SET memory_limit='{memory_limit or DUCKDB_MEMORY_LIMIT}'")
+    con.execute(f"SET temp_directory='{spill_dir}'")
+    return con
+
+
 def pyiceberg_uri() -> str:
     return f"postgresql+psycopg2://postgres:{PG_PASSWORD}@{PG}"
 

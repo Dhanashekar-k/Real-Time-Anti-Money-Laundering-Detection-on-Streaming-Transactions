@@ -12,8 +12,6 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
-import duckdb
-
 from batch.spark import common, csv_to_iceberg
 from features import money
 
@@ -26,8 +24,7 @@ def check_money(
 ) -> dict[str, Any]:
     """Compare the table under `table_data_dir` with `trans_csv`; returns counts and examples."""
     fx = money.load_fx() if fx is None else fx
-    con = duckdb.connect()
-    con.execute("SET TimeZone='UTC'")
+    con = common.duckdb_connection()
     # `[0-9]*.parquet` skips the `._*` AppleDouble files exFAT leaves next to the data files
     con.execute(f"CREATE VIEW t AS SELECT * FROM read_parquet('{table_data_dir}/*/[0-9]*.parquet')")
     con.execute(
