@@ -20,7 +20,7 @@ stub = @echo "make $@: not implemented yet (added in $(1))" >&2; exit 1
 .DEFAULT_GOAL := help
 
 .PHONY: help up up-all rebuild down ps logs nuke-local dirs bootstrap fmt lint tf-check test itest test-rls topics \
-	iceberg fx eda split golden features rules train eval replay connectors onboard-check \
+	iceberg fx fx-freeze eda split golden features rules train eval replay connectors onboard-check \
 	flink-build flink-deploy flink-stop parity restart-test apps latency-matrix seed-thresholds \
 	agent agent-eval api ui retrain airflow chaos reconcile drift-experiment results demo \
 	teardown-check cloud-bootstrap cloud-up cloud-images cloud-deploy cloud-glue-run cloud-replay \
@@ -109,6 +109,10 @@ fx: ## measure implied FX rates per currency pair (writes results/M01/<ds>/fx_va
 	$(require_ds)
 	$(ssd_check)
 	uv run python -m batch.spark.fx --ds $(DS)
+
+fx-freeze: ## write features/fx_rates.yaml from a reviewed fx_variance.json (no Spark, no SSD)
+	$(require_ds)
+	uv run python -m batch.spark.fx_freeze --ds $(DS)
 
 iceberg: ## CSV + patterns -> Iceberg tables aml_<ds>.raw_transactions / .patterns (needs the frozen FX table)
 	$(require_ds)

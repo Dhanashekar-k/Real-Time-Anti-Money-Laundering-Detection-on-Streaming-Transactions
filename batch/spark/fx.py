@@ -153,9 +153,16 @@ def analyze(spark: SparkSession, *, ds: str, trans_path: Path, results_dir: Path
     return doc
 
 
+def _drift(p: dict[str, Any]) -> float | None:
+    """(daily max - daily min) / weighted rate: how far the per-day rate moves."""
+    if p["daily_rate_min"] is None or not p["weighted_rate"]:
+        return None
+    return (p["daily_rate_max"] - p["daily_rate_min"]) / float(p["weighted_rate"])
+
+
 def format_table(doc: dict[str, Any]) -> str:
-    columns = [("pair", 9), ("n", 10), ("weighted", 16), ("cv", 10), ("cv(>=100)", 11)]
-    columns += [("days", 6), ("daily cv", 10)]
+    columns = [("pair", 9), ("n", 10), ("weighted", 20), ("cv", 10), ("cv(>=100)", 11)]
+    columns += [("days", 6), ("daily cv", 10), ("daily drift", 12)]
     header = "".join(f"{name:<9}" if name == "pair" else f"{name:>{w}}" for name, w in columns)
 
     def f(x: float | None) -> str:
@@ -165,8 +172,8 @@ def format_table(doc: dict[str, Any]) -> str:
     for p in doc["pairs"]:
         lines.append(
             f"{p['paid_currency'] + '>' + p['received_currency']:<9}{p['n']:>10}"
-            f"{(p['weighted_rate'] or '-'):>16}{f(p['cv']):>10}{f(p['cv_paid_ge_100']):>11}"
-            f"{p['n_days']:>6}{f(p['daily_cv']):>10}"
+            f"{(p['weighted_rate'] or '-'):>20}{f(p['cv']):>10}{f(p['cv_paid_ge_100']):>11}"
+            f"{p['n_days']:>6}{f(p['daily_cv']):>10}{f(_drift(p)):>12}"
         )
     return "\n".join(lines)
 

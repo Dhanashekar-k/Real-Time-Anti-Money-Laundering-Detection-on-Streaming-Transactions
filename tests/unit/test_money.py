@@ -195,11 +195,8 @@ def test_load_fx_rejects_unquoted_numbers(tmp_path: Path) -> None:
         money.load_fx(_write_fx(tmp_path, body))
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="features/fx_rates.yaml is frozen in M01 step 6, after the user approves the variance "
-    "table. strict=True: when the file lands, this must be turned into a plain test.",
-)
 def test_frozen_fx_table_is_complete() -> None:
     fx = money.load_fx()
     assert set(fx) == set(SPEC["vocabularies"]["currencies"])
+    assert fx["USD"] == 1
+    assert all(rate > 0 for rate in fx.values())

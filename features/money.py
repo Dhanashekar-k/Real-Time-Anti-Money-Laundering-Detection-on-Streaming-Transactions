@@ -102,7 +102,7 @@ def load_fx(path: Path = FX_PATH) -> dict[str, Decimal]:
             "variance table: run `make fx DS=hi_small`, review results/M01/hi_small/"
             "fx_variance.json, then freeze it."
         )
-    doc = yaml.safe_load(Path(path).read_text())
+    doc = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     if doc.get("fx_version") != FX_VERSION_REQUIRED:
         raise ValueError(
             f"fx_version {doc.get('fx_version')!r} does not match the spec's "
