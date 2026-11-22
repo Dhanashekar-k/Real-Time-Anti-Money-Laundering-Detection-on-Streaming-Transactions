@@ -75,6 +75,14 @@ def test_transactions_per_day(eda: dict) -> None:
     assert eda["sparse_days"]["leading"] == [] and eda["sparse_days"]["trailing"] == []
     assert eda["sparse_days"]["totals"]["trailing"]["rows"] == 0
     assert eda["sparse_days"]["by_split"] == []
+    # nothing is sparse, so leaving the sparse days out changes nothing
+    assert (
+        eda["sparse_days"]["by_split_without_sparse_days"]
+        == eda["sparse_days"]["by_split_all_days"]
+    )
+    assert {
+        r["key"]: (r["rows"], r["laundering"]) for r in eda["sparse_days"]["by_split_all_days"]
+    } == {"train": (9, 4), "val": (3, 1), "test": (4, 0)}
 
 
 def test_accounts_and_max_transactions_per_account(eda: dict) -> None:

@@ -366,6 +366,12 @@ def run_eda(
             if in_sparse
             else []
         )
+        # per-split rows and laundering with the sparse days left out: the base rates the split
+        # shows are distorted by them (the tail is all laundering-heavy and all in one split)
+        sparse["by_split_without_sparse_days"] = _group(
+            df.filter(~F.date_format("event_ts", "yyyy-MM-dd").isin(in_sparse)), "split"
+        )
+        sparse["by_split_all_days"] = _group(df, "split")
         return {
             **common.provenance(),
             "dataset": ds,
@@ -412,6 +418,16 @@ def _rate_table(title: str, key_header: str, rows: list[dict[str, Any]]) -> str:
         for r in rows
     ]
     return f"{title}\n\n" + _table([key_header, "rows", "laundering", "rate"], body)
+
+
+def _paired(all_days: list[dict], kept: list[dict]) -> list[tuple[dict, dict]]:
+    """Split rows in train, val, test order: all days next to the days left after the sparse ones."""
+    order = {"train": 0, "val": 1, "test": 2}
+    by_kept = {r["key"]: r for r in kept}
+    empty = {"rows": 0, "laundering": 0, "laundering_rate": 0.0}
+    return [
+        (a, by_kept.get(a["key"], empty)) for a in sorted(all_days, key=lambda r: order[r["key"]])
+    ]
 
 
 def render_markdown(doc: dict[str, Any]) -> str:
@@ -481,6 +497,32 @@ def render_markdown(doc: dict[str, Any]) -> str:
                 for r in sparse["by_split"]
             ]
             or [["none", 0, 0, _pct(0.0)]],
+        ),
+        "Rows and laundering per split, all days and without the sparse days:",
+        _table(
+            [
+                "split",
+                "rows (all)",
+                "laundering (all)",
+                "rate (all)",
+                "rows (no sparse days)",
+                "laundering (no sparse days)",
+                "rate (no sparse days)",
+            ],
+            [
+                [
+                    a["key"],
+                    f"{a['rows']:,}",
+                    f"{a['laundering']:,}",
+                    _pct(a["laundering_rate"]),
+                    f"{b['rows']:,}",
+                    f"{b['laundering']:,}",
+                    _pct(b["laundering_rate"]),
+                ]
+                for a, b in _paired(
+                    sparse["by_split_all_days"], sparse["by_split_without_sparse_days"]
+                )
+            ],
         ),
         "## Accounts",
         _table(
