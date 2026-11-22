@@ -40,6 +40,9 @@ REQUIRED_COLUMNS = (
     "r_returned_funds_24h",
 )
 
+# The feature columns the rules read (the amount comes from the raw table, not from features_tx).
+RULE_FEATURES = tuple(c for c in REQUIRED_COLUMNS if c != "amount_paid_usd_cents")
+
 # Grids, strictest first (ties in train F1 go to the first).
 Q_GRID = (0.999, 0.995, 0.99, 0.95, 0.9)
 BANDS = ((0.95, 1.05), (0.9, 1.1), (0.8, 1.2), (0.5, 1.5))
@@ -297,8 +300,9 @@ def run(ds: str, results_dir: Path | None = None) -> dict[str, Any]:
     results_dir = results_dir or common.ROOT / "results" / "M02"
     cols = ("amount_paid_usd_cents",)
     cutoff = data.burn_in_end_ms(ds)
-    train = data.read_split(ds, "train", burn_in=True, extra_raw_columns=cols)
-    val = data.read_split(ds, "val", extra_raw_columns=cols)
+    kw = {"extra_raw_columns": cols, "feature_columns": RULE_FEATURES}
+    train = data.read_split(ds, "train", burn_in=True, **kw)
+    val = data.read_split(ds, "val", **kw)
     frames = [f.rename(columns={"y": LABEL, "bank": "owner_bank_id"}) for f in (train, val)]
     doc = {"dataset": ds, **common.provenance(), **run_frames(frames[0], frames[1], cutoff)}
     common.write_json(results_dir / ds / "rules.json", doc)

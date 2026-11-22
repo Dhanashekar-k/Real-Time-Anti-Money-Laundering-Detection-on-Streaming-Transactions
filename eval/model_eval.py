@@ -47,15 +47,23 @@ class FinalRequired(RuntimeError):
     """The test split was requested without --final."""
 
 
+class DirtyTree(RuntimeError):
+    """The test split was requested while the code differs from the commit it is recorded as."""
+
+
+def _is_dirty() -> bool:
+    """Code differs from HEAD (script outputs such as results/ do not count)."""
+    from batch.spark import common
+
+    return common.git_dirty(ROOT)
+
+
 def _git_state() -> str:
     try:
         sha = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True
         ).stdout.strip()
-        dirty = subprocess.run(
-            ["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True
-        ).stdout.strip()
-        return (sha or "unknown") + ("+dirty" if dirty else "")
+        return (sha or "unknown") + ("+dirty" if _is_dirty() else "")
     except OSError:
         return "unknown"
 
@@ -64,6 +72,11 @@ def open_test_gate(final: bool, ds: str, results_dir: Path, reason: str) -> None
     """Call immediately before reading test rows. Raises unless `final`; logs every access."""
     if not final:
         raise FinalRequired("the test split is read only with --final (see M02 §8)")
+    if _is_dirty() and os.environ.get("AML_ALLOW_DIRTY_EVAL") != "1":
+        raise DirtyTree(
+            "the working tree has uncommitted code changes: commit first, so the result can be "
+            "reproduced from its git SHA (set AML_ALLOW_DIRTY_EVAL=1 to override; it is logged)"
+        )
     warnings.warn(
         f"reading the test split of {ds}: it is touched once per model family",
         UserWarning,
@@ -331,47 +344,42 @@ def run(ds: str, final: bool, results_root: Path | None = None) -> dict[str, Any
     # the registered model must be the champion that train.py selected: same validation PR-AUC
     from sklearn.metrics import average_precision_score
 
-    val = data.read_split(ds, "val")
+    val = data.read_matrix(ds, "val")
     val_scores = booster.predict(
-        xgb.DMatrix(data.feature_matrix(val), feature_names=names), iteration_range=(0, best + 1)
+        xgb.DMatrix(val.x, feature_names=names), iteration_range=(0, best + 1)
     )
     train_doc = json.loads((out_dir / "train.json").read_text())
     expected_pr = train_doc["selection"]["champion"]["val_pr_auc"]
-    got_pr = float(average_precision_score(val["y"].to_numpy(), val_scores))
+    got_pr = float(average_precision_score(val.meta["y"].to_numpy(), val_scores))
     if abs(got_pr - expected_pr) > 1e-9:
         raise RuntimeError(f"registered champion val PR-AUC {got_pr} != train.json {expected_pr}")
     if str(version) != str(train_doc["selection"]["model_version"]):
         raise RuntimeError(f"champion alias points at version {version}, train.json says otherwise")
 
-    # the importance figure carries the cross-currency caption, with the TRAINING counts
-    from ml import train as ml_train
-
-    d = train_doc["data"]
-    caption = importance_caption(
-        d["cross_currency_rows_train"], d["cross_currency_laundering_train"]
-    )
-    ml_train.importance_figure(booster, caption, out_dir / "importance_gain.png")
-
     # 2. the gate, immediately before the one read of the test split
     open_test_gate(final, ds, out_dir, reason=f"final evaluation of aml-xgb v{version}")
-    test = data.read_split(
-        ds, "test", allow_test=True, patterns=True, extra_raw_columns=("amount_paid_usd_cents",)
+    test = data.read_matrix(
+        ds,
+        "test",
+        allow_test=True,
+        patterns=True,
+        extra_raw_columns=("amount_paid_usd_cents",),
+        exact_columns=rules_baseline.RULE_FEATURES,  # float64: the rules compare against thresholds
     )
-    score = booster.predict(
-        xgb.DMatrix(data.feature_matrix(test), feature_names=names), iteration_range=(0, best + 1)
-    )
+    score = booster.predict(xgb.DMatrix(test.x, feature_names=names), iteration_range=(0, best + 1))
     frame = pd.DataFrame(
         {
-            "ts": test["event_ts_ms"].to_numpy(),
-            "bank": test["bank"].to_numpy(),
-            "y": test["y"].to_numpy(),
+            "ts": test.meta["event_ts_ms"].to_numpy(),
+            "bank": test.meta["bank"].to_numpy(),
+            "y": test.meta["y"].to_numpy(),
             "score": score,
-            "is_cross_currency": test["is_cross_currency"].to_numpy(),
-            "pattern_type": test["pattern_type"].to_numpy(),
+            "is_cross_currency": test.column("is_cross_currency"),
+            "pattern_type": test.meta["pattern_type"].to_numpy(),
         }
     )
+    rule_frame = test.exact.assign(amount_paid_usd_cents=test.meta["amount_paid_usd_cents"])
     baseline_name = rules["baseline"]
-    baseline = rules_baseline.baseline_alert(fits, baseline_name, test)
+    baseline = rules_baseline.baseline_alert(fits, baseline_name, rule_frame)
 
     kw = dict(
         baseline_alert=baseline, baseline_name=baseline_name, tail_days=tail_days,

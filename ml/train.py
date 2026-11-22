@@ -19,6 +19,7 @@ and attaches the baseline to that model version.
 """
 
 import argparse
+import gc
 import json
 import os
 import statistics
@@ -198,7 +199,7 @@ def _table_snapshot(ds: str, table: str) -> int | None:
     return snap.snapshot_id if snap else None
 
 
-def run(ds: str, results_dir: Path | None = None) -> dict[str, Any]:
+def run(ds: str, results_dir: Path | None = None, config_dir: Path | None = None) -> dict[str, Any]:
     import mlflow
     from mlflow import MlflowClient
 
@@ -211,13 +212,26 @@ def run(ds: str, results_dir: Path | None = None) -> dict[str, Any]:
     names = data.feature_names()
     started = time.perf_counter()
 
-    train = data.read_split(ds, "train", burn_in=True)
-    val = data.read_split(ds, "val")
-    x_train, y_train = data.feature_matrix(train).to_numpy(), train["y"].to_numpy()
-    x_val, y_val = data.feature_matrix(val).to_numpy(), val["y"].to_numpy()
+    # Memory (HI-Medium's training set does not fit twice in 24 GB): the float32 arrays are read in
+    # chunks, everything that needs the training array is done while it exists, then it is freed
+    # before the validation array is read.
+    tr = data.read_matrix(ds, "train", burn_in=True)
+    train = tr.meta
+    y_train = train["y"].to_numpy()
     n_pos, n_neg = int(y_train.sum()), int((y_train == 0).sum())
     spw = n_neg / n_pos
-    dtrain, dval = make_matrices(x_train, y_train, x_val, y_val, names)
+    is_cross = tr.column("is_cross_currency") == 1
+    cross_rows, cross_laundering = int(is_cross.sum()), int(y_train[is_cross].sum())
+    feature_part = drift_baseline.feature_distributions(tr.x, names)  # training-window deciles
+    dtrain = xgb.QuantileDMatrix(tr.x, y_train, feature_names=names)
+    del tr, is_cross
+    gc.collect()
+    va = data.read_matrix(ds, "val")
+    val = va.meta
+    y_val = val["y"].to_numpy()
+    dval = xgb.QuantileDMatrix(va.x, y_val, feature_names=names, ref=dtrain)
+    del va
+    gc.collect()
 
     fits: dict[str, list[Fit]] = {v: [] for v in VARIANTS}
     for variant in VARIANTS:
@@ -247,8 +261,8 @@ def run(ds: str, results_dir: Path | None = None) -> dict[str, Any]:
         alerts_per_day[f"bank_{str(bank).lower()}"] = metrics.alerts_per_day(
             g["ts"].to_numpy(), g["score"].to_numpy() >= thr
         )
-    baseline = drift_baseline.build_baseline(
-        data.feature_matrix(train),
+    baseline = drift_baseline.assemble(
+        feature_part,
         val_scores=champion.val_scores,
         alerts_per_day=alerts_per_day,
         meta={"ds": ds, "spec_version": spec.spec_version},
@@ -259,8 +273,7 @@ def run(ds: str, results_dir: Path | None = None) -> dict[str, Any]:
     )
 
     # figures: the importance caption states the cross-currency artifact with the training counts
-    cross = train["is_cross_currency"].to_numpy() == 1
-    caption = importance_caption(int(cross.sum()), int(y_train[cross].sum()))
+    caption = importance_caption(cross_rows, cross_laundering)
     importance_figure(champion.booster, caption, results_dir / "importance_gain.png")
     pr_figure(
         y_val,
@@ -332,8 +345,8 @@ def run(ds: str, results_dir: Path | None = None) -> dict[str, Any]:
     baseline["model_version"] = version
     common.write_json(results_dir / "baseline_dist.json", baseline)
     thr_doc = thresholds.to_yaml_doc(per_bank, ds, MODEL_NAME, version, K_ALERTS_PER_DAY)
-    cfg = common.ROOT / "config" / "thresholds.yaml"
-    cfg.parent.mkdir(exist_ok=True)
+    cfg = (config_dir or common.ROOT / "config") / "thresholds.yaml"
+    cfg.parent.mkdir(parents=True, exist_ok=True)
     cfg.write_text(yaml.safe_dump(thr_doc, sort_keys=True))
     common.write_json(
         results_dir / "thresholds.json", {"dataset": ds, **common.provenance(), **thr_doc}
@@ -364,8 +377,8 @@ def run(ds: str, results_dir: Path | None = None) -> dict[str, Any]:
             "val_positives": int(y_val.sum()),
             "scale_pos_weight": spw,
             "features_tx_snapshot_id": snapshot_features,
-            "cross_currency_rows_train": int(cross.sum()),
-            "cross_currency_laundering_train": int(y_train[cross].sum()),
+            "cross_currency_rows_train": cross_rows,
+            "cross_currency_laundering_train": cross_laundering,
         },
         "variants": summary,
         "selection": {
@@ -386,8 +399,10 @@ def run(ds: str, results_dir: Path | None = None) -> dict[str, Any]:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--ds", required=True, choices=["hi_small", "hi_medium"])
+    parser.add_argument("--results-dir", type=Path, default=None, help="default: results/M02")
+    parser.add_argument("--config-dir", type=Path, default=None, help="default: config/")
     args = parser.parse_args(argv)
-    doc = run(args.ds)
+    doc = run(args.ds, args.results_dir, args.config_dir)
     sel = doc["selection"]
     print(
         f"\n{args.ds}: variant {sel['variant']}, champion seed {sel['champion']['seed']} "

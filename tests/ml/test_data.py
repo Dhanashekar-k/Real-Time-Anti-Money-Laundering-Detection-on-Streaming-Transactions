@@ -8,6 +8,7 @@ Fixture: tiny parquet tables laid out like the real warehouse
 from pathlib import Path
 
 import duckdb
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -22,9 +23,7 @@ S = spec.load_spec()
 NAMES = expand.feature_names(S)
 
 
-@pytest.fixture()
-def warehouse(tmp_path: Path) -> Path:
-    """12 transactions: ids 0..11, two per phase, in order train(burn-in), train, val, test."""
+def _tables() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     rows = []
     plan = [
         ("train", 0.2 * DAY),  # inside the 24 h burn-in
@@ -56,6 +55,9 @@ def warehouse(tmp_path: Path) -> Path:
     for j, name in enumerate(NAMES):
         feats[name] = float(j) + feats["tx_id"] / 100.0
     feats.loc[feats.tx_id == 3, "s_pass_through_ratio_24h"] = None  # a null feature
+    # integer features hold integers (Spark writes them as bigint); one is huge on purpose
+    feats["s_out_count_1h"] = feats["tx_id"].astype("int64")
+    feats["s_out_sum_usd_cents_1h"] = feats["tx_id"].astype("int64") * 10**12 + 7
     pat = pd.DataFrame(
         {
             "tx_id": [2, 9, None],
@@ -63,17 +65,39 @@ def warehouse(tmp_path: Path) -> Path:
             "ambiguous": [False, False, False],
         }
     )
-    base = tmp_path / "aml_hi_small"
-    for table, frame, sub in (
-        ("raw_transactions", raw, "part0"),
-        ("features_tx", feats, None),
-        ("patterns", pat, None),
-    ):
-        d = base / table / "data" / (sub or "")
-        d.mkdir(parents=True)
-        duckdb.connect().register("f", frame).execute(
-            f"COPY f TO '{d}/00000-1-x-0-00001.parquet' (FORMAT PARQUET)"
-        )
+    return raw, feats, pat
+
+
+def _write(
+    base: Path, table: str, frame: pd.DataFrame, parts: list[pd.DataFrame], sub: str = ""
+) -> None:
+    d = base / "aml_hi_small" / table / "data" / sub
+    d.mkdir(parents=True, exist_ok=True)
+    for i, part in enumerate(parts):
+        con = duckdb.connect()
+        con.register("f", part)
+        con.execute(f"COPY f TO '{d}/0000{i}-1-x-0-00001.parquet' (FORMAT PARQUET)")
+
+
+@pytest.fixture()
+def warehouse(tmp_path: Path) -> Path:
+    """12 transactions: ids 0..11, two per phase, in order train(burn-in), train, val, test."""
+    raw, feats, pat = _tables()
+    _write(tmp_path, "raw_transactions", raw, [raw], sub="part0")
+    _write(tmp_path, "features_tx", feats, [feats])
+    _write(tmp_path, "patterns", pat, [pat])
+    return tmp_path
+
+
+@pytest.fixture()
+def shuffled_warehouse(tmp_path: Path) -> Path:
+    """Same data, but features_tx rows are in reverse order spread over three files (as Spark
+    leaves them): the loader must not depend on the order rows come out of the files."""
+    raw, feats, pat = _tables()
+    rev = feats.iloc[::-1].reset_index(drop=True)
+    _write(tmp_path, "raw_transactions", raw, [raw], sub="part0")
+    _write(tmp_path, "features_tx", feats, [rev.iloc[:5], rev.iloc[5:9], rev.iloc[9:]])
+    _write(tmp_path, "patterns", pat, [pat])
     return tmp_path
 
 
@@ -157,3 +181,122 @@ def test_only_the_evaluation_module_may_ask_for_the_test_split() -> None:
             if "allow_test=True" in path.read_text() and path.name != "model_eval.py":
                 offenders.append(str(path.relative_to(root)))
     assert offenders == []
+
+
+# --- the chunked float32 loader -----------------------------------------------------------------
+
+
+def matrix(wh: Path, split: str, **kw) -> data.SplitMatrix:
+    kw.setdefault("batch_rows", 3)  # tiny batches: every code path crosses a batch boundary
+    return data.read_matrix("hi_small", split, warehouse=wh, **kw)
+
+
+@pytest.mark.parametrize("which", ["warehouse", "shuffled_warehouse"])
+def test_matrix_equals_the_dataframe_path_exactly(which: str, request) -> None:
+    wh = request.getfixturevalue(which)
+    m = matrix(wh, "val")
+    df = read(wh, "val")
+    expected = data.feature_matrix(df).to_numpy()
+    assert m.x.dtype == np.float32 and m.x.shape == (3, 85)
+    np.testing.assert_array_equal(m.x, expected)  # NaN positions included
+    assert m.names == NAMES
+    assert m.meta["tx_id"].tolist() == df["tx_id"].tolist() == [5, 6, 7]
+    assert m.meta["bank"].tolist() == df["bank"].tolist()
+    assert m.meta["y"].tolist() == df["y"].tolist()
+
+
+def test_rows_come_back_in_tx_id_order_whatever_order_the_files_hold(
+    shuffled_warehouse: Path,
+) -> None:
+    m = matrix(shuffled_warehouse, "train", burn_in=True)
+    assert m.meta["tx_id"].tolist() == [2, 3, 4]
+    plain = matrix(shuffled_warehouse, "test", allow_test=True)
+    assert plain.meta["tx_id"].tolist() == [8, 9, 10, 11]
+    # a feature that encodes the row (tx_id / 100 + column index) proves rows were not mixed up
+    j = NAMES.index("log10_amount_paid_usd")
+    np.testing.assert_allclose(plain.x[:, j], [j + t / 100 for t in (8, 9, 10, 11)], rtol=1e-6)
+
+
+def test_nulls_are_nan_and_big_integers_round_like_a_float32_cast(warehouse: Path) -> None:
+    m = matrix(warehouse, "train", burn_in=True)
+    j = NAMES.index("s_pass_through_ratio_24h")
+    assert np.isnan(m.x[m.meta["tx_id"].to_numpy() == 3, j]).all()
+    k = NAMES.index("s_out_sum_usd_cents_1h")
+    exact = np.array([t * 10**12 + 7 for t in (2, 3, 4)], dtype="int64")
+    np.testing.assert_array_equal(m.x[:, k], exact.astype("float32"))  # int64 -> float32, no error
+
+
+def test_burn_in_and_split_filters_and_the_test_guard(warehouse: Path) -> None:
+    assert matrix(warehouse, "train", burn_in=True).meta["tx_id"].tolist() == [2, 3, 4]
+    assert matrix(warehouse, "val").meta["tx_id"].tolist() == [5, 6, 7]
+    with pytest.raises(PermissionError, match="test"):
+        matrix(warehouse, "test")
+    with pytest.raises(ValueError, match="split"):
+        matrix(warehouse, "holdout")
+
+
+def test_exact_columns_come_back_as_float64_without_the_float32_rounding(warehouse: Path) -> None:
+    cols = ("s_out_sum_usd_cents_1h", "s_pass_through_ratio_24h")
+    m = matrix(warehouse, "train", burn_in=True, exact_columns=cols)
+    assert list(m.exact.columns) == list(cols) and m.exact.dtypes.eq("float64").all()
+    assert m.exact["s_out_sum_usd_cents_1h"].tolist() == [t * 10**12 + 7 for t in (2, 3, 4)]
+    assert m.exact["s_pass_through_ratio_24h"].isna().tolist() == [False, True, False]
+    assert list(matrix(warehouse, "val").exact.columns) == []  # none asked for, none returned
+
+
+def test_extras_and_patterns_are_in_the_meta_frame(warehouse: Path) -> None:
+    m = matrix(
+        warehouse,
+        "test",
+        allow_test=True,
+        patterns=True,
+        extra_raw_columns=("amount_paid_usd_cents",),
+    )
+    assert m.meta["amount_paid_usd_cents"].tolist() == [1008, 1009, 1010, 1011]
+    assert m.meta.set_index("tx_id").loc[9, "pattern_type"] == "FAN-OUT"
+    assert m.meta["pattern_type"].isna().sum() == 3
+    assert len(m.meta) == len(m.x) == 4  # the pattern join neither drops nor duplicates rows
+
+
+def test_a_gap_in_the_transaction_ids_falls_back_to_a_sorted_read(tmp_path: Path) -> None:
+    """Ids that are not contiguous give no position from tx_id: the loader sorts instead."""
+    raw, feats, pat = _tables()
+    feats = feats[feats.tx_id != 6].iloc[::-1]  # tx 6 has no features; rows reversed
+    _write(tmp_path, "raw_transactions", raw, [raw], sub="part0")
+    _write(tmp_path, "features_tx", feats, [feats.iloc[:4], feats.iloc[4:]])
+    _write(tmp_path, "patterns", pat, [pat])
+    m = matrix(tmp_path, "val")
+    assert m.meta["tx_id"].tolist() == [5, 7]
+    j = NAMES.index("log10_amount_paid_usd")
+    np.testing.assert_allclose(m.x[:, j], [j + 0.05, j + 0.07], rtol=1e-6)
+
+
+def test_batch_size_does_not_change_the_result(warehouse: Path) -> None:
+    a = matrix(warehouse, "train", burn_in=True, batch_rows=1)
+    b = matrix(warehouse, "train", burn_in=True, batch_rows=1000)
+    np.testing.assert_array_equal(a.x, b.x)
+    assert a.meta.equals(b.meta)
+
+
+def test_an_empty_selection_is_an_error_not_an_empty_matrix(tmp_path: Path) -> None:
+    raw, feats, pat = _tables()
+    feats = feats[feats.tx_id < 5]  # no validation features at all
+    _write(tmp_path, "raw_transactions", raw, [raw], sub="part0")
+    _write(tmp_path, "features_tx", feats, [feats])
+    _write(tmp_path, "patterns", pat, [pat])
+    with pytest.raises(ValueError, match="no rows"):
+        matrix(tmp_path, "val")
+
+
+def test_the_feature_matrix_never_holds_a_label_or_split_column(warehouse: Path) -> None:
+    m = matrix(warehouse, "val", patterns=True)
+    assert m.x.shape[1] == 85 and m.names == NAMES
+    assert not ({"y", "split", "is_laundering", "pattern_type"} & set(m.names))
+
+
+def test_read_split_can_ask_for_only_some_features(warehouse: Path) -> None:
+    cols = ("s_in_count_24h", "r_returned_funds_24h")
+    df = read(warehouse, "val", feature_columns=cols)
+    assert list(df.columns) == ["tx_id", "event_ts_ms", "bank", "y", *cols]
+    with pytest.raises(ValueError, match="not features"):
+        read(warehouse, "val", feature_columns=("nope",))

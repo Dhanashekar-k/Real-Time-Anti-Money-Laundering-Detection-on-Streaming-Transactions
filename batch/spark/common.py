@@ -255,19 +255,30 @@ def add_row_index(df: DataFrame, name: str) -> DataFrame:
 # --- results files -----------------------------------------------------------------------------
 
 
-def provenance() -> dict[str, Any]:
-    def git(*args: str) -> str:
-        return subprocess.run(
-            ["git", *args], cwd=ROOT, capture_output=True, text=True, check=True
-        ).stdout.strip()
+# Files the scripts write themselves. They are excluded from the "dirty" check: a result made by
+# this very run, or by the previous one, must not make the code look modified.
+OUTPUT_PATHSPECS = (
+    ":(exclude)results",
+    ":(exclude)docs/eda_*.md",
+    ":(exclude)config/thresholds.yaml",
+)
 
+
+def _git(root: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=root, capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+
+def git_dirty(root: Path = ROOT) -> bool:
+    """True if code (anything outside the script outputs) differs from HEAD, untracked included."""
+    return bool(_git(root, "status", "--porcelain", "--", ".", *OUTPUT_PATHSPECS))
+
+
+def provenance() -> dict[str, Any]:
     return {
-        "git_sha": git("rev-parse", "HEAD"),
-        # results/ and the generated docs/eda_*.md are outputs of these scripts: they do not make
-        # the code that produced them "dirty" (an untracked result from the previous run would)
-        "git_dirty": bool(
-            git("status", "--porcelain", "--", ".", ":(exclude)results", ":(exclude)docs/eda_*.md")
-        ),
+        "git_sha": _git(ROOT, "rev-parse", "HEAD"),
+        "git_dirty": git_dirty(ROOT),
         "timestamp": datetime.now(UTC).isoformat(timespec="seconds"),
     }
 

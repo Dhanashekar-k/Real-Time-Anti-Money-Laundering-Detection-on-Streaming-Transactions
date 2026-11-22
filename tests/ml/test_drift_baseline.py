@@ -138,3 +138,39 @@ def test_label_like_columns_are_refused() -> None:
     train["is_laundering"] = 0
     with pytest.raises(ValueError, match="is_laundering"):
         _build(train)
+
+
+# --- from a float32 matrix, in two parts (the training array is freed before scores exist) -------
+
+
+def test_matrix_path_gives_the_same_distributions_as_the_frame_path() -> None:
+    train = _train(n=3000, seed=9)
+    names = list(train.columns)
+    x = train.to_numpy(dtype="float64")
+    from_frame = _build(train)["features"]
+    from_matrix = db.feature_distributions(x, names)
+    assert from_matrix == from_frame
+
+
+def test_the_two_parts_assemble_into_the_same_file() -> None:
+    train = _train()
+    scores = np.random.default_rng(1).uniform(size=500)
+    kw = dict(
+        alerts_per_day={"bank_a": 140.2, "bank_b": 96.5},
+        meta={"ds": "hi_small", "model_version": "3", "spec_version": 1},
+        window={"from": "2022-09-02", "to": "2022-09-06"},
+    )
+    whole = db.build_baseline(train, val_scores=scores, **kw)
+    parts = db.assemble(
+        db.feature_distributions(train.to_numpy("float64"), list(train.columns)), scores, **kw
+    )
+    assert json.dumps(whole, sort_keys=True) == json.dumps(parts, sort_keys=True)
+
+
+def test_float32_input_is_binned_on_its_own_values() -> None:
+    x = np.array([[0.1], [0.2], [0.3], [0.4]], dtype="float32")
+    got = db.feature_distributions(x, ["a"])["a"]
+    assert sum(got["props"]) + got["null_prop"] == pytest.approx(1.0, abs=1e-12)
+    # the edges are values of the float32 array, so its own rows reproduce the shares
+    counts = np.bincount(db.bin_index(got["edges"], x[:, 0]), minlength=len(got["props"]))
+    assert (counts / 4).tolist() == pytest.approx(got["props"], abs=1e-12)

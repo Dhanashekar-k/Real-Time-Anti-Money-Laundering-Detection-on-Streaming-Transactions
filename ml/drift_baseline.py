@@ -44,6 +44,45 @@ def _proportions(edges: list[float], values: np.ndarray, n_total: int) -> list[f
     return [float(c) / n_total for c in counts]
 
 
+def feature_distributions(x: np.ndarray, names: Sequence[str]) -> dict[str, Any]:
+    """Per-feature edges, bin shares and null share of a matrix (rows x features, NaN = null).
+
+    Works on one column at a time, so a float32 matrix is never copied whole. Use it before the
+    matrix is freed; `assemble` adds the score part once the champion's scores exist.
+    """
+    features: dict[str, Any] = {}
+    for j, col in enumerate(names):
+        values_all = np.asarray(x[:, j], dtype=float)
+        null = np.isnan(values_all)
+        values = values_all[~null]
+        edges = _edges(values)
+        features[col] = {
+            "edges": edges,
+            "props": _proportions(edges, values, len(values_all)),
+            "null_prop": float(null.sum()) / len(values_all),
+        }
+    return features
+
+
+def assemble(
+    features: Mapping[str, Any],
+    val_scores: np.ndarray,
+    alerts_per_day: Mapping[str, float],
+    meta: Mapping[str, Any],
+    window: Mapping[str, str],
+) -> dict[str, Any]:
+    """The content of baseline_dist.json from the feature part and the validation scores."""
+    scores = np.asarray(val_scores, dtype=float)
+    score_edges = _edges(scores)
+    return {
+        **dict(meta),
+        "window": dict(window),
+        "features": dict(features),
+        "score": {"edges": score_edges, "props": _proportions(score_edges, scores, len(scores))},
+        "alerts_per_day": dict(alerts_per_day),
+    }
+
+
 def build_baseline(
     train: pd.DataFrame,
     val_scores: np.ndarray,
@@ -57,25 +96,5 @@ def build_baseline(
     if banned:
         raise ValueError(f"label-like columns must not be baselined: {banned}")
     columns = list(feature_columns) if feature_columns is not None else list(train.columns)
-
-    features: dict[str, Any] = {}
-    for col in columns:
-        x = train[col].to_numpy(dtype=float)
-        null = np.isnan(x)
-        values = x[~null]
-        edges = _edges(values)
-        features[col] = {
-            "edges": edges,
-            "props": _proportions(edges, values, len(x)),
-            "null_prop": float(null.sum()) / len(x),
-        }
-
-    scores = np.asarray(val_scores, dtype=float)
-    score_edges = _edges(scores)
-    return {
-        **dict(meta),
-        "window": dict(window),
-        "features": features,
-        "score": {"edges": score_edges, "props": _proportions(score_edges, scores, len(scores))},
-        "alerts_per_day": dict(alerts_per_day),
-    }
+    x = train[columns].to_numpy(dtype=float)
+    return assemble(feature_distributions(x, columns), val_scores, alerts_per_day, meta, window)

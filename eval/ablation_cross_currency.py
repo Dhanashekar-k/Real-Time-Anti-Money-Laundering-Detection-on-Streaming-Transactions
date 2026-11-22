@@ -42,18 +42,15 @@ def dropped(names: Sequence[str], patterns: Sequence[str]) -> list[str]:
 
 def run(ds: str) -> dict[str, Any]:
     names_all = data.feature_names()
-    train_df = data.read_split(ds, "train", burn_in=True)
-    val_df = data.read_split(ds, "val")
-    y_train, y_val = train_df["y"].to_numpy(), val_df["y"].to_numpy()
-    xt_all = data.feature_matrix(train_df)
-    xv_all = data.feature_matrix(val_df)
+    tr = data.read_matrix(ds, "train", burn_in=True)
+    va = data.read_matrix(ds, "val")
+    y_train, y_val = tr.meta["y"].to_numpy(), va.meta["y"].to_numpy()
     out: dict[str, Any] = {}
     for group, patterns in GROUPS.items():
         drop = dropped(names_all, patterns)
         keep = [n for n in names_all if n not in drop]
-        dtrain, dval = train.make_matrices(
-            xt_all[keep].to_numpy(), y_train, xv_all[keep].to_numpy(), y_val, keep
-        )
+        cols = [names_all.index(n) for n in keep]
+        dtrain, dval = train.make_matrices(tr.x[:, cols], y_train, va.x[:, cols], y_val, keep)
         results = []
         started = time.perf_counter()
         for seed in train.SEEDS:

@@ -19,6 +19,12 @@ DAY = 86_400_000
 ROOT = Path(__file__).resolve().parents[2]
 
 
+@pytest.fixture(autouse=True)
+def _clean_tree(monkeypatch) -> None:
+    """The gate looks at the real repository; these tests must not depend on its state."""
+    monkeypatch.setattr(ev, "_is_dirty", lambda: False)
+
+
 # --- the gate --------------------------------------------------------------------------------
 
 
@@ -261,3 +267,37 @@ def test_provisional_headline_is_added_when_golden_is_open() -> None:
     )
     assert "PROVISIONAL" in lines[0] and "150" in lines[0]
     assert ev.provisional_headline({"provisional": False, "todo_values": 0}) == []
+
+
+def test_the_gate_refuses_a_dirty_tree(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(ev, "_is_dirty", lambda: True)
+    monkeypatch.delenv("AML_ALLOW_DIRTY_EVAL", raising=False)
+    with pytest.raises(ev.DirtyTree, match="commit"):
+        ev.open_test_gate(True, "hi_small", tmp_path, reason="x")
+    assert not (tmp_path / "test_access_log.txt").exists()  # refused before anything is logged
+
+
+def test_the_dirty_override_is_explicit_and_is_logged(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(ev, "_is_dirty", lambda: True)
+    monkeypatch.setenv("AML_ALLOW_DIRTY_EVAL", "1")
+    with pytest.warns(UserWarning):
+        ev.open_test_gate(True, "hi_small", tmp_path, reason="x")
+    assert "+dirty" in (tmp_path / "test_access_log.txt").read_text()
+
+
+def test_a_clean_tree_is_logged_as_clean(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(ev, "_is_dirty", lambda: False)
+    with pytest.warns(UserWarning):
+        ev.open_test_gate(True, "hi_small", tmp_path, reason="x")
+    assert "+dirty" not in (tmp_path / "test_access_log.txt").read_text()
+
+
+def test_the_runner_does_not_write_tracked_files_before_the_gate() -> None:
+    """The importance figure is made by training; the evaluation must not rewrite it (a tracked
+    file changed just before the test read would make the tree dirty at the moment of the read)."""
+    import inspect
+
+    src = inspect.getsource(ev.run)
+    before_gate = src.split("open_test_gate(")[0]
+    assert "importance_figure" not in before_gate and "write_json" not in before_gate
+    assert "savefig" not in before_gate and "write_text" not in before_gate
