@@ -25,7 +25,7 @@ validate:
   required: [tx_id, event_ts_ms, sender_bank, sender_account, receiver_bank, receiver_account,
              payment_currency, receiving_currency, amount_paid_minor, amount_received_minor, payment_format]
   allowed_currencies: spec   # features/spec.yaml vocabularies.currencies
-  positive: [amount_paid_minor, amount_received_minor]
+  non_negative: [amount_paid_minor, amount_received_minor]  # zero is valid (D53): 1,066 HI-Small rows
   event_ts_range: ["2022-01-01T00:00:00Z", "2023-12-31T23:59:59Z"]
 
 value_maps:
