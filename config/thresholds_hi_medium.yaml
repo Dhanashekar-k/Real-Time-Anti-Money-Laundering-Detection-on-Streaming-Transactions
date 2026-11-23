@@ -1,0 +1,38 @@
+banks:
+  A:
+    budget:
+      alerts: 0
+      alerts_per_day: 0.0
+      n_days: 6
+      note: the top group of tied scores exceeds the budget, so nothing alerts
+      target_alerts: 1200
+      threshold: 1.0000000000000002
+    f1_optimal:
+      alerts: 2884
+      f1: 0.6222794591113973
+      precision: 0.8377253814147018
+      recall: 0.49498053677525095
+      threshold: 0.2957690954208374
+      val_alerts_per_day: 480.6666666666667
+  B:
+    budget:
+      alerts: 0
+      alerts_per_day: 0.0
+      n_days: 6
+      note: the top group of tied scores exceeds the budget, so nothing alerts
+      target_alerts: 1200
+      threshold: 1.0000000000000002
+    f1_optimal:
+      alerts: 2951
+      f1: 0.7048581859028363
+      precision: 0.8505591324974585
+      recall: 0.6017741548789259
+      threshold: 0.2989257276058197
+      val_alerts_per_day: 491.8333333333333
+meta:
+  dataset: hi_medium
+  k_alerts_per_day: 200
+  model: aml-xgb
+  model_version: '5'
+  rule: alert when score >= threshold
+  tuned_on: val

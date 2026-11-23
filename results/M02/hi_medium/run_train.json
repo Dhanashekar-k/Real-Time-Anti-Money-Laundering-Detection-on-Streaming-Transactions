@@ -1,0 +1,29 @@
+{
+  "command": [
+    "/Users/shekar/code/stream-aml/.venv/bin/python",
+    "-m",
+    "ml.train",
+    "--ds",
+    "hi_medium"
+  ],
+  "git_dirty": false,
+  "git_sha": "e4f43d552aa41fefae77d69b2742d0117bd26f72",
+  "label": "train",
+  "note": "RSS summed over the process tree; shared pages are counted once per process",
+  "peak_process_tree_mb": {
+    "jvm_mb": 0.0,
+    "python_worker_max_mb": 0.0,
+    "python_workers_mb": 0.0,
+    "total_mb": 11109.6
+  },
+  "returncode": 0,
+  "samples": 2740,
+  "seconds": 5611.6,
+  "system": {
+    "swap_used_mb_before": 6965.19,
+    "swap_used_mb_peak": 7999.44,
+    "used_mb_before": 12806.8,
+    "used_mb_peak": 19631.5
+  },
+  "timestamp": "2026-11-23T02:58:01+00:00"
+}
