@@ -1,12 +1,12 @@
 {
   "dataset": "hi_small",
   "git_dirty": false,
-  "git_sha": "a3ba4821a3d86834d8cc10c07e2c330e7506a8fc",
+  "git_sha": "9cb49bc2e784a6505d229dd1c3f9079f0bddded3",
   "groups": {
     "no_pattern": {
       "amount_usd": {
         "max": 16297045521.39,
-        "mean": 15447041.7200928,
+        "mean": 15447041.720092775,
         "median": 2353.36,
         "min": 0.39,
         "p25": 776.45,
@@ -95,7 +95,7 @@
           "null_share": 0.0
         },
         "s_pass_through_ratio_24h": {
-          "mean": 7767724966.936617,
+          "mean": 7767724966.936618,
           "median": 1.0,
           "nonzero_share": 0.2922465208747515,
           "null_share": 0.5904572564612326
@@ -228,7 +228,7 @@
     "patterned": {
       "amount_usd": {
         "max": 692374068.32,
-        "mean": 1454800.2880427788,
+        "mean": 1454800.2880427795,
         "median": 10118.525,
         "min": 29.55,
         "p25": 4964.15,
@@ -317,7 +317,7 @@
           "null_share": 0.0
         },
         "s_pass_through_ratio_24h": {
-          "mean": 216.93459801104774,
+          "mean": 216.93459801104768,
           "median": 1.0,
           "nonzero_share": 0.8310160427807487,
           "null_share": 0.1053475935828877
@@ -434,6 +434,7 @@
   },
   "laundering_rows_train_val": 3379,
   "model_val_recall": {
+    "model_version": "3",
     "no_pattern": {
       "caught": 3,
       "mean_score": 0.02046923339366913,
@@ -464,5 +465,5 @@
     "val": 1082
   },
   "scope": "train and val rows only; the test split is not read",
-  "timestamp": "2026-11-22T22:20:27+00:00"
+  "timestamp": "2026-11-23T03:23:11+00:00"
 }
