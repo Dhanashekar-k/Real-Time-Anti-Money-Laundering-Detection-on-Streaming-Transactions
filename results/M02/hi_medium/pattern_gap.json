@@ -1,0 +1,470 @@
+{
+  "dataset": "hi_medium",
+  "git_dirty": false,
+  "git_sha": "65ae9c317873b6fd565d2424fffebfb99177d174",
+  "groups": {
+    "no_pattern": {
+      "amount_usd": {
+        "max": 4339523031.98,
+        "mean": 3503774.393677042,
+        "median": 2485.46,
+        "min": 0.43,
+        "p25": 840.09,
+        "p75": 4424.85,
+        "p90": 15839.564000000079,
+        "p99": 5989025.28720008
+      },
+      "cross_currency_rows": 0,
+      "features": {
+        "r_account_age_minutes": {
+          "mean": 9218.659561510352,
+          "median": 9196.5,
+          "nonzero_share": 0.985784362799079,
+          "null_share": 0.01371508659525478
+        },
+        "r_distinct_in_cp_72h": {
+          "mean": 2.8762638902793074,
+          "median": 1.0,
+          "nonzero_share": 0.8324156572229452,
+          "null_share": 0.0
+        },
+        "r_in_count_24h": {
+          "mean": 3.2562819101011113,
+          "median": 2.0,
+          "nonzero_share": 0.7237961757933727,
+          "null_share": 0.0
+        },
+        "r_log_empty": {
+          "mean": 0.01371508659525478,
+          "median": 0.0,
+          "nonzero_share": 0.01371508659525478,
+          "null_share": 0.0
+        },
+        "r_new_counterparty_72h": {
+          "mean": 0.6401041145259786,
+          "median": 1.0,
+          "nonzero_share": 0.6401041145259786,
+          "null_share": 0.0
+        },
+        "r_out_count_24h": {
+          "mean": 42.299929922915204,
+          "median": 0.0,
+          "nonzero_share": 0.3132445690259285,
+          "null_share": 0.0
+        },
+        "r_returned_funds_24h": {
+          "mean": 0.010411452597857643,
+          "median": 0.0,
+          "nonzero_share": 0.010411452597857643,
+          "null_share": 0.0
+        },
+        "s_account_age_minutes": {
+          "mean": 9323.322497685424,
+          "median": 9318.0,
+          "nonzero_share": 0.9731704875362899,
+          "null_share": 0.02682951246371008
+        },
+        "s_distinct_out_cp_72h": {
+          "mean": 6897.984182600861,
+          "median": 1.0,
+          "nonzero_share": 0.5737311042146361,
+          "null_share": 0.0
+        },
+        "s_in_count_24h": {
+          "mean": 60.82700971068175,
+          "median": 0.0,
+          "nonzero_share": 0.3678045850435479,
+          "null_share": 0.0
+        },
+        "s_log_empty": {
+          "mean": 0.02682951246371008,
+          "median": 0.0,
+          "nonzero_share": 0.02682951246371008,
+          "null_share": 0.0
+        },
+        "s_new_counterparty_72h": {
+          "mean": 0.6401041145259786,
+          "median": 1.0,
+          "nonzero_share": 0.6401041145259786,
+          "null_share": 0.0
+        },
+        "s_out_count_24h": {
+          "mean": 11752.056061667834,
+          "median": 1.0,
+          "nonzero_share": 0.5187706477124837,
+          "null_share": 0.0
+        },
+        "s_pass_through_ratio_24h": {
+          "mean": 3362900753.58524,
+          "median": 1.0,
+          "nonzero_share": 0.23315647211933127,
+          "null_share": 0.6343978376213836
+        }
+      },
+      "other_laundering_rows_same_receiver": {
+        "max": 5.0,
+        "mean": 0.04925417959755731,
+        "median": 0.0,
+        "min": 0.0,
+        "p25": 0.0,
+        "p75": 0.0,
+        "p90": 0.0,
+        "p99": 1.0
+      },
+      "other_laundering_rows_same_sender": {
+        "max": 1186.0,
+        "mean": 213.12984282710983,
+        "median": 0.0,
+        "min": 0.0,
+        "p25": 0.0,
+        "p75": 113.0,
+        "p90": 1186.0,
+        "p99": 1186.0
+      },
+      "payment_format": {
+        "ACH": 6485,
+        "BITCOIN": 189,
+        "CASH": 509,
+        "CHEQUE": 1761,
+        "CREDIT_CARD": 1045
+      },
+      "receiver_legs": {
+        "max": 851168.0,
+        "mean": 439.0866953649014,
+        "median": 30.0,
+        "min": 1.0,
+        "p25": 13.0,
+        "p75": 50.0,
+        "p90": 77.20000000000073,
+        "p99": 161.0
+      },
+      "rows": 9989,
+      "rows_from_senders_with_at_least_50_laundering_rows": 3274,
+      "rows_in_val": 3131,
+      "same_bank_share": 0.00700770847932726,
+      "self_transfer_rows": 0,
+      "sender_legs": {
+        "max": 851168.0,
+        "mean": 152870.3103413755,
+        "median": 33.0,
+        "min": 1.0,
+        "p25": 8.0,
+        "p75": 75854.0,
+        "p90": 851168.0,
+        "p99": 851168.0
+      },
+      "share_above_1m_usd": 0.015116628291120232,
+      "share_of_laundering": 0.406255083780706,
+      "top_senders": [
+        {
+          "median_usd": 1099.37,
+          "payment_formats": [
+            "CASH",
+            "CHEQUE",
+            "CREDIT_CARD"
+          ],
+          "rows": 1187,
+          "sender": "070:100428660",
+          "share_of_group": 0.11883071378516367
+        },
+        {
+          "median_usd": 935.15,
+          "payment_formats": [
+            "CASH",
+            "CHEQUE",
+            "CREDIT_CARD"
+          ],
+          "rows": 751,
+          "sender": "070:1004286A8",
+          "share_of_group": 0.07518270097106818
+        },
+        {
+          "median_usd": 1544.395,
+          "payment_formats": [
+            "CASH",
+            "CHEQUE",
+            "CREDIT_CARD"
+          ],
+          "rows": 212,
+          "sender": "070:1004286F0",
+          "share_of_group": 0.021223345680248272
+        },
+        {
+          "median_usd": 935.0450000000001,
+          "payment_formats": [
+            "CASH",
+            "CHEQUE",
+            "CREDIT_CARD"
+          ],
+          "rows": 146,
+          "sender": "070:1004289C0",
+          "share_of_group": 0.014616077685453999
+        },
+        {
+          "median_usd": 684.435,
+          "payment_formats": [
+            "CASH",
+            "CHEQUE",
+            "CREDIT_CARD"
+          ],
+          "rows": 134,
+          "sender": "070:100428858",
+          "share_of_group": 0.01341475623185504
+        },
+        {
+          "median_usd": 1386.65,
+          "payment_formats": [
+            "CASH",
+            "CHEQUE",
+            "CREDIT_CARD"
+          ],
+          "rows": 114,
+          "sender": "070:1004287C8",
+          "share_of_group": 0.01141255380919011
+        }
+      ],
+      "zero_amount_rows": 0
+    },
+    "patterned": {
+      "amount_usd": {
+        "max": 16438454631.26,
+        "mean": 4385480.813416,
+        "median": 9989.86,
+        "min": 2.84,
+        "p25": 5189.775,
+        "p75": 15292.43,
+        "p90": 18433.712000000003,
+        "p99": 30780971.115600057
+      },
+      "cross_currency_rows": 0,
+      "features": {
+        "r_account_age_minutes": {
+          "mean": 10934.604775456375,
+          "median": 11095.0,
+          "nonzero_share": 0.985683950955545,
+          "null_share": 0.013151585725049661
+        },
+        "r_distinct_in_cp_72h": {
+          "mean": 2.123912596753202,
+          "median": 1.0,
+          "nonzero_share": 0.7399821905609973,
+          "null_share": 0.0
+        },
+        "r_in_count_24h": {
+          "mean": 1.9727378587574491,
+          "median": 1.0,
+          "nonzero_share": 0.6155216110692513,
+          "null_share": 0.0
+        },
+        "r_log_empty": {
+          "mean": 0.013151585725049661,
+          "median": 0.0,
+          "nonzero_share": 0.013151585725049661,
+          "null_share": 0.0
+        },
+        "r_new_counterparty_72h": {
+          "mean": 0.8524556476470991,
+          "median": 1.0,
+          "nonzero_share": 0.8524556476470991,
+          "null_share": 0.0
+        },
+        "r_out_count_24h": {
+          "mean": 2.375231180217823,
+          "median": 0.0,
+          "nonzero_share": 0.46455236660045207,
+          "null_share": 0.0
+        },
+        "r_returned_funds_24h": {
+          "mean": 0.03719432837865607,
+          "median": 0.0,
+          "nonzero_share": 0.03719432837865607,
+          "null_share": 0.0
+        },
+        "s_account_age_minutes": {
+          "mean": 10810.612548156301,
+          "median": 11003.5,
+          "nonzero_share": 0.9891088430714432,
+          "null_share": 0.00431536406603192
+        },
+        "s_distinct_out_cp_72h": {
+          "mean": 2.57312144667443,
+          "median": 1.0,
+          "nonzero_share": 0.7275840811014453,
+          "null_share": 0.0
+        },
+        "s_in_count_24h": {
+          "mean": 2.429344475649017,
+          "median": 2.0,
+          "nonzero_share": 0.8480032878964313,
+          "null_share": 0.0
+        },
+        "s_log_empty": {
+          "mean": 0.00431536406603192,
+          "median": 0.0,
+          "nonzero_share": 0.00431536406603192,
+          "null_share": 0.0
+        },
+        "s_new_counterparty_72h": {
+          "mean": 0.8524556476470991,
+          "median": 1.0,
+          "nonzero_share": 0.8524556476470991,
+          "null_share": 0.0
+        },
+        "s_out_count_24h": {
+          "mean": 3.8187547092266594,
+          "median": 2.0,
+          "nonzero_share": 0.8595794232481677,
+          "null_share": 0.0
+        },
+        "s_pass_through_ratio_24h": {
+          "mean": 496.24860099530395,
+          "median": 1.0,
+          "nonzero_share": 0.788478662922118,
+          "null_share": 0.15199671210356874
+        }
+      },
+      "other_laundering_rows_same_receiver": {
+        "max": 32.0,
+        "mean": 3.684498938283444,
+        "median": 0.0,
+        "min": 0.0,
+        "p25": 0.0,
+        "p75": 7.0,
+        "p90": 13.0,
+        "p99": 20.0
+      },
+      "other_laundering_rows_same_sender": {
+        "max": 34.0,
+        "mean": 3.593533803685184,
+        "median": 0.0,
+        "min": 0.0,
+        "p25": 0.0,
+        "p75": 7.0,
+        "p90": 13.0,
+        "p99": 20.0
+      },
+      "payment_format": {
+        "ACH": 14598,
+        "BITCOIN": 1
+      },
+      "receiver_legs": {
+        "max": 469.0,
+        "mean": 59.33125556544969,
+        "median": 42.0,
+        "min": 1.0,
+        "p25": 12.0,
+        "p75": 84.0,
+        "p90": 137.0,
+        "p99": 271.0
+      },
+      "rows": 14599,
+      "rows_from_senders_with_at_least_50_laundering_rows": 0,
+      "rows_in_val": 5921,
+      "same_bank_share": 0.012535105144187958,
+      "self_transfer_rows": 48,
+      "sender_legs": {
+        "max": 469.0,
+        "mean": 63.480580861702855,
+        "median": 46.0,
+        "min": 1.0,
+        "p25": 14.0,
+        "p75": 89.0,
+        "p90": 146.0,
+        "p99": 282.0
+      },
+      "share_above_1m_usd": 0.021645318172477567,
+      "share_of_laundering": 0.5937449162192939,
+      "top_senders": [
+        {
+          "median_usd": 9388.11,
+          "payment_formats": [
+            "ACH"
+          ],
+          "rows": 35,
+          "sender": "0272142:81C393430",
+          "share_of_group": 0.0023974244811288442
+        },
+        {
+          "median_usd": 11371.305,
+          "payment_formats": [
+            "ACH"
+          ],
+          "rows": 28,
+          "sender": "0272896:81BBEA160",
+          "share_of_group": 0.0019179395849030756
+        },
+        {
+          "median_usd": 13988.385,
+          "payment_formats": [
+            "ACH"
+          ],
+          "rows": 24,
+          "sender": "02126306:83000CE40",
+          "share_of_group": 0.0016439482156312077
+        },
+        {
+          "median_usd": 14381.925,
+          "payment_formats": [
+            "ACH"
+          ],
+          "rows": 22,
+          "sender": "0275092:81C3889D0",
+          "share_of_group": 0.0015069525309952736
+        },
+        {
+          "median_usd": 7630.12,
+          "payment_formats": [
+            "ACH"
+          ],
+          "rows": 21,
+          "sender": "0057107:824BF4150",
+          "share_of_group": 0.0014384546886773066
+        },
+        {
+          "median_usd": 8593.32,
+          "payment_formats": [
+            "ACH"
+          ],
+          "rows": 21,
+          "sender": "0272142:81C387B50",
+          "share_of_group": 0.0014384546886773066
+        }
+      ],
+      "zero_amount_rows": 0
+    }
+  },
+  "laundering_rows_train_val": 24588,
+  "model_val_recall": {
+    "model_version": "5",
+    "no_pattern": {
+      "caught": 47,
+      "mean_score": 0.027362629771232605,
+      "median_score": 0.009286832995712757,
+      "positives": 3131,
+      "recall": 0.015011178537208559
+    },
+    "patterned": {
+      "caught": 4879,
+      "mean_score": 0.77293461561203,
+      "median_score": 0.9996277093887329,
+      "positives": 5921,
+      "recall": 0.8240162134774531
+    }
+  },
+  "pattern_types_patterned": {
+    "BIPARTITE": 1634,
+    "CYCLE": 1512,
+    "FAN-IN": 1466,
+    "FAN-OUT": 1504,
+    "GATHER-SCATTER": 2107,
+    "RANDOM": 1126,
+    "SCATTER-GATHER": 2693,
+    "STACK": 2557
+  },
+  "rows_by_split": {
+    "train": 15536,
+    "val": 9052
+  },
+  "scope": "train and val rows only; the test split is not read",
+  "timestamp": "2026-11-23T03:30:34+00:00"
+}
