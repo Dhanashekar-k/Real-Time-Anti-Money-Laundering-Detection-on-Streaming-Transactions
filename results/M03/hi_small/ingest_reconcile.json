@@ -10,14 +10,14 @@
       "mapping_version": "a-1",
       "records_in": 583441,
       "records_out": 583441,
-      "seconds": 19.411
+      "seconds": 19.458
     },
     "B": {
       "dlq": {},
       "mapping_version": "b-1",
       "records_in": 531480,
       "records_out": 531480,
-      "seconds": 19.035
+      "seconds": 19.084
     }
   },
   "dataset": "hi_small",
@@ -26,7 +26,7 @@
   "duplicates": 0,
   "field_mismatches_examples": [],
   "git_dirty": false,
-  "git_sha": "f4aec80c47f59a950f167c273de0fa96a1e30687",
+  "git_sha": "9874ba81bd5c68553b712ed6411212ff1beb8928",
   "lake_rows": 1114921,
   "lake_rows_by_bank": {
     "A": 583441,
@@ -50,8 +50,8 @@
     "to": "2022-09-02"
   },
   "replay": {
-    "achieved_messages_per_second": 166520.2,
-    "duration_seconds": 6.695,
+    "achieved_messages_per_second": 167766.8,
+    "duration_seconds": 6.646,
     "messages": {
       "A": 583441,
       "B": 531480
@@ -59,6 +59,6 @@
     "total_messages": 1114921
   },
   "schema_registry_compatible": true,
-  "scratch_topic_prefix": "it1795418566.",
-  "timestamp": "2026-11-23T07:23:37+00:00"
+  "scratch_topic_prefix": "it1795423799.",
+  "timestamp": "2026-11-23T08:50:50+00:00"
 }

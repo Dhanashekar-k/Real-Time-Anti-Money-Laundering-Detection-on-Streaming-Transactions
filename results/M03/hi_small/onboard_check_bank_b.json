@@ -1,0 +1,182 @@
+{
+  "bank": "B",
+  "check": "onboard-check (M03): a bank mapping run on a sample file, no Kafka",
+  "config": "connectors/banks/bank_b.yaml",
+  "dataset": "none (a sample file, not a lake table)",
+  "dlq": {
+    "by_code": {
+      "BAD_TIMESTAMP": 1,
+      "MALFORMED_RECORD": 1,
+      "MISSING_FIELD": 1,
+      "NEGATIVE_AMOUNT": 1,
+      "UNKNOWN_VALUE": 3
+    },
+    "count": 7,
+    "rate": 0.033816425120772944
+  },
+  "examples": {
+    "canonical": [
+      {
+        "amount_paid_minor": 504703,
+        "amount_paid_usd_cents": 382554,
+        "amount_received_minor": 5474295,
+        "amount_received_usd_cents": 4149394,
+        "bank_id": "B",
+        "event_ts_ms": 1661990400000,
+        "fx_version": 1,
+        "mapping_version": "b-1",
+        "payment_currency": "CAD",
+        "payment_format": "CHEQUE",
+        "receiver_account": "1CE502116",
+        "receiver_bank": "10",
+        "receiver_key": "10:1CE502116",
+        "receiving_currency": "CAD",
+        "sender_account": "E65F53E94",
+        "sender_bank": "70",
+        "sender_key": "70:E65F53E94",
+        "tx_id": 1
+      },
+      {
+        "amount_paid_minor": 283376,
+        "amount_paid_usd_cents": 13403,
+        "amount_received_minor": 9143,
+        "amount_received_usd_cents": 432,
+        "bank_id": "B",
+        "event_ts_ms": 1661990400000,
+        "fx_version": 1,
+        "mapping_version": "b-1",
+        "payment_currency": "MXN",
+        "payment_format": "BITCOIN",
+        "receiver_account": "A79023C39",
+        "receiver_bank": "1234",
+        "receiver_key": "1234:A79023C39",
+        "receiving_currency": "MXN",
+        "sender_account": "79F02E8D2",
+        "sender_bank": "00110",
+        "sender_key": "00110:79F02E8D2",
+        "tx_id": 2
+      },
+      {
+        "amount_paid_minor": 2980945,
+        "amount_paid_usd_cents": 3257863,
+        "amount_received_minor": 3160584,
+        "amount_received_usd_cents": 3160584,
+        "bank_id": "B",
+        "event_ts_ms": 1661990400000,
+        "fx_version": 1,
+        "mapping_version": "b-1",
+        "payment_currency": "CHF",
+        "payment_format": "CHEQUE",
+        "receiver_account": "0D347301E",
+        "receiver_bank": "1234",
+        "receiver_key": "1234:0D347301E",
+        "receiving_currency": "USD",
+        "sender_account": "CCD268A29",
+        "sender_bank": "70",
+        "sender_key": "70:CCD268A29",
+        "tx_id": 3
+      }
+    ],
+    "failed": [
+      {
+        "code": "MALFORMED_RECORD",
+        "detail": "JSON: Unterminated string starting at: line 1 column 131 (char 130)",
+        "field": null,
+        "line": 201,
+        "value": null
+      },
+      {
+        "code": "MISSING_FIELD",
+        "detail": "sender_account is empty or absent",
+        "field": "sender_account",
+        "line": 202,
+        "value": null
+      },
+      {
+        "code": "UNKNOWN_VALUE",
+        "detail": "'HAWALA' is not in value map 'method_names'",
+        "field": "payment_format",
+        "line": 203,
+        "value": "HAWALA"
+      }
+    ]
+  },
+  "field_coverage": {
+    "amount_paid_minor": {
+      "of": 207,
+      "ok": 206,
+      "pct": 99.51690821256038
+    },
+    "amount_received_minor": {
+      "of": 207,
+      "ok": 206,
+      "pct": 99.51690821256038
+    },
+    "event_ts_ms": {
+      "of": 207,
+      "ok": 205,
+      "pct": 99.03381642512078
+    },
+    "payment_currency": {
+      "of": 207,
+      "ok": 206,
+      "pct": 99.51690821256038
+    },
+    "payment_format": {
+      "of": 207,
+      "ok": 204,
+      "pct": 98.55072463768116
+    },
+    "receiver_account": {
+      "of": 207,
+      "ok": 206,
+      "pct": 99.51690821256038
+    },
+    "receiver_bank": {
+      "of": 207,
+      "ok": 206,
+      "pct": 99.51690821256038
+    },
+    "receiving_currency": {
+      "of": 207,
+      "ok": 206,
+      "pct": 99.51690821256038
+    },
+    "sender_account": {
+      "of": 207,
+      "ok": 205,
+      "pct": 99.03381642512078
+    },
+    "sender_bank": {
+      "of": 207,
+      "ok": 206,
+      "pct": 99.51690821256038
+    },
+    "tx_id": {
+      "of": 207,
+      "ok": 206,
+      "pct": 99.51690821256038
+    }
+  },
+  "git_dirty": false,
+  "git_sha": "9874ba81bd5c68553b712ed6411212ff1beb8928",
+  "mapped": 200,
+  "mapped_pct": 96.61835748792271,
+  "mapping_version": "b-1",
+  "records": 207,
+  "sample": {
+    "bytes": 57483,
+    "path": "tests/fixtures/bank_b_sample.jsonl",
+    "sha256": "90247bb041b017d9ea83e0e73bb2ccc33a8ab7ceba6595569a493c14f159e139"
+  },
+  "timestamp": "2026-11-23T08:51:03+00:00",
+  "unmapped_values": {
+    "payment_currency": {
+      "PLN": 1
+    },
+    "payment_format": {
+      "HAWALA": 2
+    }
+  },
+  "unused_source_columns": []
+}
