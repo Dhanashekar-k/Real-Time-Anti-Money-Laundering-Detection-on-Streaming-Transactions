@@ -311,3 +311,41 @@ def test_json_text_with_escapes_and_lone_surrogates_is_sendable_or_rejected(
     doc["originator"]["accountNo"] = "".join(account)
     raw = json.dumps(doc).encode()  # ensure_ascii: a surrogate becomes a \\ud800 escape
     _sendable(map_record(raw, bank_b_cfg))
+
+
+# --- zero is valid, so no error code is about "not positive" -------------------------------------
+
+
+def test_the_error_codes_are_exactly_the_documented_set_and_none_rejects_zero() -> None:
+    from stream.connectors.engine import ERROR_CODES
+
+    assert set(ERROR_CODES) == {
+        "MALFORMED_RECORD",
+        "MISSING_FIELD",
+        "UNKNOWN_VALUE",
+        "BAD_NUMBER",
+        "BAD_TIMESTAMP",
+        "TIMESTAMP_OUT_OF_RANGE",
+        "NEGATIVE_AMOUNT",
+        "BAD_FORMAT",
+        "INTERNAL_ERROR",
+    }
+    assert not [c for c in ERROR_CODES if "POSITIVE" in c]  # a zero amount has no error code
+
+
+def test_zero_in_every_amount_position_maps_without_an_error(
+    bank_a_cfg: Any, bank_b_cfg: Any
+) -> None:
+    for amount_paid, amount_received in (
+        ("0", "0"),
+        ("0.00", "5.00"),
+        ("5.00", "0.00"),
+        ("-0.00", "0"),
+    ):
+        out = map_record(
+            a_line(amount_paid=amount_paid, amount_received=amount_received), bank_a_cfg
+        )
+        assert not isinstance(out, MappingError), (amount_paid, amount_received, out)
+    for paid, received in ((0, 0), (0, 5), (5, 0)):
+        raw = b_doc("debit.amountMinor", paid, "credit.amountMinor", received)
+        assert not isinstance(map_record(raw, bank_b_cfg), MappingError), (paid, received)
