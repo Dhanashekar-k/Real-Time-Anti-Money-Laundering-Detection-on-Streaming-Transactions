@@ -36,7 +36,8 @@ from typing import Any
 
 from stream.settings import CLIENT_CONFIG
 
-STAGES_FOR_BOTTLENECK = ("consume", "map", "avro", "produce")
+BATCH_SIZE = 2000  # the connector's default --batch-size
+STAGES_FOR_BOTTLENECK = ("consume", "map", "avro", "produce", "commit")
 DAY_FROM, DAY_TO = "2022-09-01", "2022-09-02"
 
 
@@ -137,9 +138,19 @@ class _Env:
 
 
 def _send_all(
-    brokers: str, config: Mapping[str, Any], topic: str, items: Sequence[tuple[bytes, bytes]]
-) -> int:
-    """Produce (key, value) pairs and wait for the acknowledgements; returns the delivery errors."""
+    brokers: str,
+    config: Mapping[str, Any],
+    topic: str,
+    items: Sequence[tuple[bytes, bytes]],
+    flush_every: int | None = None,
+) -> tuple[int, float]:
+    """Produce (key, value) pairs and wait for the acknowledgements.
+
+    Returns (delivery errors, seconds). The seconds start AFTER the producer is created and has
+    delivered one message: a new producer's start-up (about 510 ms, `producer_startup_first_ack_ms`)
+    is not a per-record cost. `flush_every` mirrors the connector, which waits for the
+    acknowledgement of each batch before committing.
+    """
     from confluent_kafka import Producer
 
     producer = Producer({"bootstrap.servers": brokers, **CLIENT_CONFIG, **config})
@@ -149,7 +160,10 @@ def _send_all(
         if err is not None:
             errors.append(str(err))
 
-    for key, value in items:
+    producer.produce(topic, value=b"warm-up", key=b"warm-up", on_delivery=on_delivery)
+    producer.flush(60)
+    started = time.perf_counter()
+    for count, (key, value) in enumerate(items, start=1):
         while True:
             try:
                 producer.produce(topic, value=value, key=key, on_delivery=on_delivery)
@@ -157,8 +171,32 @@ def _send_all(
             except BufferError:
                 producer.poll(0.05)
         producer.poll(0)
+        if flush_every and count % flush_every == 0:
+            producer.flush(120)
     producer.flush(120)
-    return len(errors)
+    return len(errors), time.perf_counter() - started
+
+
+def _commit_run(brokers: str, topic: str, group: str, batches: int) -> float:
+    """Seconds for `batches` synchronous offset commits, as the connector does after each batch."""
+    from confluent_kafka import Consumer, TopicPartition
+
+    consumer = Consumer(
+        {
+            "bootstrap.servers": brokers,
+            **CLIENT_CONFIG,
+            "group.id": group,
+            "enable.auto.commit": False,
+        }
+    )
+    try:
+        consumer.commit(offsets=[TopicPartition(topic, 0, 1)], asynchronous=False)  # warm-up
+        started = time.perf_counter()
+        for k in range(batches):
+            consumer.commit(offsets=[TopicPartition(topic, 0, 2 + k)], asynchronous=False)
+        return time.perf_counter() - started
+    finally:
+        consumer.close()
 
 
 def _first_ack_ms(brokers: str, extra: Mapping[str, Any], topic: str) -> float:
@@ -209,7 +247,10 @@ def _bench_stages(
     raws = [render.render(bank, r) for r in rows]
     input_topic = f"{env.prefix}{cfg.topic}"
     keys = [f"{r['sender_bank']}:{r['sender_account']}".encode() for r in rows]
-    if _send_all(env.brokers, env.producer_config, input_topic, list(zip(keys, raws, strict=True))):
+    failed, _ = _send_all(
+        env.brokers, env.producer_config, input_topic, list(zip(keys, raws, strict=True))
+    )
+    if failed:
         raise RuntimeError("could not fill the scratch input topic")
 
     stages: dict[str, Any] = {}
@@ -244,19 +285,27 @@ def _bench_stages(
 
     payloads = [(r["sender_key"].encode(), env.serializer(r, env.context)) for r in mapped]
     errors: list[int] = []
-    runs = [
-        _timed(
-            lambda: errors.append(
-                _send_all(env.brokers, env.producer_config, env.canonical_topic, payloads)
-            )
+    runs: list[float] = []
+    for _ in range(repeats):
+        failed, seconds = _send_all(
+            env.brokers, env.producer_config, env.canonical_topic, payloads, flush_every=BATCH_SIZE
         )
-        for _ in range(repeats)
-    ]
+        errors.append(failed)
+        runs.append(seconds)
     stages["produce"] = summarize_runs(runs, n)
     stages["produce"]["delivery_errors_per_run"] = errors
     stages["produce"]["note"] = (
-        "each run starts a new producer, so every run includes its warm-up (D53)"
+        f"producer start-up excluded; flushed every {BATCH_SIZE} records like a connector batch"
     )
+    batches = n // BATCH_SIZE
+    stages["commit"] = summarize_runs(
+        [
+            _commit_run(env.brokers, input_topic, f"{env.prefix}commit-{bank}-{i}", batches)
+            for i in range(repeats)
+        ],
+        batches * BATCH_SIZE,
+    )
+    stages["commit"]["note"] = f"{batches} synchronous commits, one per {BATCH_SIZE}-record batch"
     stages["sum_of_stage_medians_us_per_record"] = round(
         sum(stages[s]["median_us_per_record"] for s in STAGES_FOR_BOTTLENECK), 3
     )
@@ -361,7 +410,7 @@ def run(ds: str, n: int, stage_repeats: int, e2e_repeats: int, out: Path) -> dic
         },
         "config": {
             "processes": "host processes (not containers)",
-            "connector_batch_size": 2000,
+            "connector_batch_size": BATCH_SIZE,
             "serializer_in_use": "confluent_kafka AvroSerializer",
             "producer": PRODUCER_CONFIG,
             "scratch_topic_prefix": prefix,
@@ -377,6 +426,15 @@ def run(ds: str, n: int, stage_repeats: int, e2e_repeats: int, out: Path) -> dic
             rows = _bank_rows(table, bank, n)
             doc["stages"][bank] = _bench_stages(env, bank, cfg, rows, stage_repeats)
             doc["end_to_end"][bank] = _bench_end_to_end(env, bank, e2e_repeats, out.parent)
+            stage_sum = doc["stages"][bank]["sum_of_stage_medians_us_per_record"]
+            e2e_us = doc["end_to_end"][bank]["microseconds_per_record_at_median"]
+            doc["end_to_end"][bank]["stage_sum_us_per_record"] = stage_sum
+            doc["end_to_end"][bank]["not_attributed_to_a_stage_us_per_record"] = round(
+                e2e_us - stage_sum, 3
+            )
+            doc["end_to_end"][bank]["not_attributed_pct_of_end_to_end"] = round(
+                100 * (e2e_us - stage_sum) / e2e_us, 1
+            )
     finally:
         for future in admin.delete_topics(list(topics)).values():
             try:
