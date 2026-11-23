@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import codecs
+import hashlib
 import json
 from collections import Counter, defaultdict
 from collections.abc import Sequence
@@ -151,8 +152,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     report = check_sample(load_config(path), read_sample(args.sample))
     print(format_report(report))
     if args.json:
-        args.json.parent.mkdir(parents=True, exist_ok=True)
-        args.json.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+        from batch.spark import common
+
+        sample_bytes = Path(args.sample).read_bytes()
+        record = {
+            **report,
+            "check": "onboard-check (M03): a bank mapping run on a sample file, no Kafka",
+            "sample": {
+                "path": str(args.sample),
+                "sha256": hashlib.sha256(sample_bytes).hexdigest(),
+                "bytes": len(sample_bytes),
+            },
+            "config": str(path),
+            **common.provenance(),
+        }
+        common.write_json(args.json, record)
     return 1 if report["dlq"]["count"] else 0
 
 

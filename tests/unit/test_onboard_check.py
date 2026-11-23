@@ -211,6 +211,14 @@ def test_main_exits_one_when_records_fail_and_writes_json(
     assert "UNKNOWN_VALUE" in capsys.readouterr().out
     doc = json.loads(out.read_text())
     assert doc["records"] == 207 and doc["dlq"]["count"] == 7 and doc["bank"] == "B"
+    # a results file says what it was run on and by which code
+    import hashlib
+
+    sample = FIXTURES / "bank_b_sample.jsonl"
+    assert doc["sample"]["sha256"] == hashlib.sha256(sample.read_bytes()).hexdigest()
+    assert doc["sample"]["bytes"] == sample.stat().st_size
+    assert len(doc["git_sha"]) == 40 and doc["timestamp"].endswith("+00:00")
+    assert doc["config"].endswith("connectors/banks/bank_b.yaml")
 
 
 def test_main_exits_zero_for_a_clean_sample(tmp_path: Path) -> None:
