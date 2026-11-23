@@ -16,9 +16,8 @@ What is computed (all from the rows given, nothing typed):
 - a `headline` that states, with counts taken from the rows, the two artifacts of this dataset
   that a reader must not miss: every laundering row is same-currency, and the sparse tail.
 
-The functions are pure (a DataFrame in, a dict out). Loading the rows from `features_tx` and the
-registered champion is added with the Spark job (M02 step 8); until then `main` stops after the
-`--final` check.
+The functions are pure (a DataFrame in, a dict out); `run` loads the validation and test rows and
+the registered champion, and refuses to read the test split without `--final` on a clean tree.
 """
 
 import argparse

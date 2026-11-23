@@ -162,7 +162,7 @@ train: ## XGBoost: 2 variants x 5 seeds, MLflow, champion, thresholds, drift bas
 eval: ## final evaluation; reads the test split, so it needs FINAL=1 (logs the access)
 	$(require_ds)
 	$(ssd_check)
-	uv run python -m eval.model_eval --ds $(DS) $(if $(FINAL),--final,)
+	uv run python -m eval.model_eval --ds $(DS) $(if $(filter 1,$(FINAL)),--final,)
 replay connectors onboard-check: ; $(call stub,M3)
 flink-build flink-deploy flink-stop parity restart-test: ; $(call stub,M4)
 apps latency-matrix seed-thresholds: ; $(call stub,M5)
