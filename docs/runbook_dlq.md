@@ -10,7 +10,7 @@ A record a connector cannot map is not dropped and does not stop the stream: it 
  "source_topic": "bank_b.raw", "partition": 3, "offset": 1042, "mapping_version": "b-1"}
 ```
 
-The Kafka key is the original key (the sender account key). `raw` is the text as received; bytes that were not UTF-8 are escaped (`\xff`), so such a record can be read but not replayed byte for byte. A record that carried a field the bank should not send is carried as is: the DLQ is not filtered.
+The Kafka key is the original key (the sender account key). `raw` is the text as received; bytes that were not UTF-8 are escaped (`\xff`), so such a record can be read but not replayed byte for byte. A very large message is cut so the record stays under 900,000 bytes (the detail says `[raw truncated: ...]`); a truncated `raw` must not be re-published. A record that carried a field the bank should not send is carried as is: the DLQ is not filtered.
 
 Codes: `MALFORMED_RECORD` (not parseable, wrong shape or column count), `MISSING_FIELD`, `UNKNOWN_VALUE` (a vocabulary value or currency the bank file does not know), `BAD_NUMBER`, `BAD_TIMESTAMP`, `TIMESTAMP_OUT_OF_RANGE`, `NEGATIVE_AMOUNT`, `BAD_FORMAT`, `INTERNAL_ERROR` (an engine bug: report it). See `connectors/README.md`.
 
@@ -61,7 +61,7 @@ rpk topic consume tx.dlq -X brokers=localhost:19092 --offset :end -f '%k\t%v\n' 
   | rpk topic produce bank_b.raw -X brokers=localhost:19092 -f '%k\t%v\n'
 ```
 
-Filter on the `error_code` the fix is for (the example re-sends only `UNKNOWN_VALUE`), so data errors that step 2 says to leave alone are not re-sent. **Running it twice re-sends everything again**, because the original DLQ records stay in the topic: note the DLQ offsets you re-sent (`rpk topic consume tx.dlq --offset 0:99 ...`, the range printed by step 1) and use that range next time. A tab inside `raw` would break the `key<TAB>value` framing; JSON from `render.py` never has one (tabs are escaped) and the CSV banks do not send them, but check with `onboard-check` (step 3) first.
+Filter on the `error_code` the fix is for (the example re-sends only `UNKNOWN_VALUE`), so data errors that step 2 says to leave alone are not re-sent. **Running it twice re-sends everything again**, because the original DLQ records stay in the topic: note the DLQ offsets you re-sent (`rpk topic consume tx.dlq --offset 0:99 ...`, the range printed by step 1) and use that range next time. A tab or a newline inside `raw` would break the `key<TAB>value` line framing (a Bank B JSON record with line breaks between tokens is valid and has newlines); JSON from `render.py` never has one (tabs are escaped) and the CSV banks do not send them, but check with `onboard-check` (step 3) first.
 
 Replace `bank_b.raw` by the record's `source_topic`; the `jq` filter already selects one bank. The `replay_emit_ts_ms` header is not re-created, so a re-published record has none and its ingest latency is not measured.
 

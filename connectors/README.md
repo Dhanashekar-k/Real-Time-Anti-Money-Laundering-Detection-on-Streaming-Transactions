@@ -49,7 +49,7 @@ Operations run in this order inside one field, and every one is optional except 
 | 6 | `map: <value map>` | exact, case-sensitive lookup; a miss is `UNKNOWN_VALUE` |
 | 7 | one of `type: string \| long` or `parse: {...}` | convert (below) |
 
-`type: long`: ASCII digits only, int64 range; `12.5`, `1e3`, `0x10`, a JSON float or boolean are `BAD_NUMBER`. `type: string` turns a JSON number into text. `type: decimal` is refused (use `decimal_to_minor`).
+`type: long`: ASCII digits only, int64 range; `12.5`, `1e3`, `0x10`, a JSON float or boolean are `BAD_NUMBER`. `type: string` turns a JSON integer into text; a JSON decimal (`10.0`) or boolean is `BAD_FORMAT`, and text that is not valid Unicode (a lone `\ud800` escape) is `MALFORMED_RECORD`. `type: decimal` is refused (use `decimal_to_minor`).
 
 `parse` takes exactly one of:
 

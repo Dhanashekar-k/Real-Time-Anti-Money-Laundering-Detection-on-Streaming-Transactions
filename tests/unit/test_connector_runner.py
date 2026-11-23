@@ -408,3 +408,29 @@ def test_a_producer_queue_that_never_drains_is_a_delivery_error() -> None:
     processor.max_produce_wait_s = 0.2
     with pytest.raises(DeliveryError, match="queue"):
         processor.process([good(1, 1)])
+
+
+@pytest.mark.parametrize(
+    ("payload", "why"),
+    [
+        (
+            ("\U0001f600" * 90_000).encode(),
+            "emoji: 4 bytes of UTF-8, 12 bytes as a JSON surrogate pair",
+        ),
+        (("\U0001f600" * 300_000).encode(), "a larger emoji message"),
+        (("\x00" * 200_000).encode(), "control characters: 6 bytes each as \\u0000"),
+        (("\u00e9" * 200_000).encode(), "accented text: 2 bytes of UTF-8, 6 as \\u00e9"),
+        (b"\xff" * 300_000, "invalid UTF-8: 5 bytes each"),
+        (b"a," * 400_000, "plain ASCII"),
+    ],
+    ids=["emoji-90k", "emoji-300k", "control", "accented", "invalid-bytes", "ascii"],
+)
+def test_no_dlq_record_can_exceed_a_kafka_message(payload: bytes, why: str) -> None:
+    record = dlq_record(
+        payload, "MALFORMED_RECORD", "wrong column count", "bank_a.raw", 3, 9, "a-1"
+    )
+    size = len(json.dumps(record).encode())
+    assert size <= 900_000, (why, size)  # librdkafka's default message.max.bytes is 1,000,000
+    whole = len(json.dumps(payload.decode("utf-8", errors="backslashreplace")).encode())
+    # cut only when it would not fit; a message that fits is carried whole
+    assert ("truncated" in record["error_detail"]) == (whole > 899_000), (why, whole)

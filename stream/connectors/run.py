@@ -44,9 +44,9 @@ from stream.settings import (
 ROOT = Path(__file__).resolve().parents[2]
 EMIT_HEADER = "replay_emit_ts_ms"
 FLUSH_TIMEOUT_S = 120.0
-# A DLQ record escapes the raw text (up to 6 characters per byte) and Kafka's default message limit
-# is 1,000,000 bytes: 100,000 characters stay under 700,000 even in the worst case.
-MAX_DLQ_RAW_CHARS = 100_000
+# A DLQ record is the raw text escaped as JSON, which costs 1 to 12 bytes per character, and Kafka's
+# default message limit is 1,000,000 bytes: a record is cut until its encoded size is under this.
+MAX_DLQ_BYTES = 900_000
 COMMIT_RETRYABLE = ("REBALANCE_IN_PROGRESS", "ILLEGAL_GENERATION", "UNKNOWN_MEMBER_ID")
 
 
@@ -136,20 +136,29 @@ def dlq_record(
 ) -> dict[str, Any]:
     """The JSON the DLQ carries. `raw` is the message text (non-UTF-8 bytes are escaped)."""
     text = (raw or b"").decode("utf-8", errors="backslashreplace")
-    if len(text) > MAX_DLQ_RAW_CHARS:
-        detail += (
-            f" [raw truncated: {len(raw or b'')} bytes, first {MAX_DLQ_RAW_CHARS} characters kept]"
-        )
-        text = text[:MAX_DLQ_RAW_CHARS]
-    return {
-        "raw": text,
-        "error_code": code,
-        "error_detail": detail,
-        "source_topic": source_topic,
-        "partition": partition,
-        "offset": offset,
-        "mapping_version": mapping_version,
-    }
+
+    def build(kept: str, note: str) -> dict[str, Any]:
+        return {
+            "raw": kept,
+            "error_code": code,
+            "error_detail": detail + note,
+            "source_topic": source_topic,
+            "partition": partition,
+            "offset": offset,
+            "mapping_version": mapping_version,
+        }
+
+    record = build(text, "")
+    size = len(json.dumps(record).encode())
+    kept = len(text)
+    while size > MAX_DLQ_BYTES:
+        # JSON escaping makes a character cost 1 to 12 bytes (an emoji is a 12-byte surrogate pair),
+        # so the cut follows the size of the encoded record, not the number of characters
+        kept = int(kept * 0.8 * MAX_DLQ_BYTES / size)
+        note = f" [raw truncated: {len(raw or b'')} bytes, first {kept} characters kept]"
+        record = build(text[:kept], note)
+        size = len(json.dumps(record).encode())
+    return record
 
 
 class IdleClock:

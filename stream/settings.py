@@ -6,7 +6,7 @@ BROKERS = os.environ.get("AML_KAFKA_BROKERS", "localhost:19092")
 SCHEMA_REGISTRY = os.environ.get("AML_SCHEMA_REGISTRY", "http://localhost:18081")
 
 # librdkafka resolves `localhost` to ::1 first and the local broker listens on IPv4 only. The
-# refused connection cost a new client between 0 and 4 seconds before its first ack (D53; measured
+# refused connection cost a new client between 0 and 5 seconds before its first ack (D53; measured
 # in results/M03/<ds>/ingest_bench.json). Forcing IPv4 removes it; set
 # AML_KAFKA_ADDRESS_FAMILY=any to undo.
 CLIENT_CONFIG: dict[str, object] = {
