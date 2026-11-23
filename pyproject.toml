@@ -12,7 +12,7 @@ default-groups = ["core", "kafka", "lake", "spark", "ml", "svc", "dev"]
 
 [dependency-groups]
 core = ["pyyaml", "pydantic", "numpy", "pandas", "pyarrow"]
-kafka = ["confluent-kafka", "fastavro"]
+kafka = ["confluent-kafka[schemaregistry]", "fastavro"]
 lake = ["pyiceberg[sql-postgres,pyarrow]", "duckdb"]
 spark = ["pyspark==3.5.*"]
 ml = ["xgboost", "lightgbm", "scikit-learn", "mlflow>=3,<4"]
