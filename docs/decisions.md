@@ -300,6 +300,22 @@ Accepted (user, 2026-11-22, closing M02). Fixes the shared-alias bug of D46/D49:
 - **Not run:** `make eval DS=hi_small FINAL=1` or `DS=hi_medium FINAL=1` again. That would read the test split a second time; the committed `metrics.json` files stand. The resolution path they use was exercised up to the gate, as above. The `metrics.json` model string for a future run reads `aml-xgb v<n> (alias champion_<ds>)`; the two committed files say `(alias champion)`, which was true when they were written.
 - **Still open from D49** (gate coverage, drift-baseline `"pending"` version, precision@K ties, row-bootstrap, R1 swap and test labels): unchanged, none blocks M02.
 
+## D51 — M02 closed with code items deferred (reviewer findings, D49)
+Accepted (user, 2026-11-22). `docs/published_baselines.md` exists, so the only DoD item outstanding is `/quiz M02` (the user's).
+- **Context:** two reviews (D49, and the close-time review of `main...HEAD`: no blockers) left items that change eval or train code, after both final test reads (D46, D48).
+- **Decision:** defer them rather than edit code under results that record SHA `e4f43d5`: (1) **model-provenance check** in `eval.model_eval.load_verified_champion`: refuse when `train.json` or `features.json` has `git_dirty`, or when `features/ batch/ ml/` differ from the SHA in `train.json`; ideally also refuse a dirty tree in `ml.train` before it sets an alias. (2) `eval.pattern_gap` should call `load_verified_champion` and use `model_alert`. (3) `ml.train` should write thresholds and results before setting aliases. (4) pin the Spark source snapshot and check raw against `features.json` `source_snapshot_id` in `ml.data`. (5) catch only "alias does not exist" in `ml.registry`; (6) the rest of the D49 open list.
+- **Must be done before M05, not optional:** item (1). M05's scorer reads this champion, and the claim "reproducible from the SHA" rests on it; today only the worktree procedure (D46) enforces it, no code does.
+- **Alternatives:** fix now. Rejected: it changes code the reported results do not match.
+- **Revisit:** at the start of M05 (plan it as step 0).
+
+## D52 — How M02 results are reported
+Accepted (user, 2026-11-22).
+- **Context:** F1 +0.70 over R5 (HI-Medium, all test rows) is at the F1-optimal threshold against rules below 0.05 F1. At K = 200 alerts per bank-day the HI-Medium model alerts on nothing (float32 scores tied at 1.0, D48). Recall on unpatterned laundering is about 1% (D48).
+- **Decision:** lead with the engineering (leakage-safe, reproducible, hard test gate, hand-verified oracle, per-typology recall); give any F1 only with its operating point and baseline.
+- **Anchor to published numbers** (`docs/published_baselines.md`, figures read from `metrics.json`): tail-free F1 is 48.77% on HI-Small, below GFP+LightGBM/XGBoost (62.86/63.23) and the GNNs except plain GIN; on HI-Medium 61.51%, above GFP+LightGBM (59.48) and PNA (59.71), below GFP+XGBoost (65.70) and the best GNN (78.26). So "at or below the GFP baselines" holds on HI-Small only; the all-test numbers (63.09%, 73.72%) are not comparable.
+- **Alternatives:** headline the delta over R5. Rejected: it measures the weak rules.
+- **Revisit:** if score saturation is fixed (raw-margin ranking), which is a protocol change needing a new evaluation.
+
 ## D-versions — Pinned versions
 Observed on 2026-11-21 during M0 (arm64 Mac, Docker Desktop engine 29.4.1). Python packages are exact in `uv.lock`; image tags are in `infra/compose/docker-compose.yml`. "TBD" = not installed or not checked yet, with the milestone that will.
 

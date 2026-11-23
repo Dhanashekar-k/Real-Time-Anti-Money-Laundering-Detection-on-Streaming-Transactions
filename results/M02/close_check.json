@@ -1,0 +1,142 @@
+{
+  "git_dirty": false,
+  "git_sha": "22920089b017ffef6ef109d23ce10b58d70de98b",
+  "items": [
+    {
+      "command": "make golden; python -m features.expand --check; git ls-files features/feature_names_v1.txt",
+      "detail": {
+        "committed": [
+          "features/feature_names_v1.txt"
+        ],
+        "expand_check": [],
+        "golden": "============================== 89 passed in 0.53s =============================="
+      },
+      "dod_item": "Golden tests green (oracle); feature_names_v1.txt committed",
+      "evidence": "tests/golden/",
+      "result": "PASS"
+    },
+    {
+      "command": "pytest tests/leakage -m 'not integration'; make itest (includes tests/leakage/test_future_invariance.py)",
+      "detail": {
+        "future_invariance_in_itest_log": true,
+        "itest": "105 passed, 536 deselected, 1 warning in 348.62s (0:05:48)",
+        "pytest": "45 passed, 2 deselected, 1 warning in 6.81s"
+      },
+      "dod_item": "Leakage tests green, including future-invariance",
+      "evidence": "tests/leakage/",
+      "result": "PASS"
+    },
+    {
+      "command": "make features DS=<ds> (results read from file)",
+      "detail": {
+        "hi_medium": {
+          "distinct_tx_id": 31898238,
+          "git_dirty": false,
+          "git_sha": "e4f43d552aa41fefae77d69b2742d0117bd26f72",
+          "nan_cells": {}
+        },
+        "hi_small": {
+          "distinct_tx_id": 5078345,
+          "git_dirty": false,
+          "git_sha": "897c666617e8b36f9e840a8c3face0328dc7d1ba",
+          "nan_cells": {}
+        }
+      },
+      "dod_item": "features_tx for hi_small and hi_medium",
+      "evidence": "results/M02/<ds>/features.json",
+      "result": "PASS"
+    },
+    {
+      "command": "make rules/train/eval DS=<ds> (results read from file)",
+      "detail": {
+        "hi_medium": {
+          "git_dirty": false,
+          "provisional": false,
+          "rules_json": true,
+          "t2_all_test": 0.7004899244386597,
+          "t2_ci": [
+            0.6925233279083784,
+            0.7084475712586775
+          ],
+          "t2_meets_20_points": true,
+          "t2_without_tail": 0.5712260678632561,
+          "t2_without_tail_meets": true,
+          "train_json": true
+        },
+        "hi_small": {
+          "git_dirty": false,
+          "provisional": false,
+          "rules_json": true,
+          "t2_all_test": 0.5929015648722877,
+          "t2_ci": [
+            0.5713791154567259,
+            0.6140929073075958
+          ],
+          "t2_meets_20_points": true,
+          "t2_without_tail": 0.4431834488498572,
+          "t2_without_tail_meets": true,
+          "train_json": true
+        }
+      },
+      "dod_item": "metrics.json for rules and XGBoost on both datasets; T2 met or the miss documented",
+      "evidence": "results/M02/<ds>/{rules,train,metrics}.json",
+      "result": "PASS"
+    },
+    {
+      "command": "MlflowClient.get_registered_model('aml-xgb').aliases; git ls-files config/thresholds.yaml",
+      "detail": {
+        "aliases": {
+          "champion": "3",
+          "champion_hi_medium": "5",
+          "champion_hi_small": "3"
+        },
+        "thresholds_files": [
+          "thresholds.yaml",
+          "thresholds_hi_medium.yaml",
+          "thresholds_hi_small.yaml"
+        ]
+      },
+      "dod_item": "champion alias set in MLflow; config/thresholds.yaml written",
+      "evidence": "MLflow aml-xgb; config/thresholds*.yaml",
+      "result": "PASS"
+    },
+    {
+      "command": "test -f docs/published_baselines.md (HUMAN-owned item)",
+      "detail": {
+        "exists": true
+      },
+      "dod_item": "docs/published_baselines.md with citations",
+      "evidence": "docs/published_baselines.md",
+      "result": "PASS"
+    },
+    {
+      "command": "results/M02/<ds>/baseline_dist.json + model version tag",
+      "detail": {
+        "hi_medium": {
+          "file_model_version": "5",
+          "mlflow_tag_baseline_dist": "runs:/23d857fc13494feab2ba0c08b483db77/drift/baseline_dist.json",
+          "mlflow_version": "5",
+          "n_features": 85
+        },
+        "hi_small": {
+          "file_model_version": "3",
+          "mlflow_tag_baseline_dist": "runs:/2cace4e7524243f7abb59412095f8a57/drift/baseline_dist.json",
+          "mlflow_version": "3",
+          "n_features": 85
+        }
+      },
+      "dod_item": "v2: drift baseline saved and attached to the champion's MLflow version",
+      "evidence": "results/M02/<ds>/baseline_dist.json",
+      "result": "PASS"
+    },
+    {
+      "command": "run by the user",
+      "detail": {},
+      "dod_item": "/quiz M02",
+      "evidence": "",
+      "result": "NOT RUN"
+    }
+  ],
+  "milestone": "M02",
+  "timestamp": "2026-11-23T03:48:05+00:00"
+}
