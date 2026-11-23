@@ -9,23 +9,23 @@
     "hi_small"
   ],
   "git_dirty": false,
-  "git_sha": "33a571d70fb2234e4ad5e331d2ea9701271ec48e",
+  "git_sha": "2f2b02033047d5f894eb64ca147254a71b444bc4",
   "label": "ingest_bench",
   "note": "RSS summed over the process tree; shared pages are counted once per process",
   "peak_process_tree_mb": {
     "jvm_mb": 0.0,
-    "python_worker_max_mb": 1870.6,
-    "python_workers_mb": 1870.6,
-    "total_mb": 1900.5
+    "python_worker_max_mb": 1639.8,
+    "python_workers_mb": 1639.8,
+    "total_mb": 1658.8
   },
   "returncode": 0,
-  "samples": 136,
-  "seconds": 140.4,
+  "samples": 160,
+  "seconds": 165.9,
   "system": {
-    "swap_used_mb_before": 6427.0,
-    "swap_used_mb_peak": 6427.0,
-    "used_mb_before": 15231.5,
-    "used_mb_peak": 15935.5
+    "swap_used_mb_before": 5366.81,
+    "swap_used_mb_peak": 5366.81,
+    "used_mb_before": 16645.6,
+    "used_mb_peak": 16961.0
   },
-  "timestamp": "2026-11-23T06:52:24+00:00"
+  "timestamp": "2026-11-23T07:20:50+00:00"
 }

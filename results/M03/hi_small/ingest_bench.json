@@ -11,99 +11,117 @@
       "enable.idempotence": true,
       "linger.ms": 5
     },
-    "scratch_topic_prefix": "bench1795416604.",
+    "scratch_topic_prefix": "bench1795418285.",
     "serializer_in_use": "confluent_kafka AvroSerializer"
   },
   "dataset": "hi_small",
   "end_to_end": {
     "A": {
-      "max_records_per_second": 64587.8,
-      "median_records_per_second": 64415.3,
-      "microseconds_per_record_at_median": 15.524,
-      "min_records_per_second": 64373.2,
+      "max_records_per_second": 49850.8,
+      "median_records_per_second": 49742.9,
+      "microseconds_per_record_at_median": 20.103,
+      "min_records_per_second": 49522.6,
+      "not_attributed_pct_of_end_to_end": 19.0,
+      "not_attributed_to_a_stage_us_per_record": 3.811,
       "runs": [
         {
-          "active_seconds": 4.657,
-          "dlq": {},
-          "records_in": 300000,
+          "active_seconds": 6.058,
+          "dlq": {
+            "MALFORMED_RECORD": 1
+          },
+          "records_in": 300001,
           "records_out": 300000,
-          "records_per_second_active": 64415.3
+          "records_per_second_active": 49522.6
         },
         {
-          "active_seconds": 4.66,
-          "dlq": {},
-          "records_in": 300000,
+          "active_seconds": 6.018,
+          "dlq": {
+            "MALFORMED_RECORD": 1
+          },
+          "records_in": 300001,
           "records_out": 300000,
-          "records_per_second_active": 64373.2
+          "records_per_second_active": 49850.8
         },
         {
-          "active_seconds": 4.645,
-          "dlq": {},
-          "records_in": 300000,
+          "active_seconds": 6.031,
+          "dlq": {
+            "MALFORMED_RECORD": 1
+          },
+          "records_in": 300001,
           "records_out": 300000,
-          "records_per_second_active": 64587.8
+          "records_per_second_active": 49742.9
         }
-      ]
+      ],
+      "stage_sum_us_per_record": 16.292
     },
     "B": {
-      "max_records_per_second": 59620.6,
-      "median_records_per_second": 59532.8,
-      "microseconds_per_record_at_median": 16.797,
-      "min_records_per_second": 59441.7,
+      "max_records_per_second": 47816.2,
+      "median_records_per_second": 47766.2,
+      "microseconds_per_record_at_median": 20.935,
+      "min_records_per_second": 47367.8,
+      "not_attributed_pct_of_end_to_end": 17.7,
+      "not_attributed_to_a_stage_us_per_record": 3.707,
       "runs": [
         {
-          "active_seconds": 5.032,
-          "dlq": {},
-          "records_in": 300000,
+          "active_seconds": 6.274,
+          "dlq": {
+            "MALFORMED_RECORD": 1
+          },
+          "records_in": 300001,
           "records_out": 300000,
-          "records_per_second_active": 59620.6
+          "records_per_second_active": 47816.2
         },
         {
-          "active_seconds": 5.047,
-          "dlq": {},
-          "records_in": 300000,
+          "active_seconds": 6.281,
+          "dlq": {
+            "MALFORMED_RECORD": 1
+          },
+          "records_in": 300001,
           "records_out": 300000,
-          "records_per_second_active": 59441.7
+          "records_per_second_active": 47766.2
         },
         {
-          "active_seconds": 5.039,
-          "dlq": {},
-          "records_in": 300000,
+          "active_seconds": 6.333,
+          "dlq": {
+            "MALFORMED_RECORD": 1
+          },
+          "records_in": 300001,
           "records_out": 300000,
-          "records_per_second_active": 59532.8
+          "records_per_second_active": 47367.8
         }
-      ]
+      ],
+      "stage_sum_us_per_record": 17.228
     }
   },
   "git_dirty": false,
-  "git_sha": "33a571d70fb2234e4ad5e331d2ea9701271ec48e",
+  "git_sha": "2f2b02033047d5f894eb64ca147254a71b444bc4",
   "machine": {
     "cpu_count": 12,
-    "load_average_1m": 2.68896484375,
-    "load_average_1m_after": 1.5,
+    "load_average_1m": 5.1416015625,
+    "load_average_1m_after": 2.41357421875,
     "platform": "macOS-26.6.2-arm64-arm-64bit",
     "python": "3.11.15",
-    "swap_after": "total = 7168.00M  used = 6395.00M  free = 773.00M  (encrypted)",
-    "swap_before": "total = 7168.00M  used = 6427.00M  free = 741.00M  (encrypted)"
+    "swap_after": "total = 6144.00M  used = 5350.81M  free = 793.19M  (encrypted)",
+    "swap_before": "total = 6144.00M  used = 5366.81M  free = 777.19M  (encrypted)"
   },
   "producer_startup_first_ack_ms": {
     "default_address_family_ms": [
-      2010.5,
-      620.6,
-      846.5,
-      614.8,
-      508.6
+      2016.4,
+      2017.5,
+      5031.4,
+      2015.3,
+      1071.3
     ],
     "ipv4_only_ms": [
-      510.3,
-      513.5,
-      505.6,
+      511.2,
+      512.3,
       510.5,
-      509.0
+      513.9,
+      512.3
     ],
     "median_ms": {
-      "default": 620.6,
-      "ipv4_only": 510.3
+      "default": 2016.4,
+      "ipv4_only": 512.3
     },
     "order": "alternating, default first",
     "trials_each": 5
@@ -116,92 +134,115 @@
   "stages": {
     "A": {
       "avro": {
-        "max_us_per_record": 4.635,
-        "median_records_per_second": 216678.9,
-        "median_seconds": 1.3845,
-        "median_us_per_record": 4.615,
-        "min_us_per_record": 4.575,
+        "max_us_per_record": 4.825,
+        "median_records_per_second": 208106.5,
+        "median_seconds": 1.4416,
+        "median_us_per_record": 4.805,
+        "min_us_per_record": 4.704,
         "records": 300000,
         "runs_seconds": [
-          1.3856,
-          1.3726,
-          1.3821,
-          1.3905,
-          1.3845
+          1.4476,
+          1.4416,
+          1.4422,
+          1.4112,
+          1.4185
         ],
         "runs_us_per_record": [
-          4.619,
-          4.575,
-          4.607,
-          4.635,
-          4.615
+          4.825,
+          4.805,
+          4.807,
+          4.704,
+          4.728
         ]
       },
       "avro_fastavro_for_comparison": {
-        "max_us_per_record": 3.749,
-        "median_records_per_second": 270070.8,
-        "median_seconds": 1.1108,
-        "median_us_per_record": 3.703,
-        "min_us_per_record": 3.69,
+        "max_us_per_record": 3.824,
+        "median_records_per_second": 264226.9,
+        "median_seconds": 1.1354,
+        "median_us_per_record": 3.785,
+        "min_us_per_record": 3.781,
         "records": 300000,
         "runs_seconds": [
-          1.107,
-          1.1086,
-          1.1246,
-          1.117,
-          1.1108
+          1.1471,
+          1.1354,
+          1.1442,
+          1.1348,
+          1.1344
         ],
         "runs_us_per_record": [
-          3.69,
-          3.695,
-          3.749,
-          3.723,
-          3.703
+          3.824,
+          3.785,
+          3.814,
+          3.783,
+          3.781
+        ]
+      },
+      "commit": {
+        "max_us_per_record": 1.306,
+        "median_records_per_second": 787928.3,
+        "median_seconds": 0.3807,
+        "median_us_per_record": 1.269,
+        "min_us_per_record": 1.037,
+        "note": "150 synchronous commits, one per 2000-record batch",
+        "records": 300000,
+        "runs_seconds": [
+          0.3393,
+          0.3112,
+          0.3822,
+          0.3807,
+          0.3918
+        ],
+        "runs_us_per_record": [
+          1.131,
+          1.037,
+          1.274,
+          1.269,
+          1.306
         ]
       },
       "consume": {
-        "max_us_per_record": 3.902,
-        "median_records_per_second": 2392203.8,
-        "median_seconds": 0.1254,
-        "median_us_per_record": 0.418,
-        "min_us_per_record": 0.41,
+        "max_us_per_record": 3.963,
+        "median_records_per_second": 2275800.5,
+        "median_seconds": 0.1318,
+        "median_us_per_record": 0.439,
+        "min_us_per_record": 0.389,
         "records": 300000,
         "runs_seconds": [
-          1.1693,
-          0.1249,
-          0.1254,
-          1.1706,
-          0.123
+          1.1889,
+          0.1167,
+          0.1318,
+          0.1278,
+          0.1339
         ],
         "runs_us_per_record": [
-          3.898,
-          0.416,
-          0.418,
-          3.902,
-          0.41
+          3.963,
+          0.389,
+          0.439,
+          0.426,
+          0.446
         ]
       },
       "largest_stage_by_median": "map",
       "map": {
-        "max_us_per_record": 7.371,
-        "median_records_per_second": 136268.3,
-        "median_seconds": 2.2015,
-        "median_us_per_record": 7.338,
-        "min_us_per_record": 7.279,
+        "max_us_per_record": 8.201,
+        "median_records_per_second": 124200.4,
+        "median_seconds": 2.4155,
+        "median_us_per_record": 8.052,
+        "min_us_per_record": 7.987,
         "records": 300000,
         "runs_seconds": [
-          2.1838,
-          2.2015,
-          2.2034,
-          2.199,
-          2.2112
+          2.3961,
+          2.4268,
+          2.4155,
+          2.4131,
+          2.4604
         ],
         "runs_us_per_record": [
-          7.279,
-          7.338,
-          7.345,
-          7.33,
-          7.371
+          7.987,
+          8.089,
+          8.052,
+          8.044,
+          8.201
         ]
       },
       "produce": {
@@ -212,118 +253,141 @@
           0,
           0
         ],
-        "max_us_per_record": 2.331,
-        "median_records_per_second": 437100.5,
-        "median_seconds": 0.6863,
-        "median_us_per_record": 2.288,
-        "min_us_per_record": 2.231,
-        "note": "each run starts a new producer, so every run includes its warm-up (D53)",
+        "max_us_per_record": 1.818,
+        "median_records_per_second": 579192.7,
+        "median_seconds": 0.518,
+        "median_us_per_record": 1.727,
+        "min_us_per_record": 1.708,
+        "note": "producer start-up excluded; flushed every 2000 records like a connector batch",
         "records": 300000,
         "runs_seconds": [
-          0.6953,
-          0.6693,
-          0.6993,
-          0.6863,
-          0.6839
+          0.5208,
+          0.5178,
+          0.518,
+          0.5125,
+          0.5454
         ],
         "runs_us_per_record": [
-          2.318,
-          2.231,
-          2.331,
-          2.288,
-          2.28
+          1.736,
+          1.726,
+          1.727,
+          1.708,
+          1.818
         ]
       },
-      "sum_of_stage_medians_us_per_record": 14.659
+      "sum_of_stage_medians_us_per_record": 16.292
     },
     "B": {
       "avro": {
-        "max_us_per_record": 4.661,
-        "median_records_per_second": 216185.2,
-        "median_seconds": 1.3877,
-        "median_us_per_record": 4.626,
-        "min_us_per_record": 4.592,
+        "max_us_per_record": 4.845,
+        "median_records_per_second": 212192.0,
+        "median_seconds": 1.4138,
+        "median_us_per_record": 4.713,
+        "min_us_per_record": 4.682,
         "records": 300000,
         "runs_seconds": [
-          1.3984,
-          1.3777,
-          1.3877,
-          1.3896,
-          1.3855
+          1.4145,
+          1.4047,
+          1.4534,
+          1.4067,
+          1.4138
         ],
         "runs_us_per_record": [
-          4.661,
-          4.592,
-          4.626,
-          4.632,
-          4.618
+          4.715,
+          4.682,
+          4.845,
+          4.689,
+          4.713
         ]
       },
       "avro_fastavro_for_comparison": {
-        "max_us_per_record": 3.759,
-        "median_records_per_second": 267669.8,
-        "median_seconds": 1.1208,
-        "median_us_per_record": 3.736,
-        "min_us_per_record": 3.726,
+        "max_us_per_record": 3.835,
+        "median_records_per_second": 264438.6,
+        "median_seconds": 1.1345,
+        "median_us_per_record": 3.782,
+        "min_us_per_record": 3.743,
         "records": 300000,
         "runs_seconds": [
-          1.1179,
-          1.1208,
-          1.1278,
-          1.1201,
-          1.1251
+          1.1369,
+          1.1504,
+          1.1345,
+          1.1229,
+          1.1276
         ],
         "runs_us_per_record": [
-          3.726,
-          3.736,
-          3.759,
-          3.734,
-          3.75
+          3.79,
+          3.835,
+          3.782,
+          3.743,
+          3.759
+        ]
+      },
+      "commit": {
+        "max_us_per_record": 1.275,
+        "median_records_per_second": 875953.8,
+        "median_seconds": 0.3425,
+        "median_us_per_record": 1.142,
+        "min_us_per_record": 0.97,
+        "note": "150 synchronous commits, one per 2000-record batch",
+        "records": 300000,
+        "runs_seconds": [
+          0.2909,
+          0.3392,
+          0.3425,
+          0.3669,
+          0.3826
+        ],
+        "runs_us_per_record": [
+          0.97,
+          1.131,
+          1.142,
+          1.223,
+          1.275
         ]
       },
       "consume": {
-        "max_us_per_record": 7.304,
-        "median_records_per_second": 1792193.2,
-        "median_seconds": 0.1674,
-        "median_us_per_record": 0.558,
-        "min_us_per_record": 0.478,
+        "max_us_per_record": 7.441,
+        "median_records_per_second": 1987119.6,
+        "median_seconds": 0.151,
+        "median_us_per_record": 0.503,
+        "min_us_per_record": 0.475,
         "records": 300000,
         "runs_seconds": [
-          2.1913,
-          0.1464,
-          0.1674,
-          0.1755,
-          0.1434
+          0.1863,
+          0.151,
+          0.1465,
+          2.2322,
+          0.1425
         ],
         "runs_us_per_record": [
-          7.304,
+          0.621,
+          0.503,
           0.488,
-          0.558,
-          0.585,
-          0.478
+          7.441,
+          0.475
         ]
       },
       "largest_stage_by_median": "map",
       "map": {
-        "max_us_per_record": 8.592,
-        "median_records_per_second": 117273.8,
-        "median_seconds": 2.5581,
-        "median_us_per_record": 8.527,
-        "min_us_per_record": 8.355,
+        "max_us_per_record": 9.232,
+        "median_records_per_second": 109289.2,
+        "median_seconds": 2.745,
+        "median_us_per_record": 9.15,
+        "min_us_per_record": 8.96,
         "records": 300000,
         "runs_seconds": [
-          2.5066,
-          2.5776,
-          2.5581,
-          2.5424,
-          2.5582
+          2.688,
+          2.7695,
+          2.7546,
+          2.7424,
+          2.745
         ],
         "runs_us_per_record": [
-          8.355,
-          8.592,
-          8.527,
-          8.475,
-          8.527
+          8.96,
+          9.232,
+          9.182,
+          9.141,
+          9.15
         ]
       },
       "produce": {
@@ -334,30 +398,30 @@
           0,
           0
         ],
-        "max_us_per_record": 2.31,
-        "median_records_per_second": 435373.9,
-        "median_seconds": 0.6891,
-        "median_us_per_record": 2.297,
-        "min_us_per_record": 2.289,
-        "note": "each run starts a new producer, so every run includes its warm-up (D53)",
+        "max_us_per_record": 1.825,
+        "median_records_per_second": 581337.2,
+        "median_seconds": 0.5161,
+        "median_us_per_record": 1.72,
+        "min_us_per_record": 1.662,
+        "note": "producer start-up excluded; flushed every 2000 records like a connector batch",
         "records": 300000,
         "runs_seconds": [
-          0.6931,
-          0.6891,
-          0.6872,
-          0.6931,
-          0.6867
+          0.4987,
+          0.535,
+          0.5474,
+          0.5061,
+          0.5161
         ],
         "runs_us_per_record": [
-          2.31,
-          2.297,
-          2.291,
-          2.31,
-          2.289
+          1.662,
+          1.783,
+          1.825,
+          1.687,
+          1.72
         ]
       },
-      "sum_of_stage_medians_us_per_record": 16.008
+      "sum_of_stage_medians_us_per_record": 17.228
     }
   },
-  "timestamp": "2026-11-23T06:52:24+00:00"
+  "timestamp": "2026-11-23T07:20:50+00:00"
 }

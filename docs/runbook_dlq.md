@@ -55,12 +55,15 @@ Send each raw text, with its key, back to the **source topic** (`source_topic` i
 ```bash
 rpk topic consume tx.dlq -X brokers=localhost:19092 --offset :end -f '%k\t%v\n' \
   | while IFS=$'\t' read -r key value; do
-      printf '%s\t%s\n' "$key" "$(printf '%s' "$value" | jq -r .raw)"
+      printf '%s\t%s\n' "$key" "$(printf '%s' "$value" | jq -r 'select(.error_code=="UNKNOWN_VALUE" and .source_topic=="bank_b.raw") | .raw')"
     done \
+  | grep -v $'^[^\t]*\t$' \
   | rpk topic produce bank_b.raw -X brokers=localhost:19092 -f '%k\t%v\n'
 ```
 
-Replace `bank_b.raw` by the record's `source_topic`; add a `jq` filter on `.source_topic` first when the DLQ holds both banks. The `replay_emit_ts_ms` header is not re-created, so a re-published record has none and its ingest latency is not measured.
+Filter on the `error_code` the fix is for (the example re-sends only `UNKNOWN_VALUE`), so data errors that step 2 says to leave alone are not re-sent. **Running it twice re-sends everything again**, because the original DLQ records stay in the topic: note the DLQ offsets you re-sent (`rpk topic consume tx.dlq --offset 0:99 ...`, the range printed by step 1) and use that range next time. A tab inside `raw` would break the `key<TAB>value` framing; JSON from `render.py` never has one (tabs are escaped) and the CSV banks do not send them, but check with `onboard-check` (step 3) first.
+
+Replace `bank_b.raw` by the record's `source_topic`; the `jq` filter already selects one bank. The `replay_emit_ts_ms` header is not re-created, so a re-published record has none and its ingest latency is not measured.
 
 Re-published records are new messages at the end of their partition, so they arrive after later transactions of the same account, out of event-time order. M4 (not built yet) is designed to send records later than its out-of-orderness bound to `tx.late` instead of into the features; check that behaviour once it exists before re-publishing old records.
 

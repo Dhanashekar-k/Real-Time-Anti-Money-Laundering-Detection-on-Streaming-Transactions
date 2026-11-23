@@ -8,8 +8,9 @@ line in the middle is a malformed record). Prints:
 
 - how many records mapped, and the DLQ count and rate by error code;
 - field coverage: for each canonical field, how many records it parsed on its own (a field is
-  judged independently of the others; `validate` rules such as an unknown currency or a negative
-  amount are not field problems and show in the DLQ counts instead);
+  judged independently of the others). Only the field step is judged: what a bank file checks in
+  `validate` (Bank B's unknown currency, negative amount) costs a DLQ record but not coverage, while
+  what it checks inside a field (Bank A's currency names and amounts) lowers that field's coverage;
 - unmapped vocabulary: every value the bank sent that no map or currency list knows, with counts;
 - unused source columns (CSV);
 - 3 example canonical records and the first 3 failures with their line numbers.
