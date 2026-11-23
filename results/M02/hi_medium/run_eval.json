@@ -1,0 +1,30 @@
+{
+  "command": [
+    "/Users/shekar/code/stream-aml/.venv/bin/python",
+    "-m",
+    "eval.model_eval",
+    "--ds",
+    "hi_medium",
+    "--final"
+  ],
+  "git_dirty": false,
+  "git_sha": "e4f43d552aa41fefae77d69b2742d0117bd26f72",
+  "label": "eval",
+  "note": "RSS summed over the process tree; shared pages are counted once per process",
+  "peak_process_tree_mb": {
+    "jvm_mb": 0.0,
+    "python_worker_max_mb": 0.0,
+    "python_workers_mb": 0.0,
+    "total_mb": 9856.5
+  },
+  "returncode": 0,
+  "samples": 22,
+  "seconds": 44.4,
+  "system": {
+    "swap_used_mb_before": 7789.5,
+    "swap_used_mb_peak": 7789.5,
+    "used_mb_before": 11767.3,
+    "used_mb_peak": 18728.6
+  },
+  "timestamp": "2026-11-23T02:59:26+00:00"
+}
