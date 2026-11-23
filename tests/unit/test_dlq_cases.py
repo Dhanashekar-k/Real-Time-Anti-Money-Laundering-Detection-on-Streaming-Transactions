@@ -9,15 +9,21 @@ Zero amounts are valid (D53): 1,066 HI-Small rows have a zero minor-unit amount 
 oracle keeps them, so a stream without them could not match Spark.
 """
 
+import io
 import json
+from pathlib import Path
 from typing import Any
 
+import fastavro
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
+
 from stream.connectors.engine import MappingError, map_record
 
 pytestmark = pytest.mark.unit
+
+ROOT = Path(__file__).resolve().parents[2]
 
 A_COLUMNS = [
     "txn_ref",
@@ -252,7 +258,20 @@ def test_two_problems_report_the_one_listed_first(bank_a_cfg: Any) -> None:
     assert isinstance(out, MappingError) and out.field == "payment_currency"
 
 
-# --- map_record never raises ----------------------------------------------------------------------
+# --- map_record never raises, and what it returns can be sent -----------------------------------
+
+
+def _sendable(out: Any) -> None:
+    """A result is either a MappingError that is not an engine bug, or a record Avro can encode."""
+    if isinstance(out, MappingError):
+        assert out.code != "INTERNAL_ERROR", out
+        return
+    out = {**out, "replay_emit_ts_ms": None, "connector_ts_ms": 1}
+    schema = fastavro.parse_schema(
+        json.loads((ROOT / "contracts" / "canonical_tx.avsc").read_text())
+    )
+    fastavro.schemaless_writer(io.BytesIO(), schema, out)
+    out["sender_key"].encode("utf-8")
 
 
 @settings(
@@ -261,8 +280,7 @@ def test_two_problems_report_the_one_listed_first(bank_a_cfg: Any) -> None:
 @given(raw=st.binary(max_size=200))
 def test_arbitrary_bytes_never_raise(raw: bytes, bank_a_cfg: Any, bank_b_cfg: Any) -> None:
     for cfg in (bank_a_cfg, bank_b_cfg):
-        out = map_record(raw, cfg)
-        assert isinstance(out, (dict, MappingError))
+        _sendable(map_record(raw, cfg))
 
 
 @settings(
@@ -275,5 +293,21 @@ def test_mutated_valid_records_never_raise(
     for cfg, raw in ((bank_a_cfg, a_line().decode()), (bank_b_cfg, json.dumps(B_BASE))):
         i = position % len(raw)
         mutated = raw[:i] if cut else raw[:i] + char + raw[i + 1 :]
-        out = map_record(mutated.encode("utf-8", errors="replace"), cfg)
-        assert isinstance(out, (dict, MappingError))
+        _sendable(map_record(mutated.encode("utf-8", errors="replace"), cfg))
+
+
+@settings(
+    max_examples=200, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+)
+@given(
+    account=st.lists(
+        st.sampled_from(["a", "Z", "9", "\ud800", "\udfff", "é", "\u0000", ":", '"']), max_size=8
+    )
+)
+def test_json_text_with_escapes_and_lone_surrogates_is_sendable_or_rejected(
+    account: list[str], bank_b_cfg: Any
+) -> None:
+    doc = json.loads(json.dumps(B_BASE))
+    doc["originator"]["accountNo"] = "".join(account)
+    raw = json.dumps(doc).encode()  # ensure_ascii: a surrogate becomes a \\ud800 escape
+    _sendable(map_record(raw, bank_b_cfg))

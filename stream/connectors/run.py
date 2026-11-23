@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from confluent_kafka import KafkaError, TopicPartition
+from confluent_kafka import KafkaError, KafkaException, TopicPartition
 from prometheus_client import REGISTRY, CollectorRegistry, Counter, Histogram
 
 from stream.connectors.engine import BankConfig, MappingError, load_config, map_record
@@ -44,6 +44,10 @@ from stream.settings import (
 ROOT = Path(__file__).resolve().parents[2]
 EMIT_HEADER = "replay_emit_ts_ms"
 FLUSH_TIMEOUT_S = 120.0
+# A DLQ record escapes the raw text (up to 6 characters per byte) and Kafka's default message limit
+# is 1,000,000 bytes: 100,000 characters stay under 700,000 even in the worst case.
+MAX_DLQ_RAW_CHARS = 100_000
+COMMIT_RETRYABLE = ("REBALANCE_IN_PROGRESS", "ILLEGAL_GENERATION", "UNKNOWN_MEMBER_ID")
 
 
 class DeliveryError(RuntimeError):
@@ -72,9 +76,19 @@ class Metrics:
             ["bank"],
             registry=registry,
         )
+        self._skipped = Counter(
+            "commit_skipped",
+            "Offset commits skipped during a rebalance",
+            ["bank"],
+            registry=registry,
+        )
+        self._skipped.labels(bank)
         self._in.labels(bank)
         self._out.labels(bank)
         self._latency.labels(bank)
+
+    def commit_skipped(self) -> None:
+        self._skipped.labels(self.bank).inc()
 
     def record(self, result: BatchResult) -> None:
         self._in.labels(self.bank).inc(result.records_in)
@@ -121,8 +135,14 @@ def dlq_record(
     mapping_version: str,
 ) -> dict[str, Any]:
     """The JSON the DLQ carries. `raw` is the message text (non-UTF-8 bytes are escaped)."""
+    text = (raw or b"").decode("utf-8", errors="backslashreplace")
+    if len(text) > MAX_DLQ_RAW_CHARS:
+        detail += (
+            f" [raw truncated: {len(raw or b'')} bytes, first {MAX_DLQ_RAW_CHARS} characters kept]"
+        )
+        text = text[:MAX_DLQ_RAW_CHARS]
     return {
-        "raw": (raw or b"").decode("utf-8", errors="backslashreplace"),
+        "raw": text,
         "error_code": code,
         "error_detail": detail,
         "source_topic": source_topic,
@@ -184,12 +204,19 @@ class BatchProcessor:
         self.consumer, self.metrics, self.now_ms = consumer, metrics, now_ms
         self.canonical_topic, self.dlq_topic = canonical_topic, dlq_topic
 
+    max_produce_wait_s = 120.0
+
     def _produce(self, topic: str, key: bytes | None, value: bytes, on_delivery: Callable) -> None:
+        waited_from = time.monotonic()
         while True:
             try:
                 self.producer.produce(topic, key=key, value=value, on_delivery=on_delivery)
                 return
             except BufferError:
+                if time.monotonic() - waited_from > self.max_produce_wait_s:
+                    raise DeliveryError(
+                        f"producer queue full for {self.max_produce_wait_s:.0f}s (not draining)"
+                    ) from None
                 self.producer.poll(0.05)
 
     def process(self, messages: Sequence[Any]) -> BatchResult:
@@ -245,10 +272,18 @@ class BatchProcessor:
                 + (f", first: {errors[0]}" if errors else "")
             )
         if newest:
-            self.consumer.commit(
-                offsets=[TopicPartition(t, p, o + 1) for (t, p), o in sorted(newest.items())],
-                asynchronous=False,
-            )
+            try:
+                self.consumer.commit(
+                    offsets=[TopicPartition(t, p, o + 1) for (t, p), o in sorted(newest.items())],
+                    asynchronous=False,
+                )
+            except KafkaException as exc:
+                # The batch was delivered. During a rebalance the commit is refused; the records
+                # are read again by whoever owns the partition (a duplicate, never a loss).
+                if exc.args[0].name() not in COMMIT_RETRYABLE:
+                    raise
+                self.metrics.commit_skipped()
+                log("commit_skipped", reason=exc.args[0].name(), partitions=len(newest))
         result.dlq = dict(dlq)
         result.seconds = time.perf_counter() - started
         self.metrics.record(result)
@@ -260,7 +295,9 @@ class BatchProcessor:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--bank", required=True, choices=["A", "B", "C"])
+    parser.add_argument(
+        "--bank", required=True, help="A, B, ... (reads connectors/banks/bank_<x>.yaml)"
+    )
     parser.add_argument("--config", type=Path, help="default connectors/banks/bank_<x>.yaml")
     parser.add_argument("--brokers", default=BROKERS)
     parser.add_argument("--registry", default=SCHEMA_REGISTRY)

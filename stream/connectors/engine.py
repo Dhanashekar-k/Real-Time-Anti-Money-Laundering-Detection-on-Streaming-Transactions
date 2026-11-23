@@ -108,6 +108,8 @@ def _csv_parser(columns: list[str], delimiter: str, quotechar: str) -> Callable[
     width = len(columns)
 
     def parse(text: str) -> Any:
+        if "\n" in text or "\r" in text:
+            raise _Fail("MALFORMED_RECORD", "a CSV message is one line; it contains a line break")
         if quotechar in text:
             try:
                 rows = list(
@@ -175,11 +177,16 @@ def _text_of_number(value: Any) -> str | None:
 
 
 def _to_string(value: Any) -> str:
-    if isinstance(value, str):
-        return value
-    text = _text_of_number(value)
-    if text is None:
+    """Text, or an integer as text. A JSON decimal (10.0) or boolean is not text: `10.0:A` and
+    `10:A` would be two keys for one account. Text that cannot be encoded as UTF-8 (a lone
+    surrogate from a JSON `\\ud800` escape) could not be sent to Kafka, so it is refused here."""
+    if isinstance(value, bool) or not isinstance(value, (str, int)):
         raise _Fail("BAD_FORMAT", f"cannot use a {type(value).__name__} as text", value)
+    text = value if isinstance(value, str) else str(value)
+    try:
+        text.encode("utf-8")
+    except UnicodeEncodeError:
+        raise _Fail("MALFORMED_RECORD", "text is not valid Unicode (lone surrogate)") from None
     return text
 
 
@@ -209,15 +216,20 @@ def _timezone(name: str) -> Any:
 
 
 def _timestamp_format_parser(fmt: str, tz: Any) -> Callable[[Any], int]:
-    @lru_cache(maxsize=8192)  # many records share a minute
-    def parse_text(text: str) -> int | None:
+    def parse_uncached(text: str) -> int | None:
         try:
             return _ms_of(datetime.strptime(text, fmt).replace(tzinfo=tz))
         except (ValueError, OverflowError):
             return None
 
+    parse_cached = lru_cache(maxsize=8192)(parse_uncached)  # many records share a minute
+
     def convert(value: Any) -> int:
-        ms = parse_text(value) if isinstance(value, str) else None
+        # a long text is parsed, never cached: the cache key is whatever the bank sends
+        if isinstance(value, str):
+            ms = parse_cached(value) if len(value) <= 32 else parse_uncached(value)
+        else:
+            ms = None
         if ms is None:
             raise _Fail("BAD_TIMESTAMP", f"does not match {fmt!r}: {str(value)[:40]!r}", value)
         return ms
@@ -527,7 +539,14 @@ def _compile_derivations(
             raise ConfigError(f"derive {name} needs field(s) {missing}")
         if name.endswith("_key"):
             bank, account = _DERIVE_NEEDS[name]
-            result.append((name, lambda out, b=bank, a=account: f"{out[b]}:{out[a]}"))
+
+            def key(out: dict[str, Any], n=name, b=bank, a=account) -> str:
+                # "10:X" + "Y" and "10" + "X:Y" would be one key for two accounts
+                if ":" in out[b] or ":" in out[a]:
+                    raise _Fail("BAD_FORMAT", f"':' in the bank or account of {n}", out[a], n)
+                return f"{out[b]}:{out[a]}"
+
+            result.append((name, key))
         else:
             minor, currency = _DERIVE_NEEDS[name]
 

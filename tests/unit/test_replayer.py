@@ -298,3 +298,13 @@ def test_summary_fields() -> None:
     assert summary["first_tx_id"] == {"A": 1, "B": 2} and summary["last_tx_id"] == {"A": 1, "B": 2}
     assert summary["range_ms"] == [D1, D1 + 3 * DAY]
     assert summary["slices"] == 3 and summary["empty_slices"] == 1
+
+
+def test_tx_id_order_is_checked_across_banks_not_only_within_one() -> None:
+    # bank A's tx 5 comes first in time, bank B's tx 4 later: each bank's own ids increase, but the
+    # global sequence (tx_id = position in time order, D06) is broken
+    rows = [_row(5, D1, "A"), _row(4, D1 + 60_000, "B")]
+    with pytest.raises(OrderError):
+        _run(rows)
+    with pytest.raises(OrderError):
+        _run(rows, banks=("A",))  # sharding one bank must not hide it

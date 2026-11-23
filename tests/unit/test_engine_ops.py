@@ -542,3 +542,46 @@ def test_the_first_problem_in_yaml_order_is_reported() -> None:
     )
     out = run(cfg, "x,y")
     assert isinstance(out, MappingError) and out.field == "a"
+
+
+# --- review findings: text that cannot be sent, strict inputs -------------------------------------
+
+
+def test_a_json_string_that_is_not_valid_unicode_is_malformed_not_a_crash() -> None:
+    cfg = json_cfg({"c": {"path": "c", "type": "string"}})
+    out = run(cfg, '{"c": "\\ud800"}')  # a lone surrogate escape: json.loads accepts it
+    assert isinstance(out, MappingError) and out.code == "MALFORMED_RECORD" and out.field == "c"
+
+
+def test_a_json_decimal_is_not_text() -> None:
+    cfg = json_cfg({"c": {"path": "c", "type": "string"}})
+    out = run(cfg, '{"c": 10.0}')  # a bank code sent as 10.0 would become "10.0:..." in the key
+    assert isinstance(out, MappingError) and out.code == "BAD_FORMAT" and out.field == "c"
+
+
+@pytest.mark.parametrize("line", ["a\nb", 'a,"b\nc"', "a\r"])
+def test_a_newline_anywhere_in_a_csv_message_is_malformed(line: str) -> None:
+    out = run(csv_cfg(["x", "y"], {"y": {"from": "y", "type": "string"}}), line + ",z")
+    assert isinstance(out, MappingError) and out.code == "MALFORMED_RECORD"
+
+
+def test_a_colon_in_a_bank_or_account_would_make_two_accounts_share_a_key() -> None:
+    fields = {
+        "sender_bank": {"from": "sb", "type": "string"},
+        "sender_account": {"from": "sa", "type": "string"},
+    }
+    cfg = csv_cfg(["sb", "sa"], fields, derive=["sender_key"])
+    for line in ("10,X:Y", "10:X,Y"):
+        out = run(cfg, line)
+        assert isinstance(out, MappingError) and out.code == "BAD_FORMAT", line
+        assert out.field == "sender_key"
+    assert one(cfg, "10,XY", "sender_key") == "10:XY"
+
+
+def test_a_huge_timestamp_text_is_refused_without_being_cached() -> None:
+    cfg = csv_cfg(
+        ["t"],
+        {"t": {"from": "t", "parse": {"timestamp_format": "%Y/%m/%d %H:%M", "timezone": "UTC"}}},
+    )
+    out = run(cfg, "9" * 200_000)
+    assert isinstance(out, MappingError) and out.code == "BAD_TIMESTAMP"

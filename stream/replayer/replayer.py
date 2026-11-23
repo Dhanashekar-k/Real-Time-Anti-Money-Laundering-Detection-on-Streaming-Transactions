@@ -253,6 +253,7 @@ def replay(
     first: dict[str, int] = {}
     last: dict[str, int] = {}
     slices = empty = out_of_order = 0
+    last_global: int | None = None
     for start, end in day_slices(lo_ms, hi_ms):
         slices += 1
         scan = table.scan(
@@ -260,8 +261,6 @@ def replay(
             selected_fields=SELECTED_FIELDS,
         )
         day = scan.to_arrow()
-        if len(banks) < 2:
-            day = day.filter(pc.is_in(day.column("owner_bank_id"), value_set=pa.array(list(banks))))
         if day.num_rows == 0:
             empty += 1
             continue
@@ -271,6 +270,21 @@ def replay(
         if back or bad:
             out_of_order += 1
         day = sort_table(day)
+        # D06: tx_id is the position in (event_ts_ms, tx_id) order, so after the sort it must
+        # increase over ALL banks. Checked before the bank filter, or sharding would hide a break.
+        ids = day.column("tx_id").to_pylist()
+        if (last_global is not None and ids[0] <= last_global) or any(
+            b <= a for a, b in zip(ids, ids[1:], strict=False)
+        ):
+            raise OrderError(
+                f"tx_id is not strictly increasing in time order near day starting {start}"
+            )
+        last_global = ids[-1]
+        if len(banks) < 2:
+            day = day.filter(pc.is_in(day.column("owner_bank_id"), value_set=pa.array(list(banks))))
+            if day.num_rows == 0:
+                empty += 1
+                continue
         columns = {name: day.column(name).to_pylist() for name in SELECTED_FIELDS}
         owners = columns["owner_bank_id"]
         for i in range(day.num_rows):

@@ -342,3 +342,69 @@ def test_a_missing_assignment_is_reported_after_the_timeout() -> None:
     assert clock.assignment_overdue()
     clock.assigned()
     assert not clock.assignment_overdue()
+
+
+# --- review findings: sizes, rebalances, a stuck producer -----------------------------------------
+
+
+def test_a_huge_dlq_message_is_cut_so_the_record_fits_in_a_kafka_message() -> None:
+    raw = b"\xff" * 300_000  # every byte becomes a 4-character escape, then 5 in JSON
+    record = dlq_record(raw, "MALFORMED_RECORD", "not UTF-8", "bank_a.raw", 0, 1, "a-1")
+    encoded = json.dumps(record).encode()
+    assert len(encoded) < 900_000  # librdkafka's default message.max.bytes is 1,000,000
+    assert "truncated" in record["error_detail"] and "300000" in record["error_detail"]
+    assert set(record) == {
+        "raw",
+        "error_code",
+        "error_detail",
+        "source_topic",
+        "partition",
+        "offset",
+        "mapping_version",
+    }
+
+
+def test_a_small_dlq_message_is_carried_whole_and_unmarked() -> None:
+    record = dlq_record(b"abc", "MALFORMED_RECORD", "x", "bank_a.raw", 0, 1, "a-1")
+    assert record["raw"] == "abc" and "truncated" not in record["error_detail"]
+
+
+def test_a_commit_during_a_rebalance_is_not_a_crash() -> None:
+    from confluent_kafka import KafkaError, KafkaException
+
+    processor, log, _, registry = make()
+
+    def commit(offsets: list[Any], asynchronous: bool = True) -> None:
+        raise KafkaException(KafkaError(KafkaError.REBALANCE_IN_PROGRESS))
+
+    processor.consumer.commit = commit
+    result = processor.process([good(1, 1)])
+    assert (
+        result.records_out == 1
+    )  # delivered; the offset is simply not committed, so it is re-read
+    assert registry.get_sample_value("commit_skipped_total", {"bank": "B"}) == 1
+
+
+def test_any_other_commit_error_still_stops_the_connector() -> None:
+    from confluent_kafka import KafkaError, KafkaException
+
+    processor, _, _, _ = make()
+
+    def commit(offsets: list[Any], asynchronous: bool = True) -> None:
+        raise KafkaException(KafkaError(KafkaError._TRANSPORT))
+
+    processor.consumer.commit = commit
+    with pytest.raises(KafkaException):
+        processor.process([good(1, 1)])
+
+
+def test_a_producer_queue_that_never_drains_is_a_delivery_error() -> None:
+    processor, _, producer, _ = make()
+
+    def full(*_: Any, **__: Any) -> None:
+        raise BufferError("queue full")
+
+    producer.produce = full
+    processor.max_produce_wait_s = 0.2
+    with pytest.raises(DeliveryError, match="queue"):
+        processor.process([good(1, 1)])
