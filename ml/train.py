@@ -14,8 +14,8 @@ Protocol (D38, fixed before any test row is read):
   drift baseline is built from the training window and those validation scores.
 
 Writes results/M02/<ds>/{train,thresholds,baseline_dist}.json, config/thresholds.yaml and the two
-figures, logs every fit to MLflow, registers the champion as `aml-xgb` with the alias `champion`
-and attaches the baseline to that model version.
+figures, logs every fit to MLflow, registers the champion as `aml-xgb` with the alias
+`champion_<ds>` (D50) and attaches the baseline to that model version.
 """
 
 import argparse
@@ -37,7 +37,7 @@ import xgboost as xgb
 import yaml
 from sklearn.metrics import average_precision_score, roc_auc_score
 
-from ml import data, drift_baseline, metrics, thresholds
+from ml import data, drift_baseline, metrics, registry, thresholds
 
 VARIANTS = ("weighted", "unweighted")
 SEEDS = (0, 1, 2, 3, 4)
@@ -45,7 +45,7 @@ MAX_ROUNDS = 1000
 EARLY_STOPPING_ROUNDS = 50
 K_ALERTS_PER_DAY = 200
 ITER_BATCH_ROWS = 500_000
-MODEL_NAME = "aml-xgb"
+MODEL_NAME = registry.MODEL_NAME
 BASE_PARAMS: dict[str, Any] = {
     "objective": "binary:logistic",
     "eval_metric": "aucpr",
@@ -388,7 +388,8 @@ def run(ds: str, results_dir: Path | None = None, config_dir: Path | None = None
                         fit.booster, name="model", registered_model_name=MODEL_NAME
                     )
                     version = str(info.registered_model_version)
-    client.set_registered_model_alias(MODEL_NAME, "champion", version)
+    for alias in registry.aliases_for(ds):
+        client.set_registered_model_alias(MODEL_NAME, alias, version)
     client.set_model_version_tag(
         MODEL_NAME, version, "baseline_dist", f"runs:/{champion_run_id}/drift/baseline_dist.json"
     )

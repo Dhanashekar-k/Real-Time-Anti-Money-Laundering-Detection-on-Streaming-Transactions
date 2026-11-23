@@ -34,7 +34,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import average_precision_score, roc_auc_score
 
-from ml import metrics
+from ml import metrics, registry
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS_ROOT = ROOT / "results" / "M02"
@@ -322,11 +322,49 @@ def load_thresholds(path: Path, kind: str, dataset: str | None = None) -> dict[s
     return {bank: float(cfg[kind]["threshold"]) for bank, cfg in banks.items()}
 
 
+def load_verified_champion(
+    ds: str, out_dir: Path, thr_file: Path
+) -> tuple[Any, str, int, list[str]]:
+    """The dataset's registered champion, checked against what training and tuning recorded.
+
+    Resolved through `ml.registry` (alias `champion_<ds>`, D50), pinned by version, and refused
+    unless its version equals the one in `train.json` and in the thresholds file and its
+    validation PR-AUC reproduces `train.json`'s. Reads validation rows only, never test.
+    """
+    import json
+
+    import mlflow
+    import xgboost as xgb
+    import yaml
+
+    from ml import data
+
+    mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5001"))
+    version = registry.resolve_version(mlflow.MlflowClient(), ds)
+    train_doc = json.loads((out_dir / "train.json").read_text())
+    registry.check_matches(ds, version, train_doc["selection"]["model_version"], "train.json")
+    thr_version = yaml.safe_load(thr_file.read_text())["meta"]["model_version"]
+    registry.check_matches(ds, version, thr_version, thr_file.name)
+    booster = mlflow.xgboost.load_model(f"models:/{registry.MODEL_NAME}/{version}")
+    names = data.feature_names()
+    best = int(booster.best_iteration)
+
+    # the registered model must be the champion that train.py selected: same validation PR-AUC
+    val = data.read_matrix(ds, "val")
+    val_scores = booster.predict(
+        xgb.DMatrix(val.x, feature_names=names), iteration_range=(0, best + 1)
+    )
+    expected_pr = train_doc["selection"]["champion"]["val_pr_auc"]
+    got_pr = float(average_precision_score(val.meta["y"].to_numpy(), val_scores))
+    if abs(got_pr - expected_pr) > 1e-9:
+        raise RuntimeError(f"registered champion val PR-AUC {got_pr} != train.json {expected_pr}")
+    return booster, version, best, names
+
+
 def run(ds: str, final: bool, results_root: Path | None = None) -> dict[str, Any]:
     """Inputs that need no test row first; then the gate; then the one read of the test split."""
     import json
 
-    import mlflow
     import xgboost as xgb
 
     from batch.spark import common
@@ -344,29 +382,12 @@ def run(ds: str, final: bool, results_root: Path | None = None) -> dict[str, Any
     budget_thr = load_thresholds(thr_file, "budget", dataset=ds)
     eda = json.loads((common.ROOT / "results" / "M01" / ds / "eda.json").read_text())
     tail_days = metrics.tail_day_numbers(eda)
-    mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5001"))
-    booster = mlflow.xgboost.load_model("models:/aml-xgb@champion")
-    names = data.feature_names()
-    best = int(booster.best_iteration)
-    version = mlflow.MlflowClient().get_model_version_by_alias("aml-xgb", "champion").version
-
-    # the registered model must be the champion that train.py selected: same validation PR-AUC
-    from sklearn.metrics import average_precision_score
-
-    val = data.read_matrix(ds, "val")
-    val_scores = booster.predict(
-        xgb.DMatrix(val.x, feature_names=names), iteration_range=(0, best + 1)
-    )
-    train_doc = json.loads((out_dir / "train.json").read_text())
-    expected_pr = train_doc["selection"]["champion"]["val_pr_auc"]
-    got_pr = float(average_precision_score(val.meta["y"].to_numpy(), val_scores))
-    if abs(got_pr - expected_pr) > 1e-9:
-        raise RuntimeError(f"registered champion val PR-AUC {got_pr} != train.json {expected_pr}")
-    if str(version) != str(train_doc["selection"]["model_version"]):
-        raise RuntimeError(f"champion alias points at version {version}, train.json says otherwise")
+    booster, version, best, names = load_verified_champion(ds, out_dir, thr_file)
 
     # 2. the gate, immediately before the one read of the test split
-    open_test_gate(final, ds, out_dir, reason=f"final evaluation of aml-xgb v{version}")
+    open_test_gate(
+        final, ds, out_dir, reason=f"final evaluation of {registry.MODEL_NAME} v{version}"
+    )
     test = data.read_matrix(
         ds,
         "test",
@@ -405,7 +426,7 @@ def run(ds: str, final: bool, results_root: Path | None = None) -> dict[str, Any
         "golden_status": golden,
         "headline": headline,
         "config": {
-            "model": f"aml-xgb v{version} (alias champion)",
+            "model": f"{registry.MODEL_NAME} v{version} (alias {registry.champion_alias(ds)})",
             "best_iteration": best,
             "baseline": baseline_name,
             "thresholds_file": str(thr_file.relative_to(ROOT)),

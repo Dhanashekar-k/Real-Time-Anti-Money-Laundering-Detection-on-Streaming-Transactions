@@ -19,6 +19,7 @@ generator leaves some laundering rows out of the pattern file; that is not measu
 
 import argparse
 import json
+import os
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -193,13 +194,19 @@ def _model_val_recall(ds: str, warehouse: Path) -> dict[str, Any]:
     import mlflow
     import numpy as np
     import xgboost as xgb
+    import yaml
 
     from eval.model_eval import load_thresholds, thresholds_path
-    from ml import data
+    from ml import data, registry
 
-    mlflow.set_tracking_uri("http://localhost:5001")
-    booster = mlflow.xgboost.load_model("models:/aml-xgb@champion")
-    thr = load_thresholds(thresholds_path(ds), "f1_optimal", dataset=ds)
+    mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5001"))
+    thr_file = thresholds_path(ds)
+    version = registry.resolve_version(mlflow.MlflowClient(), ds)
+    registry.check_matches(
+        ds, version, yaml.safe_load(thr_file.read_text())["meta"]["model_version"], thr_file.name
+    )
+    booster = mlflow.xgboost.load_model(f"models:/{registry.MODEL_NAME}/{version}")
+    thr = load_thresholds(thr_file, "f1_optimal", dataset=ds)
     val = data.read_matrix(ds, "val", patterns=True, warehouse=warehouse)
     best = int(booster.best_iteration)
     score = booster.predict(
@@ -208,7 +215,7 @@ def _model_val_recall(ds: str, warehouse: Path) -> dict[str, Any]:
     alert = score >= val.meta["bank"].map(thr).to_numpy(dtype=float)
     pos = val.meta["y"].to_numpy() == 1
     patterned = val.meta["pattern_type"].notna().to_numpy()
-    out = {}
+    out: dict[str, Any] = {"model_version": version}
     for name, sel in (("patterned", pos & patterned), ("no_pattern", pos & ~patterned)):
         out[name] = {
             "positives": int(sel.sum()),
