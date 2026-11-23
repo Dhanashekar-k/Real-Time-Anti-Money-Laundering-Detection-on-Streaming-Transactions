@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import argparse
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -244,6 +244,7 @@ def replay(
     hi_ms: int,
     banks: Sequence[str] = ("A", "B"),
     now_ms: Callable[[], int] = _wall_ms,
+    topics: Mapping[str, str] = TOPICS,
 ) -> dict[str, Any]:
     """Emit [lo, hi) from `table` (a PyIceberg table or anything with its `scan` call)."""
     messages = {b: 0 for b in banks}
@@ -282,7 +283,7 @@ def replay(
             first.setdefault(bank, tx_id)
             pacer.wait(row["event_ts_ms"])
             sink.produce(
-                TOPICS[bank],
+                topics[bank],
                 f"{row['sender_bank']}:{row['sender_account']}".encode(),
                 render.render(bank, row),
                 [(HEADER, str(now_ms()).encode())],
@@ -325,6 +326,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--run", default=datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ"))
     parser.add_argument("--brokers", default=BROKERS)
     parser.add_argument("--dry-run", action="store_true", help="render only; no Kafka")
+    parser.add_argument("--topic-prefix", default="", help="scratch topics (tests, benchmarks)")
     parser.add_argument("--out-dir", type=Path)
     args = parser.parse_args(argv)
 
@@ -347,7 +349,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     sink: Sink = CountingSink() if args.dry_run else KafkaSink(args.brokers)
 
     started = time.perf_counter()
-    summary = replay(table, sink, pacer, lo_ms=lo, hi_ms=hi, banks=banks)
+    topics = {b: args.topic_prefix + t for b, t in TOPICS.items()}
+    summary = replay(table, sink, pacer, lo_ms=lo, hi_ms=hi, banks=banks, topics=topics)
     seconds = time.perf_counter() - started
     doc = {
         "dataset": args.ds,
@@ -357,7 +360,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "from": args.frm,
             "to": args.to,
             "banks": list(banks),
-            "topics": {b: TOPICS[b] for b in banks},
+            "topics": {b: topics[b] for b in banks},
             "dry_run": args.dry_run,
             "brokers": None if args.dry_run else args.brokers,
             "producer": PRODUCER_CONFIG,

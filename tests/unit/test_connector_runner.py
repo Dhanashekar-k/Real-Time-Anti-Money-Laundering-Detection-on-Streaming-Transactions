@@ -18,6 +18,7 @@ from stream.connectors.run import (
     BatchProcessor,
     ConsumerError,
     DeliveryError,
+    IdleClock,
     Metrics,
     dlq_record,
     parse_emit_header,
@@ -291,3 +292,53 @@ def test_metrics_count_in_out_and_dlq_by_code() -> None:
     assert value("dlq_total", {"bank": "B", "error_code": "MALFORMED_RECORD"}) == 2
     assert value("dlq_total", {"bank": "B", "error_code": "MISSING_FIELD"}) == 1
     assert value("batch_latency_seconds_count", {"bank": "B"}) == 1
+
+
+# --- when an idle connector may exit --------------------------------------------------------------
+
+
+def test_idle_clock_does_not_run_before_the_partitions_are_assigned() -> None:
+    now = [0.0]
+    clock = IdleClock(idle_exit=8.0, now=lambda: now[0])
+    now[0] = 1000.0  # a slow group join must not count as "quiet"
+    assert not clock.expired()
+
+
+def test_idle_clock_expires_after_idle_exit_seconds_of_silence() -> None:
+    now = [0.0]
+    clock = IdleClock(idle_exit=8.0, now=lambda: now[0])
+    clock.assigned()
+    now[0] = 7.9
+    assert not clock.expired()
+    now[0] = 8.0
+    assert clock.expired()
+
+
+def test_idle_clock_is_reset_by_activity() -> None:
+    now = [0.0]
+    clock = IdleClock(idle_exit=8.0, now=lambda: now[0])
+    clock.assigned()
+    now[0] = 7.0
+    clock.activity()
+    now[0] = 14.0
+    assert not clock.expired()
+    now[0] = 15.0
+    assert clock.expired()
+
+
+def test_idle_exit_zero_never_expires() -> None:
+    now = [0.0]
+    clock = IdleClock(idle_exit=0.0, now=lambda: now[0])
+    clock.assigned()
+    now[0] = 1e9
+    assert not clock.expired()
+
+
+def test_a_missing_assignment_is_reported_after_the_timeout() -> None:
+    now = [0.0]
+    clock = IdleClock(idle_exit=8.0, now=lambda: now[0], assign_timeout=120.0)
+    assert not clock.assignment_overdue()
+    now[0] = 121.0
+    assert clock.assignment_overdue()
+    clock.assigned()
+    assert not clock.assignment_overdue()

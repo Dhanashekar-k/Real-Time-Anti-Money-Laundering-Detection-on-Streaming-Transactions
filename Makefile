@@ -20,7 +20,7 @@ stub = @echo "make $@: not implemented yet (added in $(1))" >&2; exit 1
 .DEFAULT_GOAL := help
 
 .PHONY: help up up-all rebuild down ps logs nuke-local dirs bootstrap fmt lint tf-check test itest test-rls topics \
-	iceberg fx fx-freeze fx-check money-check eda split golden features rules train eval replay connectors onboard-check \
+	iceberg fx fx-freeze fx-check money-check eda split golden features rules train eval replay connectors onboard-check register-schemas connector-local \
 	flink-build flink-deploy flink-stop parity restart-test apps latency-matrix seed-thresholds \
 	agent agent-eval api ui retrain airflow chaos reconcile drift-experiment results demo \
 	teardown-check cloud-bootstrap cloud-up cloud-images cloud-deploy cloud-glue-run cloud-replay \
@@ -163,7 +163,33 @@ eval: ## final evaluation; reads the test split, so it needs FINAL=1 (logs the a
 	$(require_ds)
 	$(ssd_check)
 	uv run python -m eval.model_eval --ds $(DS) $(if $(filter 1,$(FINAL)),--final,)
-replay connectors onboard-check: ; $(call stub,M3)
+connectors: ; $(call stub,M3)  # compose apps profile, added with the app image (M3 step 9)
+
+# ------------------------------------------------------------------ ingestion (M03)
+# replay: lake rows -> two banks' records on bank_a.raw / bank_b.raw. Give a pace: SPEEDUP=1440 (a day
+# per minute), RATE=<msgs/s> or ASAP=1. FROM/TO are UTC dates, half open (FROM=2022-09-01 TO=2022-09-02
+# is one day); BANK=A|B shards one bank; DRY=1 renders without Kafka; PREFIX= writes to scratch topics.
+replay_pace = $(if $(SPEEDUP),--speedup $(SPEEDUP),$(if $(RATE),--rate $(RATE),$(if $(filter 1,$(ASAP)),--asap)))
+replay: ## replay the lake as the banks' native records (SPEEDUP= | RATE= | ASAP=1; FROM= TO= BANK= DRY=1)
+	$(require_ds)
+	$(ssd_check)
+	$(if $(replay_pace),,$(error give a pace: SPEEDUP=1440, RATE=5000 or ASAP=1))
+	uv run python -m stream.replayer.replayer --ds $(DS) $(replay_pace) \
+		$(if $(FROM),--from $(FROM)) $(if $(TO),--to $(TO)) $(if $(BANK),--bank $(BANK)) \
+		$(if $(filter 1,$(DRY)),--dry-run) $(if $(PREFIX),--topic-prefix $(PREFIX)) $(if $(RUN),--run $(RUN))
+
+register-schemas: ## register contracts/canonical_tx.avsc as tx.canonical-value (BACKWARD; idempotent; needs make up)
+	uv run python -m stream.connectors.registry register
+
+connector-local: ## run one connector as a host process: make connector-local BANK=A [IDLE=10] (needs make up, make topics)
+	$(if $(BANK),,$(error BANK is required, e.g. make $@ BANK=A))
+	uv run python -m stream.connectors.run --bank $(BANK) $(if $(IDLE),--idle-exit $(IDLE)) $(if $(PREFIX),--topic-prefix $(PREFIX))
+
+onboard-check: ## dry-run a bank's mapping on a sample file, no Kafka: make onboard-check BANK=b SAMPLE=<file>
+	$(if $(BANK),,$(error BANK is required, e.g. make $@ BANK=b SAMPLE=tests/fixtures/bank_b_sample.jsonl))
+	$(if $(SAMPLE),,$(error SAMPLE is required, e.g. make $@ BANK=b SAMPLE=tests/fixtures/bank_b_sample.jsonl))
+	uv run python -m stream.connectors.onboard_check --bank $(BANK) --sample $(SAMPLE) $(if $(JSON),--json $(JSON))
+
 flink-build flink-deploy flink-stop parity restart-test: ; $(call stub,M4)
 apps latency-matrix seed-thresholds: ; $(call stub,M5)
 agent agent-eval: ; $(call stub,M6)

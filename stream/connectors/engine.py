@@ -97,6 +97,8 @@ class BankConfig:
     field_names: tuple[str, ...]
     ignored: tuple[str, ...] = ()
     value_maps: dict[str, dict[str, str]] = field(default_factory=dict)
+    columns: tuple[str, ...] = ()  # csv source columns, in order
+    used_columns: tuple[str, ...] = ()  # csv columns some field reads
 
 
 # --- record parsing -------------------------------------------------------------------------------
@@ -618,6 +620,10 @@ def load_config(source: Path | str | Mapping[str, Any]) -> BankConfig:
         field_names=tuple(ordered) + tuple(n for n, _ in derivations),
         ignored=ignored,
         value_maps=value_maps,
+        columns=tuple(columns),
+        used_columns=tuple(
+            spec["from"] for spec in doc["fields"].values() if fmt == "csv" and "from" in spec
+        ),
     )
 
 
@@ -649,4 +655,35 @@ def map_record(raw: bytes, cfg: BankConfig) -> CanonicalTx | MappingError:
     except _Fail as fail:
         return MappingError(fail.code, fail.detail, fail.field_name, fail.value)
     except Exception as exc:  # noqa: BLE001 - a bad record must never stop a connector
+        return MappingError("INTERNAL_ERROR", f"{type(exc).__name__}: {str(exc)[:120]}")
+
+
+def diagnose(raw: bytes, cfg: BankConfig) -> dict[str, str | None] | MappingError:
+    """Evaluate every field on its own: `{field: None if it parsed, else its error code}`.
+
+    `map_record` stops at the first problem; an onboarding report needs to know which OTHER fields
+    are fine. A field that needs an earlier field that failed is `DEPENDS_ON_FAILED_FIELD`. Only the
+    field step is run: `validate` and `derive` are not (their failures show in `map_record`). A
+    record that cannot be parsed at all is returned as a `MappingError`.
+    """
+    try:
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            return MappingError("MALFORMED_RECORD", f"not UTF-8 ({exc.reason} at byte {exc.start})")
+        src = cfg.parse(text)
+        out: dict[str, Any] = {}
+        result: dict[str, str | None] = {}
+        for name, step in cfg.steps:
+            try:
+                step(src, out)
+                result[name] = None
+            except _Fail as fail:
+                result[name] = fail.code
+            except KeyError:
+                result[name] = "DEPENDS_ON_FAILED_FIELD"
+        return result
+    except _Fail as fail:
+        return MappingError(fail.code, fail.detail, fail.field_name, fail.value)
+    except Exception as exc:  # noqa: BLE001 - same promise as map_record: never raise
         return MappingError("INTERNAL_ERROR", f"{type(exc).__name__}: {str(exc)[:120]}")

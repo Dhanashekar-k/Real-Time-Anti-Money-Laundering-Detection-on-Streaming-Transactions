@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 import signal
+import sys
 import time
 from collections import Counter as TallyCounter
 from collections.abc import Callable, Sequence
@@ -84,6 +85,14 @@ class BatchResult:
     seconds: float = 0.0
 
 
+def log(event: str, **fields: Any) -> None:
+    """One JSON line on stderr (stdout carries the final summary)."""
+    print(
+        json.dumps({"event": event, "ts_ms": time.time_ns() // 1_000_000, **fields}),
+        file=sys.stderr,
+    )
+
+
 def parse_emit_header(headers: Sequence[tuple[str, bytes | None]] | None) -> int | None:
     """`replay_emit_ts_ms` from the Kafka headers, or None. A bad header is not a bad record."""
     for name, value in headers or ():
@@ -116,6 +125,42 @@ def dlq_record(
     }
 
 
+class IdleClock:
+    """When may a connector started with `--idle-exit` leave?
+
+    Only after it has been ASSIGNED partitions and then seen nothing for `idle_exit` seconds. The
+    time spent joining the consumer group is not idleness: on a busy machine the join can take
+    longer than the idle limit (a connector once exited having read nothing).
+    """
+
+    def __init__(
+        self,
+        idle_exit: float,
+        now: Callable[[], float] = time.monotonic,
+        assign_timeout: float = 120.0,
+    ) -> None:
+        self.idle_exit, self._now, self.assign_timeout = idle_exit, now, assign_timeout
+        self._started = now()
+        self._last: float | None = None
+
+    def assigned(self) -> None:
+        if self._last is None:
+            self._last = self._now()
+
+    def activity(self) -> None:
+        self._last = self._now()
+
+    def expired(self) -> bool:
+        return (
+            bool(self.idle_exit)
+            and self._last is not None
+            and self._now() - self._last >= self.idle_exit
+        )
+
+    def assignment_overdue(self) -> bool:
+        return self._last is None and self._now() - self._started >= self.assign_timeout
+
+
 class BatchProcessor:
     def __init__(
         self,
@@ -125,9 +170,12 @@ class BatchProcessor:
         consumer: Any,
         metrics: Metrics,
         now_ms: Callable[[], int] = lambda: time.time_ns() // 1_000_000,
+        canonical_topic: str = CANONICAL_TOPIC,
+        dlq_topic: str = DLQ_TOPIC,
     ) -> None:
         self.cfg, self.serialize, self.producer = cfg, serialize, producer
         self.consumer, self.metrics, self.now_ms = consumer, metrics, now_ms
+        self.canonical_topic, self.dlq_topic = canonical_topic, dlq_topic
 
     def _produce(self, topic: str, key: bytes | None, value: bytes, on_delivery: Callable) -> None:
         while True:
@@ -168,13 +216,13 @@ class BatchProcessor:
                     msg.offset(),
                     self.cfg.mapping_version,
                 )
-                self._produce(DLQ_TOPIC, msg.key(), json.dumps(record).encode(), on_delivery)
+                self._produce(self.dlq_topic, msg.key(), json.dumps(record).encode(), on_delivery)
                 dlq[mapped.code] += 1
             else:
                 mapped["replay_emit_ts_ms"] = parse_emit_header(msg.headers())
                 mapped["connector_ts_ms"] = self.now_ms()
                 self._produce(
-                    CANONICAL_TOPIC,
+                    self.canonical_topic,
                     mapped["sender_key"].encode(),
                     self.serialize(mapped),
                     on_delivery,
@@ -210,6 +258,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--brokers", default=BROKERS)
     parser.add_argument("--registry", default=SCHEMA_REGISTRY)
     parser.add_argument("--group", help="default connector-<bank>")
+    parser.add_argument("--topic-prefix", default="", help="scratch topics (tests, benchmarks)")
     parser.add_argument("--batch-size", type=int, default=2000)
     parser.add_argument("--poll-timeout", type=float, default=1.0)
     parser.add_argument("--idle-exit", type=float, default=0.0, help="seconds quiet before exiting")
@@ -224,30 +273,52 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     from stream.connectors import registry
 
+    group = args.group or f"{args.topic_prefix}connector-{args.bank.lower()}"
     path = args.config or ROOT / "connectors" / "banks" / f"bank_{args.bank.lower()}.yaml"
     cfg = load_config(path)
     registry.register_canonical(args.registry)
     serializer = AvroSerializer(
         registry.client(args.registry),
         registry.canonical_schema().schema_str,
-        conf={"auto.register.schemas": False},
+        conf={
+            "auto.register.schemas": False,
+            # one subject whatever the topic is called (scratch topics share the contract)
+            "subject.name.strategy": lambda ctx, record_name: registry.SUBJECT,
+        },
     )
-    context = SerializationContext(CANONICAL_TOPIC, MessageField.VALUE)
+    canonical_topic = args.topic_prefix + CANONICAL_TOPIC
+    context = SerializationContext(canonical_topic, MessageField.VALUE)
     consumer = Consumer(
         {
             "bootstrap.servers": args.brokers,
-            "group.id": args.group or f"connector-{args.bank.lower()}",
+            "group.id": group,
             "enable.auto.commit": False,
             "auto.offset.reset": "earliest",
         }
     )
-    consumer.subscribe([cfg.topic])
+    idle = IdleClock(args.idle_exit)
+
+    def on_assign(_consumer: Any, partitions: list[Any]) -> None:
+        idle.assigned()
+        log(
+            "assigned",
+            topic=args.topic_prefix + cfg.topic,
+            partitions=[p.partition for p in partitions],
+        )
+
+    consumer.subscribe([args.topic_prefix + cfg.topic], on_assign=on_assign)
     producer = Producer({"bootstrap.servers": args.brokers, **PRODUCER_CONFIG})
     metrics = Metrics(args.bank)
     if args.metrics_port:
         start_http_server(args.metrics_port)
     processor = BatchProcessor(
-        cfg, lambda record: serializer(record, context), producer, consumer, metrics
+        cfg,
+        lambda record: serializer(record, context),
+        producer,
+        consumer,
+        metrics,
+        canonical_topic=canonical_topic,
+        dlq_topic=args.topic_prefix + DLQ_TOPIC,
     )
 
     stop = False
@@ -261,18 +332,20 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     totals = BatchResult()
     dlq_totals: TallyCounter[str] = TallyCounter()
-    started = last_activity = time.monotonic()
+    started = time.monotonic()
     try:
         while not stop:
             batch = consumer.consume(num_messages=args.batch_size, timeout=args.poll_timeout)
             if batch:
-                last_activity = time.monotonic()
+                idle.activity()
                 res = processor.process(batch)
                 totals.records_in += res.records_in
                 totals.records_out += res.records_out
                 dlq_totals.update(res.dlq)
-            elif args.idle_exit and time.monotonic() - last_activity >= args.idle_exit:
+            elif idle.expired():
                 break
+            elif idle.assignment_overdue():
+                raise RuntimeError(f"no partitions assigned after {idle.assign_timeout:.0f}s")
     finally:
         consumer.close()
     seconds = time.monotonic() - started
@@ -293,7 +366,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "dlq": dict(dlq_totals),
                 "seconds": round(seconds, 3),
                 "config": {
-                    "group": args.group or f"connector-{args.bank.lower()}",
+                    "group": group,
                     "batch_size": args.batch_size,
                     "idle_exit": args.idle_exit,
                     "serializer": "confluent_kafka AvroSerializer",
