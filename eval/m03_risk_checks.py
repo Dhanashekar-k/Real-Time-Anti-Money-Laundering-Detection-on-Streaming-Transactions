@@ -171,13 +171,19 @@ def canonical_records(ds: str, n: int) -> list[dict[str, Any]]:
     return out
 
 
+def _swap() -> str:
+    """`sysctl vm.swapusage` (macOS), as text: the Mac's swap use when the checks started."""
+    out = subprocess.run(["sysctl", "-n", "vm.swapusage"], capture_output=True, text=True)
+    return out.stdout.strip()
+
+
 def _timed(fn: Any) -> float:
     started = time.perf_counter()
     fn()
     return time.perf_counter() - started
 
 
-def avro_produce(ds: str, n: int, delete_topic: bool) -> dict[str, Any]:
+def avro_produce(ds: str, n: int, delete_topic: bool, repeats: int) -> dict[str, Any]:
     records = canonical_records(ds, n)
     if len(records) < n:
         raise RuntimeError(f"only {len(records)} rows available, wanted {n}")
@@ -249,7 +255,15 @@ def avro_produce(ds: str, n: int, delete_topic: bool) -> dict[str, Any]:
             producer.poll(0)
         producer.flush()
 
-    produce_s = _timed(produce_all)
+    # Produce time swung by about 10x between runs on this machine (swap in use), so it is run
+    # `repeats` times and every run is kept; none is picked.
+    produce_runs: list[float] = []
+    delivered_per_run: list[int] = []
+    for _ in range(repeats):
+        delivered = 0
+        produce_runs.append(_timed(produce_all))
+        delivered_per_run.append(delivered)
+    produce_s = sorted(produce_runs)[len(produce_runs) // 2]  # the median run
 
     registry.delete_subject(subject)  # soft delete, then permanent
     registry.delete_subject(subject, permanent=True)
@@ -274,7 +288,10 @@ def avro_produce(ds: str, n: int, delete_topic: bool) -> dict[str, Any]:
         "framed_bytes_equal_to_confluent_on_first_1000": bytes_equal,
         "avro_message_bytes_mean": round(sum(len(v) for _, v in payloads) / n, 1),
         "produce": per_record(produce_s),
-        "produce_delivered": delivered,
+        "produce_runs_seconds": [round(x, 3) for x in produce_runs],
+        "produce_runs_microseconds_per_record": [round(x / n * 1e6, 2) for x in produce_runs],
+        "produce_note": "'produce' is the median run; all runs are listed",
+        "produce_delivered_per_run": delivered_per_run,
         "produce_errors": errors[:5],
         "producer_config": {
             "enable.idempotence": True,
@@ -298,6 +315,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--ds", default="hi_small")
     parser.add_argument("--records", type=int, default=100_000)
+    parser.add_argument("--produce-repeats", type=int, default=5)
     parser.add_argument("--delete-topic", action="store_true")
     parser.add_argument("--out", type=Path)
     args = parser.parse_args(argv)
@@ -306,9 +324,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     doc = {
         "dataset": args.ds,
         "check": "M03 risk checks 1 and 2 (pre-implementation microbenchmarks)",
-        "machine": {"platform": platform.platform(), "python": platform.python_version()},
+        "machine": {
+            "platform": platform.platform(),
+            "python": platform.python_version(),
+            "swap_before": _swap(),
+            "load_average_1m": os.getloadavg()[0],
+        },
         "scan_order": [scan_order(args.ds, 1), scan_order(args.ds, 3)],
-        "avro_produce": avro_produce(args.ds, args.records, args.delete_topic),
+        "avro_produce": avro_produce(
+            args.ds, args.records, args.delete_topic, args.produce_repeats
+        ),
         **common.provenance(),
     }
     common.write_json(out, doc)
