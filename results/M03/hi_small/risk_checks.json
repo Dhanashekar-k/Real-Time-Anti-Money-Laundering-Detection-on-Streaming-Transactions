@@ -1,0 +1,104 @@
+{
+  "avro_produce": {
+    "avro_confluent_serializer": {
+      "microseconds_per_record": 4.97,
+      "records_per_second": 201056,
+      "seconds_total": 0.497
+    },
+    "avro_fastavro_schemaless_framed": {
+      "microseconds_per_record": 3.63,
+      "records_per_second": 275860,
+      "seconds_total": 0.363
+    },
+    "avro_message_bytes_mean": 133.9,
+    "framed_bytes_equal_to_confluent_on_first_1000": true,
+    "not_measured": "parse+map stage (the engine does not exist yet): the largest stage overall is decided from ingest_bench.json",
+    "produce": {
+      "microseconds_per_record": 0.67,
+      "records_per_second": 1494986,
+      "seconds_total": 0.067
+    },
+    "produce_delivered_per_run": [
+      100000,
+      100000,
+      100000,
+      100000,
+      100000
+    ],
+    "produce_errors": [],
+    "produce_note": "'produce' is the median run; all runs are listed",
+    "produce_runs_microseconds_per_record": [
+      61.2,
+      0.67,
+      0.66,
+      0.65,
+      0.68
+    ],
+    "produce_runs_seconds": [
+      6.12,
+      0.067,
+      0.066,
+      0.065,
+      0.068
+    ],
+    "producer_config": {
+      "acks": "all",
+      "batch.size": 262144,
+      "compression.type": "zstd",
+      "enable.idempotence": true,
+      "linger.ms": 5,
+      "partitions": 6
+    },
+    "records": 100000,
+    "scratch_subject_deleted_permanently": true,
+    "scratch_topic": "scratch.m03.risk2",
+    "scratch_topic_deleted": true
+  },
+  "check": "M03 risk checks 1 and 2 (pre-implementation microbenchmarks)",
+  "dataset": "hi_small",
+  "git_dirty": false,
+  "git_sha": "064110a8f53fc56e02494fd7bdc32b0bea4d6bb4",
+  "machine": {
+    "load_average_1m": 1.4541015625,
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "python": "3.11.15",
+    "swap_before": "total = 8192.00M  used = 7111.69M  free = 1080.31M  (encrypted)"
+  },
+  "scan_order": [
+    {
+      "arrow_batches": 11,
+      "data_files_planned": 4,
+      "days": 1,
+      "distinct_tx_id": 1114921,
+      "event_ts_backsteps_after_sort": 0,
+      "event_ts_backsteps_in_scan_order": 0,
+      "range_ms": [
+        1661990400000,
+        1662076800000
+      ],
+      "rows": 1114921,
+      "rows_per_second": 12903351,
+      "scan_seconds": 0.086,
+      "tx_id_not_increasing_after_sort": 0,
+      "tx_id_not_increasing_in_scan_order": 0
+    },
+    {
+      "arrow_batches": 22,
+      "data_files_planned": 9,
+      "days": 3,
+      "distinct_tx_id": 2076752,
+      "event_ts_backsteps_after_sort": 0,
+      "event_ts_backsteps_in_scan_order": 1,
+      "range_ms": [
+        1661990400000,
+        1662249600000
+      ],
+      "rows": 2076752,
+      "rows_per_second": 14758451,
+      "scan_seconds": 0.141,
+      "tx_id_not_increasing_after_sort": 0,
+      "tx_id_not_increasing_in_scan_order": 1
+    }
+  ],
+  "timestamp": "2026-11-23T04:47:03+00:00"
+}
