@@ -32,7 +32,7 @@ from confluent_kafka.serialization import MessageField, SerializationContext
 from batch.spark import common
 from stream.connectors import registry
 from stream.replayer import render
-from stream.settings import BROKERS, SCHEMA_REGISTRY
+from stream.settings import BROKERS, CLIENT_CONFIG, SCHEMA_REGISTRY
 
 pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
@@ -64,7 +64,7 @@ def scratch() -> Any:
         f"{prefix}tx.canonical": 12,
         f"{prefix}tx.dlq": 1,
     }
-    admin = AdminClient({"bootstrap.servers": BROKERS})
+    admin = AdminClient({"bootstrap.servers": BROKERS, **CLIENT_CONFIG})
     new = [NewTopic(t, num_partitions=n, replication_factor=1) for t, n in topics.items()]
     for future in admin.create_topics(new).values():
         future.result(timeout=30)
@@ -85,6 +85,7 @@ def read_topic(topic: str, handle: Callable[[Any], None]) -> int:
     consumer = Consumer(
         {
             "bootstrap.servers": BROKERS,
+            **CLIENT_CONFIG,
             "group.id": f"verify-{topic}-{time.time_ns()}",
             "enable.auto.commit": False,
             "enable.partition.eof": True,
@@ -324,7 +325,7 @@ def test_bad_records_reach_the_dlq_with_reasons(scratch: str, tmp_path: Path) ->
         b'{"transactionId":8,"bookedAt":1661991600000}',
         json.dumps(unknown_method).encode(),
     ]
-    producer = Producer({"bootstrap.servers": BROKERS})
+    producer = Producer({"bootstrap.servers": BROKERS, **CLIENT_CONFIG})
     for value in inputs:
         producer.produce(f"{prefix}bank_b.raw", value=value, key=b"k")
     producer.flush(30)

@@ -32,7 +32,7 @@ import pyarrow.compute as pc
 
 from stream.replayer import render
 from stream.replayer.columns import SELECTED_FIELDS
-from stream.settings import BROKERS, PRODUCER_CONFIG
+from stream.settings import BROKERS, CLIENT_CONFIG, PRODUCER_CONFIG
 
 TOPICS = {"A": "bank_a.raw", "B": "bank_b.raw"}
 DAY_MS = 86_400_000
@@ -197,7 +197,9 @@ class KafkaSink:
     def __init__(self, brokers: str) -> None:
         from confluent_kafka import Producer
 
-        self._producer = Producer({"bootstrap.servers": brokers, **PRODUCER_CONFIG})
+        self._producer = Producer(
+            {"bootstrap.servers": brokers, **CLIENT_CONFIG, **PRODUCER_CONFIG}
+        )
         self.delivered = 0
         self.errors: list[str] = []
 

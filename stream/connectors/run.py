@@ -32,7 +32,14 @@ from confluent_kafka import KafkaError, TopicPartition
 from prometheus_client import REGISTRY, CollectorRegistry, Counter, Histogram
 
 from stream.connectors.engine import BankConfig, MappingError, load_config, map_record
-from stream.settings import BROKERS, CANONICAL_TOPIC, DLQ_TOPIC, PRODUCER_CONFIG, SCHEMA_REGISTRY
+from stream.settings import (
+    BROKERS,
+    CANONICAL_TOPIC,
+    CLIENT_CONFIG,
+    DLQ_TOPIC,
+    PRODUCER_CONFIG,
+    SCHEMA_REGISTRY,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 EMIT_HEADER = "replay_emit_ts_ms"
@@ -291,6 +298,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     consumer = Consumer(
         {
             "bootstrap.servers": args.brokers,
+            **CLIENT_CONFIG,
             "group.id": group,
             "enable.auto.commit": False,
             "auto.offset.reset": "earliest",
@@ -307,7 +315,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
 
     consumer.subscribe([args.topic_prefix + cfg.topic], on_assign=on_assign)
-    producer = Producer({"bootstrap.servers": args.brokers, **PRODUCER_CONFIG})
+    producer = Producer({"bootstrap.servers": args.brokers, **CLIENT_CONFIG, **PRODUCER_CONFIG})
     metrics = Metrics(args.bank)
     if args.metrics_port:
         start_http_server(args.metrics_port)
@@ -333,12 +341,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     totals = BatchResult()
     dlq_totals: TallyCounter[str] = TallyCounter()
     started = time.monotonic()
+    first_batch_at = last_batch_done = 0.0
     try:
         while not stop:
             batch = consumer.consume(num_messages=args.batch_size, timeout=args.poll_timeout)
             if batch:
                 idle.activity()
+                first_batch_at = first_batch_at or time.monotonic()
                 res = processor.process(batch)
+                last_batch_done = time.monotonic()
                 totals.records_in += res.records_in
                 totals.records_out += res.records_out
                 dlq_totals.update(res.dlq)
@@ -349,6 +360,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     finally:
         consumer.close()
     seconds = time.monotonic() - started
+    # first batch started to last batch committed: the time the connector was working, without the
+    # group join before it and the idle wait after it
+    active = last_batch_done - first_batch_at if first_batch_at else 0.0
     print(
         f"connector {args.bank}: in={totals.records_in} out={totals.records_out} "
         f"dlq={dict(dlq_totals)} in {seconds:.1f}s"
@@ -365,6 +379,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "records_out": totals.records_out,
                 "dlq": dict(dlq_totals),
                 "seconds": round(seconds, 3),
+                "active_seconds": round(active, 3),
+                "records_per_second_active": round(totals.records_in / active, 1)
+                if active
+                else None,
                 "config": {
                     "group": group,
                     "batch_size": args.batch_size,

@@ -20,7 +20,7 @@ stub = @echo "make $@: not implemented yet (added in $(1))" >&2; exit 1
 .DEFAULT_GOAL := help
 
 .PHONY: help up up-all rebuild down ps logs nuke-local dirs bootstrap fmt lint tf-check test itest test-rls topics \
-	iceberg fx fx-freeze fx-check money-check eda split golden features rules train eval replay connectors onboard-check register-schemas connector-local \
+	iceberg fx fx-freeze fx-check money-check eda split golden features rules train eval replay connectors onboard-check register-schemas connector-local ingest-bench \
 	flink-build flink-deploy flink-stop parity restart-test apps latency-matrix seed-thresholds \
 	agent agent-eval api ui retrain airflow chaos reconcile drift-experiment results demo \
 	teardown-check cloud-bootstrap cloud-up cloud-images cloud-deploy cloud-glue-run cloud-replay \
@@ -184,6 +184,12 @@ register-schemas: ## register contracts/canonical_tx.avsc as tx.canonical-value 
 connector-local: ## run one connector as a host process: make connector-local BANK=A [IDLE=10] (needs make up, make topics)
 	$(if $(BANK),,$(error BANK is required, e.g. make $@ BANK=A))
 	uv run python -m stream.connectors.run --bank $(BANK) $(if $(IDLE),--idle-exit $(IDLE)) $(if $(PREFIX),--topic-prefix $(PREFIX))
+
+ingest-bench: ## stage costs and msgs/s per connector process -> results/M03/<ds>/ingest_bench.json (needs make up, SSD)
+	$(require_ds)
+	$(ssd_check)
+	uv run python -m eval.run_measured --label ingest_bench --out results/M03/$(DS)/run_ingest_bench.json -- \
+		uv run python -m stream.connectors.bench --ds $(DS)
 
 onboard-check: ## dry-run a bank's mapping on a sample file, no Kafka: make onboard-check BANK=b SAMPLE=<file>
 	$(if $(BANK),,$(error BANK is required, e.g. make $@ BANK=b SAMPLE=tests/fixtures/bank_b_sample.jsonl))
