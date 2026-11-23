@@ -1,0 +1,14 @@
+# Allow-list: the app image's build context is the repository root (infra/compose/apps/Dockerfile),
+# and the root holds the venv, local state and results. Add a path here only when the Dockerfile
+# copies it. Images built from other contexts (mlflow/) are not affected.
+*
+!pyproject.toml
+!uv.lock
+!features
+!connectors
+!contracts/canonical_tx.avsc
+!stream/__init__.py
+!stream/settings.py
+!stream/connectors
+**/__pycache__
+**/*.pyc

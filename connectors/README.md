@@ -4,6 +4,14 @@ One YAML file per bank in `banks/`. The mapping engine (`stream/connectors/engin
 
 `tests/unit/test_engine_ops.py` pins everything below. A mistake in a file is a `ConfigError` at load, never a silent default: unknown keys, a reference to a field that comes later, an unknown value map, a bad regex or timezone.
 
+## Onboarding a bank
+
+1. Get a sample file of the bank's records (one per line) and write `banks/bank_<x>.yaml`, using the operations below.
+2. `make onboard-check BANK=<x> SAMPLE=<file>`: DLQ rate by code, per-field coverage, vocabulary the file does not know, unused columns, three mapped examples. Repeat until it exits 0.
+3. Create the bank's topic (`infra/compose/topics.sh`), add a connector service in `infra/compose/docker-compose.yml`, `make connectors`. No code changes.
+
+Anything the operations below cannot express is a code change to `stream/connectors/engine.py`; count it (M10 times this).
+
 ## File layout
 
 ```yaml

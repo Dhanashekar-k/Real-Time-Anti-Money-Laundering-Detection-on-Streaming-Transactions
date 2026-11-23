@@ -12,7 +12,10 @@ ssd_check = @test -d "$(AML_DATA_ROOT)" || { echo "SSD not mounted at $(AML_DATA
 
 COMPOSE      := docker compose -f infra/compose/docker-compose.yml
 PROFILES_UP  := --profile core --profile stream --profile ml
-PROFILES_ALL := $(PROFILES_UP) --profile orchestration --profile obs
+PROFILES_EXTRA := --profile orchestration --profile obs
+# `up-all` does not start the connectors (a stale image would run old code, and they need `make topics`);
+# `down`, `ps` and `logs` do see them.
+PROFILES_ALL := $(PROFILES_UP) $(PROFILES_EXTRA) --profile apps
 
 # Stub for a target a later milestone adds: fail loudly instead of passing silently.
 stub = @echo "make $@: not implemented yet (added in $(1))" >&2; exit 1
@@ -50,7 +53,7 @@ up: dirs $(MLFLOW_STAMP) ## start core + stream + ml and wait until healthy
 	$(COMPOSE) $(PROFILES_UP) up -d --wait
 
 up-all: dirs $(MLFLOW_STAMP) ## start everything, including Airflow, Prometheus and Grafana
-	$(COMPOSE) $(PROFILES_ALL) up -d --wait
+	$(COMPOSE) $(PROFILES_UP) $(PROFILES_EXTRA) up -d --wait
 
 down: ## stop all services (keeps volumes)
 	$(COMPOSE) $(PROFILES_ALL) down --remove-orphans
@@ -163,7 +166,6 @@ eval: ## final evaluation; reads the test split, so it needs FINAL=1 (logs the a
 	$(require_ds)
 	$(ssd_check)
 	uv run python -m eval.model_eval --ds $(DS) $(if $(filter 1,$(FINAL)),--final,)
-connectors: ; $(call stub,M3)  # compose apps profile, added with the app image (M3 step 9)
 
 # ------------------------------------------------------------------ ingestion (M03)
 # replay: lake rows -> two banks' records on bank_a.raw / bank_b.raw. Give a pace: SPEEDUP=1440 (a day
@@ -178,12 +180,15 @@ replay: ## replay the lake as the banks' native records (SPEEDUP= | RATE= | ASAP
 		$(if $(FROM),--from $(FROM)) $(if $(TO),--to $(TO)) $(if $(BANK),--bank $(BANK)) \
 		$(if $(filter 1,$(DRY)),--dry-run) $(if $(PREFIX),--topic-prefix $(PREFIX)) $(if $(RUN),--run $(RUN))
 
+connectors: ## start both connectors as compose services (run make up and make topics first; rebuilds the image)
+	$(COMPOSE) --profile core --profile apps up -d --build --wait connector-a connector-b
+
 register-schemas: ## register contracts/canonical_tx.avsc as tx.canonical-value (BACKWARD; idempotent; needs make up)
 	uv run python -m stream.connectors.registry register
 
-connector-local: ## run one connector as a host process: make connector-local BANK=A [IDLE=10] (needs make up, make topics)
+connector-local: ## one connector as a host process, own group local-connector-<bank>: make connector-local BANK=A [IDLE=10]
 	$(if $(BANK),,$(error BANK is required, e.g. make $@ BANK=A))
-	uv run python -m stream.connectors.run --bank $(BANK) $(if $(IDLE),--idle-exit $(IDLE)) $(if $(PREFIX),--topic-prefix $(PREFIX))
+	uv run python -m stream.connectors.run --bank $(BANK) --group $(PREFIX)local-connector-$(shell echo $(BANK) | tr A-Z a-z) $(if $(IDLE),--idle-exit $(IDLE)) $(if $(PREFIX),--topic-prefix $(PREFIX))
 
 ingest-bench: ## stage costs and msgs/s per connector process -> results/M03/<ds>/ingest_bench.json (needs make up, SSD)
 	$(require_ds)

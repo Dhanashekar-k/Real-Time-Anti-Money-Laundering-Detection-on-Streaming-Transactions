@@ -2212,6 +2212,13 @@ version = "0.1.0"
 source = { virtual = "." }
 
 [package.dev-dependencies]
+connector = [
+    { name = "confluent-kafka", extra = ["schemaregistry"] },
+    { name = "fastavro" },
+    { name = "prometheus-client" },
+    { name = "pyyaml" },
+    { name = "tzdata" },
+]
 core = [
     { name = "numpy" },
     { name = "pandas" },
@@ -2259,6 +2266,13 @@ svc = [
 [package.metadata]
 
 [package.metadata.requires-dev]
+connector = [
+    { name = "confluent-kafka", extras = ["schemaregistry"] },
+    { name = "fastavro" },
+    { name = "prometheus-client" },
+    { name = "pyyaml" },
+    { name = "tzdata" },
+]
 core = [
     { name = "numpy" },
     { name = "pandas" },

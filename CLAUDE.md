@@ -54,7 +54,7 @@ make topics                                          # create Kafka topics (idem
 make help                                            # list the implemented targets. Targets for later milestones are stubs that exit 1
 make fx DS= | fx-freeze DS= | iceberg DS=hi_small | eda DS= | split DS=   # M1 (fx = measure FX variance, fx-freeze = write fx_rates.yaml after review)
 make golden | features DS= | rules DS= | train DS= | eval DS= FINAL=1   # M2
-make replay DS= SPEEDUP= | connectors | onboard-check BANK= SAMPLE=      # M3
+make replay DS= SPEEDUP=|RATE=|ASAP=1 [FROM= TO= BANK= DRY=1] | connectors | connector-local BANK= | register-schemas | onboard-check BANK= SAMPLE= | ingest-bench DS=   # M3 (connectors = compose apps profile; run make up and make topics first)
 make flink-build | flink-deploy MODE=eos|alo CKPT=5s | flink-stop | parity DS= | restart-test   # M4
 make apps | latency-matrix | seed-thresholds   # M5 (test-rls already exists, see above)
 make agent | agent-eval                              # M6 (v2: cascade, tool-use, injection, hallucination blocks)

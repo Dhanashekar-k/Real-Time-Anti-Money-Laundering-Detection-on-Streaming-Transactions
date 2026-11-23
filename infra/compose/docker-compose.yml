@@ -148,6 +148,65 @@ services:
       retries: 20
       start_period: 10s
 
+  # ------------------------------------------------------------------ apps
+  # The M3 connectors, one per bank (`make connectors`; needs core and `make topics`). Same image,
+  # built from the repository root (see apps/Dockerfile). A delivery failure stops the process and
+  # compose restarts it (at most 5 times): the batch is read again, so duplicates are possible
+  # (at-least-once). Stop the compose connectors before `make connector-local` or `make ingest-bench`.
+  connector-a:
+    build:
+      context: ../..
+      dockerfile: infra/compose/apps/Dockerfile
+    image: stream-aml/apps:local
+    profiles: [apps]
+    command: ["python", "-m", "stream.connectors.run", "--bank", "A", "--metrics-port", "8000"]
+    environment:
+      AML_KAFKA_BROKERS: redpanda:9092
+      AML_SCHEMA_REGISTRY: http://redpanda:8081
+    ports:
+      - "127.0.0.1:18101:8000" # Prometheus metrics
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    restart: on-failure:5 # a poison batch must not loop forever re-publishing duplicates
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u; u.urlopen('http://localhost:8000/metrics', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+
+  connector-b:
+    build:
+      context: ../..
+      dockerfile: infra/compose/apps/Dockerfile
+    image: stream-aml/apps:local
+    profiles: [apps]
+    command: ["python", "-m", "stream.connectors.run", "--bank", "B", "--metrics-port", "8000"]
+    environment:
+      AML_KAFKA_BROKERS: redpanda:9092
+      AML_SCHEMA_REGISTRY: http://redpanda:8081
+    ports:
+      - "127.0.0.1:18102:8000"
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    restart: on-failure:5 # a poison batch must not loop forever re-publishing duplicates
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u; u.urlopen('http://localhost:8000/metrics', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+
   # -------------------------------------------------------------------- ml
   mlflow:
     # Official image + psycopg2 (the official image has no Postgres driver). See mlflow/Dockerfile.

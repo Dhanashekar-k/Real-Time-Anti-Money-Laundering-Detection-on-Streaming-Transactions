@@ -11,4 +11,10 @@ scrape_configs:
     static_configs:
       - targets: ["redpanda:9644"]
 
+  # The M3 connectors (apps profile). Metric names: records_in_total, records_out_total,
+  # dlq_total{error_code}, batch_latency_seconds, each with a `bank` label.
+  - job_name: connectors
+    static_configs:
+      - targets: ["connector-a:8000", "connector-b:8000"]
+
   # Flink (metrics reporter, M4/M8), scorer, alerts and the agent worker are added when they exist.

@@ -13,6 +13,8 @@ default-groups = ["core", "kafka", "lake", "spark", "ml", "svc", "dev"]
 [dependency-groups]
 core = ["pyyaml", "pydantic", "numpy", "pandas", "pyarrow"]
 kafka = ["confluent-kafka[schemaregistry]", "fastavro"]
+# What the connector image installs (infra/compose/apps/Dockerfile): no Spark, pandas or Iceberg.
+connector = ["pyyaml", "confluent-kafka[schemaregistry]", "fastavro", "prometheus-client", "tzdata"]
 lake = ["pyiceberg[sql-postgres,pyarrow]", "duckdb"]
 spark = ["pyspark==3.5.*"]
 ml = ["xgboost", "lightgbm", "scikit-learn", "mlflow>=3,<4"]
