@@ -163,7 +163,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "sha256": hashlib.sha256(sample_bytes).hexdigest(),
                 "bytes": len(sample_bytes),
             },
-            "config": str(path),
+            "dataset": "none (a sample file, not a lake table)",
+            "config": str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path),
             **common.provenance(),
         }
         common.write_json(args.json, record)

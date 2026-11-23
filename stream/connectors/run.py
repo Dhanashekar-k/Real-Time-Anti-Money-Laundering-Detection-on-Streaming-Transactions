@@ -47,6 +47,7 @@ FLUSH_TIMEOUT_S = 120.0
 # A DLQ record is the raw text escaped as JSON, which costs 1 to 12 bytes per character, and Kafka's
 # default message limit is 1,000,000 bytes: a record is cut until its encoded size is under this.
 MAX_DLQ_BYTES = 900_000
+MAX_DLQ_DETAIL_CHARS = 2_000  # engine details are already short; this bounds any other caller
 COMMIT_RETRYABLE = ("REBALANCE_IN_PROGRESS", "ILLEGAL_GENERATION", "UNKNOWN_MEMBER_ID")
 
 
@@ -136,6 +137,8 @@ def dlq_record(
 ) -> dict[str, Any]:
     """The JSON the DLQ carries. `raw` is the message text (non-UTF-8 bytes are escaped)."""
     text = (raw or b"").decode("utf-8", errors="backslashreplace")
+    if len(detail) > MAX_DLQ_DETAIL_CHARS:
+        detail = f"{detail[:MAX_DLQ_DETAIL_CHARS]} [detail cut from {len(detail)} characters]"
 
     def build(kept: str, note: str) -> dict[str, Any]:
         return {
@@ -154,7 +157,9 @@ def dlq_record(
     while size > MAX_DLQ_BYTES:
         # JSON escaping makes a character cost 1 to 12 bytes (an emoji is a 12-byte surrogate pair),
         # so the cut follows the size of the encoded record, not the number of characters
-        kept = int(kept * 0.8 * MAX_DLQ_BYTES / size)
+        # Terminates: `detail` is capped above, so with no raw text the record is far below the
+        # limit, and `kept` falls by at least one on every pass.
+        kept = max(0, min(kept - 1, int(kept * 0.8 * MAX_DLQ_BYTES / size)))
         note = f" [raw truncated: {len(raw or b'')} bytes, first {kept} characters kept]"
         record = build(text[:kept], note)
         size = len(json.dumps(record).encode())

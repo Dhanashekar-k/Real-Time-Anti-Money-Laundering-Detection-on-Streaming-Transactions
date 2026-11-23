@@ -218,7 +218,8 @@ def test_main_exits_one_when_records_fail_and_writes_json(
     assert doc["sample"]["sha256"] == hashlib.sha256(sample.read_bytes()).hexdigest()
     assert doc["sample"]["bytes"] == sample.stat().st_size
     assert len(doc["git_sha"]) == 40 and doc["timestamp"].endswith("+00:00")
-    assert doc["config"].endswith("connectors/banks/bank_b.yaml")
+    assert doc["config"] == "connectors/banks/bank_b.yaml"  # relative: no machine-local path
+    assert doc["dataset"].startswith("none")
 
 
 def test_main_exits_zero_for_a_clean_sample(tmp_path: Path) -> None:

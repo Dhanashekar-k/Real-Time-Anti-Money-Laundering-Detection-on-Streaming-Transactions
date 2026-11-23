@@ -585,3 +585,10 @@ def test_a_huge_timestamp_text_is_refused_without_being_cached() -> None:
     )
     out = run(cfg, "9" * 200_000)
     assert isinstance(out, MappingError) and out.code == "BAD_TIMESTAMP"
+
+
+def test_an_error_detail_never_carries_the_whole_offending_value() -> None:
+    cfg = json_cfg({"n": {"path": "n", "type": "long"}})
+    out = run(cfg, '{"n": [' + ",".join(["0"] * 100_000) + "]}")
+    assert isinstance(out, MappingError) and out.code == "BAD_NUMBER"
+    assert len(out.detail) <= 400 and out.value is not None and len(out.value) <= 80

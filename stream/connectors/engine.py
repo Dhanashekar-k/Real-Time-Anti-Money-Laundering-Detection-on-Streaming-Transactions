@@ -35,6 +35,7 @@ CanonicalTx = dict[str, Any]
 
 INT64_MAX = 2**63 - 1
 INT64_MIN = -(2**63)
+MAX_DETAIL_CHARS = 300  # an error detail is for a person, not a copy of the record
 _MAX_NUMBER_CHARS = 64  # a longer numeric text is refused before any parsing (no 10^5-digit DoS)
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 _MS = timedelta(milliseconds=1)
@@ -74,7 +75,10 @@ class _Fail(Exception):
     def __init__(self, code: str, detail: str, value: Any = None, field_name: str | None = None):
         super().__init__(detail)
         self.code = code
-        self.detail = detail
+        # a detail often quotes the offending value, and the value can be most of a 1 MB message
+        self.detail = (
+            detail if len(detail) <= MAX_DETAIL_CHARS else detail[:MAX_DETAIL_CHARS] + "..."
+        )
         self.value = None if value is None else str(value)[:80]
         self.field_name = field_name
 

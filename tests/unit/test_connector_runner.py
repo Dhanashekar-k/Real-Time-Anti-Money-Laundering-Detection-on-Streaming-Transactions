@@ -434,3 +434,55 @@ def test_no_dlq_record_can_exceed_a_kafka_message(payload: bytes, why: str) -> N
     whole = len(json.dumps(payload.decode("utf-8", errors="backslashreplace")).encode())
     # cut only when it would not fit; a message that fits is carried whole
     assert ("truncated" in record["error_detail"]) == (whole > 899_000), (why, whole)
+
+
+# --- the close-time review's blocker: a huge `detail` must not stall the batch --------------------
+
+
+def _within(seconds: float, fn: Any) -> Any:
+    """Run `fn` in a thread and fail instead of hanging the whole suite if it does not return."""
+    import threading
+
+    box: dict[str, Any] = {}
+    worker = threading.Thread(target=lambda: box.update(result=fn()), daemon=True)
+    worker.start()
+    worker.join(seconds)
+    assert not worker.is_alive(), f"did not finish within {seconds}s"
+    return box["result"]
+
+
+@pytest.mark.parametrize("detail_chars", [10_000, 1_000_000, 5_000_000])
+def test_a_huge_detail_is_cut_and_the_record_still_fits(detail_chars: int) -> None:
+    record = _within(
+        10,
+        lambda: dlq_record(
+            b"y" * 200_000, "BAD_NUMBER", "d" * detail_chars, "bank_b.raw", 0, 1, "b-1"
+        ),
+    )
+    assert len(json.dumps(record).encode()) <= 900_000
+    assert len(record["error_detail"]) < 3_000 and "cut" in record["error_detail"]
+    assert set(record) == {
+        "raw",
+        "error_code",
+        "error_detail",
+        "source_topic",
+        "partition",
+        "offset",
+        "mapping_version",
+    }
+
+
+def test_a_detail_made_of_emoji_is_cut_before_it_can_fill_a_message() -> None:
+    record = _within(
+        10, lambda: dlq_record(b"x", "BAD_NUMBER", "\U0001f600" * 200_000, "b", 0, 1, "b-1")
+    )
+    assert len(json.dumps(record).encode()) <= 900_000
+
+
+def test_a_bank_b_record_with_a_huge_list_for_its_id_reaches_the_dlq_not_a_stall() -> None:
+    raw = ('{"transactionId": [' + ",".join(["0"] * 400_000) + "]}").encode()  # 800 KB, under 1 MB
+    processor, _, producer, _ = make()
+    result = _within(20, lambda: processor.process([FakeMsg(raw, 5)]))
+    assert result.dlq == {"BAD_NUMBER": 1}
+    (topic, _, value) = producer.sent[0]
+    assert topic == "tx.dlq" and len(value) <= 900_000
