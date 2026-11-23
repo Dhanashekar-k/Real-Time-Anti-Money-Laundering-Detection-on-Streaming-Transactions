@@ -1,0 +1,31 @@
+{
+  "command": [
+    "uv",
+    "run",
+    "python",
+    "-m",
+    "stream.connectors.bench",
+    "--ds",
+    "hi_small"
+  ],
+  "git_dirty": false,
+  "git_sha": "33a571d70fb2234e4ad5e331d2ea9701271ec48e",
+  "label": "ingest_bench",
+  "note": "RSS summed over the process tree; shared pages are counted once per process",
+  "peak_process_tree_mb": {
+    "jvm_mb": 0.0,
+    "python_worker_max_mb": 1870.6,
+    "python_workers_mb": 1870.6,
+    "total_mb": 1900.5
+  },
+  "returncode": 0,
+  "samples": 136,
+  "seconds": 140.4,
+  "system": {
+    "swap_used_mb_before": 6427.0,
+    "swap_used_mb_peak": 6427.0,
+    "used_mb_before": 15231.5,
+    "used_mb_peak": 15935.5
+  },
+  "timestamp": "2026-11-23T06:52:24+00:00"
+}

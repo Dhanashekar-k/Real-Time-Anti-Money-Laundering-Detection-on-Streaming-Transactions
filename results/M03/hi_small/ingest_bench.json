@@ -1,0 +1,363 @@
+{
+  "check": "M03 ingest benchmark",
+  "config": {
+    "connector_batch_size": 2000,
+    "end_to_end_repeats": 3,
+    "processes": "host processes (not containers)",
+    "producer": {
+      "acks": "all",
+      "batch.size": 262144,
+      "compression.type": "zstd",
+      "enable.idempotence": true,
+      "linger.ms": 5
+    },
+    "scratch_topic_prefix": "bench1795416604.",
+    "serializer_in_use": "confluent_kafka AvroSerializer"
+  },
+  "dataset": "hi_small",
+  "end_to_end": {
+    "A": {
+      "max_records_per_second": 64587.8,
+      "median_records_per_second": 64415.3,
+      "microseconds_per_record_at_median": 15.524,
+      "min_records_per_second": 64373.2,
+      "runs": [
+        {
+          "active_seconds": 4.657,
+          "dlq": {},
+          "records_in": 300000,
+          "records_out": 300000,
+          "records_per_second_active": 64415.3
+        },
+        {
+          "active_seconds": 4.66,
+          "dlq": {},
+          "records_in": 300000,
+          "records_out": 300000,
+          "records_per_second_active": 64373.2
+        },
+        {
+          "active_seconds": 4.645,
+          "dlq": {},
+          "records_in": 300000,
+          "records_out": 300000,
+          "records_per_second_active": 64587.8
+        }
+      ]
+    },
+    "B": {
+      "max_records_per_second": 59620.6,
+      "median_records_per_second": 59532.8,
+      "microseconds_per_record_at_median": 16.797,
+      "min_records_per_second": 59441.7,
+      "runs": [
+        {
+          "active_seconds": 5.032,
+          "dlq": {},
+          "records_in": 300000,
+          "records_out": 300000,
+          "records_per_second_active": 59620.6
+        },
+        {
+          "active_seconds": 5.047,
+          "dlq": {},
+          "records_in": 300000,
+          "records_out": 300000,
+          "records_per_second_active": 59441.7
+        },
+        {
+          "active_seconds": 5.039,
+          "dlq": {},
+          "records_in": 300000,
+          "records_out": 300000,
+          "records_per_second_active": 59532.8
+        }
+      ]
+    }
+  },
+  "git_dirty": false,
+  "git_sha": "33a571d70fb2234e4ad5e331d2ea9701271ec48e",
+  "machine": {
+    "cpu_count": 12,
+    "load_average_1m": 2.68896484375,
+    "load_average_1m_after": 1.5,
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "python": "3.11.15",
+    "swap_after": "total = 7168.00M  used = 6395.00M  free = 773.00M  (encrypted)",
+    "swap_before": "total = 7168.00M  used = 6427.00M  free = 741.00M  (encrypted)"
+  },
+  "producer_startup_first_ack_ms": {
+    "default_address_family_ms": [
+      2010.5,
+      620.6,
+      846.5,
+      614.8,
+      508.6
+    ],
+    "ipv4_only_ms": [
+      510.3,
+      513.5,
+      505.6,
+      510.5,
+      509.0
+    ],
+    "median_ms": {
+      "default": 620.6,
+      "ipv4_only": 510.3
+    },
+    "order": "alternating, default first",
+    "trials_each": 5
+  },
+  "sample": {
+    "day": "2022-09-01",
+    "records_per_bank": 300000,
+    "stage_repeats": 5
+  },
+  "stages": {
+    "A": {
+      "avro": {
+        "max_us_per_record": 4.635,
+        "median_records_per_second": 216678.9,
+        "median_seconds": 1.3845,
+        "median_us_per_record": 4.615,
+        "min_us_per_record": 4.575,
+        "records": 300000,
+        "runs_seconds": [
+          1.3856,
+          1.3726,
+          1.3821,
+          1.3905,
+          1.3845
+        ],
+        "runs_us_per_record": [
+          4.619,
+          4.575,
+          4.607,
+          4.635,
+          4.615
+        ]
+      },
+      "avro_fastavro_for_comparison": {
+        "max_us_per_record": 3.749,
+        "median_records_per_second": 270070.8,
+        "median_seconds": 1.1108,
+        "median_us_per_record": 3.703,
+        "min_us_per_record": 3.69,
+        "records": 300000,
+        "runs_seconds": [
+          1.107,
+          1.1086,
+          1.1246,
+          1.117,
+          1.1108
+        ],
+        "runs_us_per_record": [
+          3.69,
+          3.695,
+          3.749,
+          3.723,
+          3.703
+        ]
+      },
+      "consume": {
+        "max_us_per_record": 3.902,
+        "median_records_per_second": 2392203.8,
+        "median_seconds": 0.1254,
+        "median_us_per_record": 0.418,
+        "min_us_per_record": 0.41,
+        "records": 300000,
+        "runs_seconds": [
+          1.1693,
+          0.1249,
+          0.1254,
+          1.1706,
+          0.123
+        ],
+        "runs_us_per_record": [
+          3.898,
+          0.416,
+          0.418,
+          3.902,
+          0.41
+        ]
+      },
+      "largest_stage_by_median": "map",
+      "map": {
+        "max_us_per_record": 7.371,
+        "median_records_per_second": 136268.3,
+        "median_seconds": 2.2015,
+        "median_us_per_record": 7.338,
+        "min_us_per_record": 7.279,
+        "records": 300000,
+        "runs_seconds": [
+          2.1838,
+          2.2015,
+          2.2034,
+          2.199,
+          2.2112
+        ],
+        "runs_us_per_record": [
+          7.279,
+          7.338,
+          7.345,
+          7.33,
+          7.371
+        ]
+      },
+      "produce": {
+        "delivery_errors_per_run": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "max_us_per_record": 2.331,
+        "median_records_per_second": 437100.5,
+        "median_seconds": 0.6863,
+        "median_us_per_record": 2.288,
+        "min_us_per_record": 2.231,
+        "note": "each run starts a new producer, so every run includes its warm-up (D53)",
+        "records": 300000,
+        "runs_seconds": [
+          0.6953,
+          0.6693,
+          0.6993,
+          0.6863,
+          0.6839
+        ],
+        "runs_us_per_record": [
+          2.318,
+          2.231,
+          2.331,
+          2.288,
+          2.28
+        ]
+      },
+      "sum_of_stage_medians_us_per_record": 14.659
+    },
+    "B": {
+      "avro": {
+        "max_us_per_record": 4.661,
+        "median_records_per_second": 216185.2,
+        "median_seconds": 1.3877,
+        "median_us_per_record": 4.626,
+        "min_us_per_record": 4.592,
+        "records": 300000,
+        "runs_seconds": [
+          1.3984,
+          1.3777,
+          1.3877,
+          1.3896,
+          1.3855
+        ],
+        "runs_us_per_record": [
+          4.661,
+          4.592,
+          4.626,
+          4.632,
+          4.618
+        ]
+      },
+      "avro_fastavro_for_comparison": {
+        "max_us_per_record": 3.759,
+        "median_records_per_second": 267669.8,
+        "median_seconds": 1.1208,
+        "median_us_per_record": 3.736,
+        "min_us_per_record": 3.726,
+        "records": 300000,
+        "runs_seconds": [
+          1.1179,
+          1.1208,
+          1.1278,
+          1.1201,
+          1.1251
+        ],
+        "runs_us_per_record": [
+          3.726,
+          3.736,
+          3.759,
+          3.734,
+          3.75
+        ]
+      },
+      "consume": {
+        "max_us_per_record": 7.304,
+        "median_records_per_second": 1792193.2,
+        "median_seconds": 0.1674,
+        "median_us_per_record": 0.558,
+        "min_us_per_record": 0.478,
+        "records": 300000,
+        "runs_seconds": [
+          2.1913,
+          0.1464,
+          0.1674,
+          0.1755,
+          0.1434
+        ],
+        "runs_us_per_record": [
+          7.304,
+          0.488,
+          0.558,
+          0.585,
+          0.478
+        ]
+      },
+      "largest_stage_by_median": "map",
+      "map": {
+        "max_us_per_record": 8.592,
+        "median_records_per_second": 117273.8,
+        "median_seconds": 2.5581,
+        "median_us_per_record": 8.527,
+        "min_us_per_record": 8.355,
+        "records": 300000,
+        "runs_seconds": [
+          2.5066,
+          2.5776,
+          2.5581,
+          2.5424,
+          2.5582
+        ],
+        "runs_us_per_record": [
+          8.355,
+          8.592,
+          8.527,
+          8.475,
+          8.527
+        ]
+      },
+      "produce": {
+        "delivery_errors_per_run": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "max_us_per_record": 2.31,
+        "median_records_per_second": 435373.9,
+        "median_seconds": 0.6891,
+        "median_us_per_record": 2.297,
+        "min_us_per_record": 2.289,
+        "note": "each run starts a new producer, so every run includes its warm-up (D53)",
+        "records": 300000,
+        "runs_seconds": [
+          0.6931,
+          0.6891,
+          0.6872,
+          0.6931,
+          0.6867
+        ],
+        "runs_us_per_record": [
+          2.31,
+          2.297,
+          2.291,
+          2.31,
+          2.289
+        ]
+      },
+      "sum_of_stage_medians_us_per_record": 16.008
+    }
+  },
+  "timestamp": "2026-11-23T06:52:24+00:00"
+}
